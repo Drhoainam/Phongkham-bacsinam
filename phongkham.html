@@ -149,7 +149,8 @@ textarea{resize:vertical;min-height:68px}
 <body>
 <header>
   <div class="logo"><div class="logo-dot"></div>PhòngKhám <span style="color:var(--tx2);font-family:'Be Vietnam Pro';font-weight:300;font-size:.93rem"> — BS. Hoài Nam</span></div>
-  <div style="display:flex;align-items:center;gap:14px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="btn-s" onclick="showStats()" style="width:auto;padding:6px 14px;font-size:.78rem">📊 Thống kê</button>
     <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Đang kết nối...</span></div>
     <div style="font-size:.76rem;color:var(--tx2)" id="hd"></div>
   </div>
@@ -159,7 +160,7 @@ textarea{resize:vertical;min-height:68px}
     <div class="sb-top">
       <input class="search" id="sq" placeholder="🔍  Tìm bệnh nhân..." oninput="filterPt()">
       <button class="btn-add" onclick="openNewPt()">＋ Thêm bệnh nhân mới</button>
-      <button class="btn-s" onclick="showStats()">📊 Thống kê theo ngày</button>
+
     </div>
     <div class="pt-list" id="ptList"><div style="text-align:center;padding:30px;color:var(--tx3);font-size:.81rem">Đang tải...</div></div>
   </div>
@@ -658,21 +659,50 @@ function delPt(id){
 async function genQR(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
-  const qrId='qr_'+p.id.replace('bn_','')+'_'+Date.now();
+
+  // Tạo short ID 8 ký tự để URL ngắn nhất có thể
+  const shortId = Math.random().toString(36).substring(2,10);
+
   const data={
-    name:p.name,gender:p.gender,year:p.year,
-    diag:lv?lv.diag:'',pulse:lv?lv.pulse:'',bp:lv?lv.bp:'',
-    date:lv?lv.date:'',type:lv?lv.type:'',
+    name:p.name, gender:p.gender, year:p.year,
+    diag:lv?lv.diag:'', pulse:lv?lv.pulse:'', bp:lv?lv.bp:'',
+    date:lv?lv.date:'', type:lv?lv.type:'',
     meds:lv?lv.meds:[],
-    nextVisit:p.nextVisit,nextVisitTime:p.nextVisitTime,
-    note:lv?lv.note:'',clinic:'Phòng khám Bác sĩ Nam',
-    createdAt:new Date().toISOString()
+    nextVisit:p.nextVisit, nextVisitTime:p.nextVisitTime,
+    note:lv?lv.note:'', clinic:'PK Bác sĩ Nam',
+    ts: Date.now()
   };
-  await fbSaveQR(qrId, data);
-  const url='https://phongkham-bacsinam.vercel.app/don-thuoc.html?id='+qrId;
-  document.getElementById('qrInfo').innerHTML=`<strong>Bệnh nhân:</strong> ${p.name}<br><strong>Chẩn đoán:</strong> ${lv?lv.diag:'Chưa có'}<br><strong>Số thuốc:</strong> ${lv&&lv.meds?lv.meds.length:0} loại<br><strong>Tái khám:</strong> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}`;
-  const qd=document.getElementById('qrcode'); qd.innerHTML='';
-  new QRCode(qd,{text:url,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
+
+  // Lưu Firebase
+  await fbSaveQR(shortId, data);
+
+  // URL cực ngắn
+  const url = 'https://phongkham-bacsinam.vercel.app/don-thuoc.html?id=' + shortId;
+
+  document.getElementById('qrInfo').innerHTML =
+    `<strong>Bệnh nhân:</strong> ${p.name}<br>` +
+    `<strong>Chẩn đoán:</strong> ${lv?lv.diag:'Chưa có'}<br>` +
+    `<strong>Số thuốc:</strong> ${lv&&lv.meds?lv.meds.length:0} loại<br>` +
+    `<strong>Tái khám:</strong> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}` +
+    `<br><span style="font-size:.7rem;color:var(--ac2)">🔗 ${url}</span>`;
+
+  // Xóa QR cũ và tạo mới
+  const qd = document.getElementById('qrcode');
+  qd.innerHTML = '';
+
+  // Dùng correctLevel L (thấp nhất) để mã đơn giản, dễ quét nhất
+  // Màu đen tuyệt đối trên nền trắng
+  setTimeout(()=>{
+    new QRCode(qd, {
+      text: url,
+      width: 256,
+      height: 256,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.L
+    });
+  }, 100);
+
   document.getElementById('moQR').classList.add('show');
 }
 
@@ -767,27 +797,130 @@ function renderStats(){
   const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
   const nProc=rows.filter(v=>v.proc).length;
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:16px">
-      <div class="sc"><div class="sv" style="color:var(--ac2)">${rows.length}</div><div class="sl">Lượt khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac);font-size:1.1rem">${tot.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng thu</div></div>
-      ${totK?`<div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${totK.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền khám</div></div>`:''}
-      ${totT?`<div class="sc"><div class="sv" style="color:var(--ac2);font-size:1rem">${totT.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền thuốc</div></div>`:''}
-      ${totP?`<div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${totP.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật (${nProc} ca)</div></div>`:''}
+    <!-- Tóm tắt -->
+    <div style="background:rgba(46,160,67,.08);border:1px solid rgba(46,160,67,.25);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="font-size:.82rem;color:var(--tx2)">
+        Ngày <strong style="color:var(--tx)">${date}</strong> &nbsp;·&nbsp;
+        Tổng <strong style="color:var(--ac2)">${rows.length} lượt khám</strong>
+        ${nProc?' &nbsp;·&nbsp; <strong style="color:var(--da)">'+nProc+' ca thủ thuật</strong>':''}
+      </div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--ac)">💰 ${tot.toLocaleString('vi-VN')}đ</div>
     </div>
-    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:8px">Danh sách bệnh nhân</div>
-    ${rows.map((v,i)=>`
-      <div style="background:var(--su2);border:1px solid var(--bo);border-radius:9px;padding:11px 13px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:flex-start;gap:9px">
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:.87rem">${i+1}. ${v.ptName}</div>
-          <div style="font-size:.75rem;color:var(--tx2);margin-top:2px">${v.type} · ${v.diag||'Chưa ghi'}</div>
-          ${v.proc?`<div style="font-size:.72rem;color:var(--da);margin-top:2px">🔪 ${v.proc}</div>`:''}
-          ${v.ptPhone?`<div style="font-size:.71rem;color:var(--tx3)">📱 ${v.ptPhone}</div>`:''}
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          ${v.ftot?`<div style="font-weight:700;color:var(--ac);font-size:.9rem">${v.ftot.toLocaleString('vi-VN')}đ</div>`:'<div style="color:var(--tx3);font-size:.77rem">Chưa thu</div>'}
-          ${v.f1||v.f2||v.f3?`<div style="font-size:.69rem;color:var(--tx3);margin-top:2px">${[v.f1?'K:'+v.f1.toLocaleString('vi-VN'):'',v.f2?'T:'+v.f2.toLocaleString('vi-VN'):'',v.f3?'TT:'+v.f3.toLocaleString('vi-VN'):''].filter(Boolean).join(' · ')}</div>`:''}
-        </div>
-      </div>`).join('')}`;
+
+    <!-- Bảng chính -->
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.79rem">
+      <thead>
+        <tr style="background:var(--su2)">
+          <th style="padding:8px 10px;text-align:center;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:4%">#</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:18%">Bệnh nhân</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:12%">SĐT</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Loại khám</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:24%">Chẩn đoán / Thủ thuật</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Tiền khám</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Tiền thuốc</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Thủ thuật</th>
+          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac);font-size:.7rem;width:12%">Tổng thu</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((v,i)=>`
+          <tr style="background:${i%2===0?'var(--bg)':'var(--su2)'}">
+            <td style="padding:8px 10px;text-align:center;border:1px solid var(--bo);color:var(--tx3)">${i+1}</td>
+            <td style="padding:8px 10px;border:1px solid var(--bo);font-weight:600">${v.ptName}</td>
+            <td style="padding:8px 10px;border:1px solid var(--bo);color:var(--tx2)">${v.ptPhone||'—'}</td>
+            <td style="padding:8px 10px;border:1px solid var(--bo);color:var(--tx2)">${v.type||'—'}</td>
+            <td style="padding:8px 10px;border:1px solid var(--bo)">
+              <div style="color:var(--tx)">${v.diag||'—'}</div>
+              ${v.proc?`<div style="color:var(--da);font-size:.72rem;margin-top:2px">🔪 ${v.proc}</div>`:''}
+            </td>
+            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac)">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac2)">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--da)">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac)">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'<span style="color:var(--tx3);font-weight:400">Chưa thu</span>'}</td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="background:rgba(46,160,67,.1)">
+          <td colspan="5" style="padding:8px 10px;border:1px solid var(--bo);font-weight:700;color:var(--tx)">TỔNG CỘNG (${rows.length} lượt)</td>
+          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac)">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac2)">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--da)">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;font-size:.9rem;color:var(--ac)">${tot.toLocaleString('vi-VN')}đ</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+
+    <!-- Nút xuất -->
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-g" style="font-size:.78rem" onclick="printStats('${date}')">🖨️ In báo cáo</button>
+    </div>`;
+}
+
+// ===== PRINT STATS =====
+function printStats(date){
+  const rows=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
+  const totK=rows.reduce((s,v)=>s+(v.f1||0),0);
+  const totT=rows.reduce((s,v)=>s+(v.f2||0),0);
+  const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Báo cáo ${date}</title>
+  <style>
+    body{font-family:'Be Vietnam Pro',sans-serif;padding:24px;color:#111}
+    h2{margin-bottom:4px;font-size:1.1rem}
+    p{color:#666;font-size:.82rem;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:.82rem}
+    th{background:#2d6a4f;color:white;padding:7px 10px;text-align:left;border:1px solid #ccc}
+    th.r{text-align:right}
+    td{padding:7px 10px;border:1px solid #ddd}
+    td.r{text-align:right}
+    tr:nth-child(even){background:#f9f9f9}
+    tfoot tr{background:#e8f5e9;font-weight:700}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+    .clinic{font-size:.8rem;color:#555;text-align:right}
+  </style></head><body>
+  <div class="header">
+    <div><h2>BÁO CÁO DOANH THU NGÀY ${date}</h2><p>Phòng khám Bác sĩ Nguyễn Hoài Nam · In lúc ${new Date().toLocaleString('vi-VN')}</p></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:4%">#</th>
+      <th style="width:18%">Bệnh nhân</th>
+      <th style="width:12%">SĐT</th>
+      <th style="width:10%">Loại khám</th>
+      <th style="width:26%">Chẩn đoán / Thủ thuật</th>
+      <th class="r" style="width:10%">Tiền khám</th>
+      <th class="r" style="width:10%">Tiền thuốc</th>
+      <th class="r" style="width:10%">Thủ thuật</th>
+      <th class="r" style="width:10%">Tổng thu</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map((v,i)=>`<tr>
+        <td style="text-align:center">${i+1}</td>
+        <td><strong>${v.ptName}</strong></td>
+        <td>${v.ptPhone||'—'}</td>
+        <td>${v.type||'—'}</td>
+        <td>${v.diag||'—'}${v.proc?'<br><em style="color:#c00;font-size:.75rem">🔪 '+v.proc+'</em>':''}</td>
+        <td class="r">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td class="r">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td class="r">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td class="r"><strong>${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</strong></td>
+      </tr>`).join('')}
+    </tbody>
+    <tfoot><tr>
+      <td colspan="5" style="text-align:right">TỔNG CỘNG (${rows.length} lượt khám)</td>
+      <td class="r">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td>
+      <td class="r">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td>
+      <td class="r">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td>
+      <td class="r">${tot.toLocaleString('vi-VN')}đ</td>
+    </tr></tfoot>
+  </table>
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(), 500);
 }
 
 // ===== UTILS =====
