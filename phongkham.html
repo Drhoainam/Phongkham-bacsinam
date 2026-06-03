@@ -472,7 +472,16 @@ function renderLS(p){
     const medLines=(v.meds||[]).map(m=>{
       const parts=(m.note||'').split('-');
       let gio='';
-      if(parts.length>=3){ const s=[];if(parts[0]&&parts[0]!=='0')s.push('sáng '+parts[0]+'h');if(parts[1]&&parts[1]!=='0')s.push('trưa '+parts[1]+'h');if(parts[2]&&parts[2]!=='0')s.push('tối '+parts[2]+'h'); gio=s.length?' · '+s.join(', '):(m.note?' · '+m.note:''); }else{ gio=m.note?' · '+m.note:''; }
+      // Format 1: "8-14-20" hoặc "8-0-20" → giờ cụ thể
+      // Format 2: "1-0-1" → số viên mỗi buổi
+      if(parts.length>=3){
+        const isTime = parts.some(p=>parseInt(p)>2); // nếu có số >2 thì là giờ
+        const s=[];
+        if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
+        if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
+        if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
+        gio = s.length ? ' · Uống: '+s.join(', ') : (m.note?' · '+m.note:'');
+      } else { gio=m.note?' · '+m.note:''; }
       return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em>('+m.remark+')</em>':''}`;
     }).join('<br>');
 
