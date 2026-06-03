@@ -342,6 +342,9 @@ function init() {
   renderPatientList();
   updateWelcome();
 
+  // Show welcome immediately, don't wait for Firebase
+  updateWelcome();
+
   // If Firebase doesn't connect in 5 seconds, switch to offline mode
   setTimeout(() => {
     if (!firebaseReady) {
