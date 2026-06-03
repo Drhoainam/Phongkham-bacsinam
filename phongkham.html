@@ -356,11 +356,27 @@ window.addEventListener('firebase-ready', async () => {
     snapshot.forEach(doc => fbPatients.push(doc.data()));
 
     if (fbPatients.length > 0) {
-      // Merge: Firebase is source of truth
+      // Backup any in-progress form data before overwriting
+      const cvBackup = {};
+      patients.forEach(p => {
+        if (p.currentVisit && (p.currentVisit.meds?.length > 0)) {
+          cvBackup[p.id] = JSON.parse(JSON.stringify(p.currentVisit));
+        }
+      });
+
+      // Firebase is source of truth
       patients = fbPatients.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+
+      // Restore in-progress form data
+      patients.forEach(p => { if (cvBackup[p.id]) p.currentVisit = cvBackup[p.id]; });
+
       saveLocal();
       renderPatientList(document.getElementById('searchInput').value);
-      if (currentPatientId) renderDetail();
+
+      // Only re-render detail if user is NOT currently filling the exam form
+      const isEditingForm = document.querySelector('#v_diag') !== null;
+      if (currentPatientId && !isEditingForm) renderDetail();
+
       setSynced();
     } else if (patients.length > 0) {
       // First time: push local data to Firebase
