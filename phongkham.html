@@ -487,7 +487,7 @@ function renderKhamTab(p) {
     <div class="card">
       <div class="card-title">Đơn thuốc</div>
       <table class="med-table">
-        <thead><tr><th style="width:28%">Tên thuốc</th><th style="width:14%">Hàm lượng</th><th style="width:12%">Lần/ngày</th><th style="width:12%">Số ngày</th><th style="width:22%">Giờ uống (S-T-C)</th><th style="width:5%"></th></tr></thead>
+        <thead><tr><th style="width:18%">Tên thuốc</th><th style="width:10%">Hàm lượng</th><th style="width:9%">ĐVT</th><th style="width:9%">Viên/lần</th><th style="width:8%">Lần/ngày</th><th style="width:8%">Số ngày</th><th style="width:14%">Giờ uống (S-T-C)</th><th style="width:18%">Ghi chú</th><th style="width:4%"></th></tr></thead>
         <tbody id="medRows"></tbody>
       </table>
       <button class="btn-add-med" onclick="addMedRow()">＋ Thêm thuốc</button>
@@ -515,7 +515,7 @@ function renderLichSuTab(p) {
       <div class="visit-card">
         <div class="visit-diag">🩺 ${v.diag||'Chưa ghi chẩn đoán'}</div>
         ${v.bp?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px">HA: ${v.bp} · Mạch: ${v.pulse}</div>`:''}
-        ${v.meds&&v.meds.length>0?`<div class="visit-meds">💊 ${v.meds.map(m=>`${m.name} ${m.dose} ${m.times}x/${m.days}ngày`).join(' | ')}</div>`:''}
+        ${v.meds&&v.meds.length>0?`<div class="visit-meds">💊 ${v.meds.map(m=>`${m.name} ${m.dose} - ${m.qty||1} ${m.unit||'viên'}/lần x ${m.times} lần/${m.days}ngày`).join(' | ')}</div>`:''}
         ${v.note?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px;font-style:italic">📝 ${v.note}</div>`:''}
         ${v.nextVisit?`<div class="visit-next">📅 Tái khám: ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
       </div>
@@ -529,11 +529,20 @@ function renderMedRows() {
   const tbody=document.getElementById('medRows'); if(!tbody) return;
   tbody.innerHTML=(p.currentVisit.meds||[]).map((m,i)=>`
     <tr>
-      <td><input type="text" value="${m.name||''}" onchange="updateMed(${i},'name',this.value)" placeholder="Amoxicillin..."></td>
+      <td><input type="text" value="${m.name||''}" onchange="updateMed(${i},'name',this.value)" placeholder="Paracetamol..."></td>
       <td><input type="text" value="${m.dose||''}" onchange="updateMed(${i},'dose',this.value)" placeholder="500mg"></td>
-      <td><input type="number" value="${m.times||''}" onchange="updateMed(${i},'times',this.value)" placeholder="3"></td>
+      <td><select onchange="updateMed(${i},'unit',this.value)" style="padding:5px 4px;font-size:0.78rem">
+        <option value="viên" ${(m.unit||'viên')==='viên'?'selected':''}>Viên</option>
+        <option value="gói" ${m.unit==='gói'?'selected':''}>Gói</option>
+        <option value="ống" ${m.unit==='ống'?'selected':''}>Ống</option>
+        <option value="lọ" ${m.unit==='lọ'?'selected':''}>Lọ</option>
+        <option value="ml" ${m.unit==='ml'?'selected':''}>ml</option>
+      </select></td>
+      <td><input type="number" value="${m.qty||1}" onchange="updateMed(${i},'qty',this.value)" placeholder="1" min="0.5" step="0.5"></td>
+      <td><input type="number" value="${m.times||''}" onchange="updateMed(${i},'times',this.value)" placeholder="2"></td>
       <td><input type="number" value="${m.days||''}" onchange="updateMed(${i},'days',this.value)" placeholder="7"></td>
-      <td><input type="text" value="${m.note||''}" onchange="updateMed(${i},'note',this.value)" placeholder="1-0-1"></td>
+      <td><input type="text" value="${m.note||''}" onchange="updateMed(${i},'note',this.value)" placeholder="8-18"></td>
+      <td><input type="text" value="${m.remark||''}" onchange="updateMed(${i},'remark',this.value)" placeholder="Uống sau ăn..."></td>
       <td><button class="btn-remove" onclick="removeMed(${i})">✕</button></td>
     </tr>`).join('');
 }
@@ -541,7 +550,7 @@ function renderMedRows() {
 function addMedRow() {
   const p=patients.find(x=>x.id===currentPatientId);
   if(!p.currentVisit) p.currentVisit={meds:[]};
-  p.currentVisit.meds.push({name:'',dose:'',times:'',days:'',note:''});
+  p.currentVisit.meds.push({name:'',dose:'',unit:'viên',qty:1,times:'',days:'',note:'',remark:''});
   save(p); renderMedRows();
 }
 function updateMed(i,field,val) {
