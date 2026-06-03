@@ -157,7 +157,7 @@ textarea{resize:vertical;min-height:72px}
     <h3>Thêm bệnh nhân mới</h3>
     <div class="form-row">
       <div class="form-group"><label>Họ và tên *</label><input id="np_name" placeholder="Nguyễn Văn A"></div>
-      <div class="form-group"><label>Năm sinh</label><input type="number" id="np_year" placeholder="1985"></div>
+      <div class="form-group"><label>Năm sinh</label><input type="number" id="np_year" placeholder="1985" min="1900" max="2025"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Giới tính</label><select id="np_gender"><option>Nam</option><option>Nữ</option></select></div>
@@ -324,8 +324,8 @@ function renderKham(p){
       </select></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Mạch (lần/phút)</label><input type="number" id="v_pulse" value="${cv.pulse||''}" placeholder="80"></div>
-      <div class="form-group"><label>Huyết áp (mmHg)</label><input type="text" id="v_bp" value="${cv.bp||''}" placeholder="120/80"></div>
+      <div class="form-group"><label>Mạch (lần/phút)</label><input type="number" id="v_pulse" value="${cv.pulse||''}" placeholder="VD: 80"></div>
+      <div class="form-group"><label>Huyết áp (mmHg)</label><input type="text" id="v_bp" value="${cv.bp||''}" placeholder="VD: 120/80"></div>
     </div>
     <div class="form-row"><div class="form-group full"><label>Lý do khám / Triệu chứng</label><textarea id="v_reason" placeholder="Mô tả triệu chứng...">${cv.reason||''}</textarea></div></div>
     <div class="form-row"><div class="form-group full"><label>Chẩn đoán *</label><input id="v_diag" value="${cv.diag||''}" placeholder="VD: Tăng huyết áp độ I, Đau thần kinh tọa L4-L5..."></div></div>
@@ -507,9 +507,11 @@ function openNewPt(){
 function saveNewPt(){
   const name=document.getElementById('np_name').value.trim();
   if(!name){ showToast('Vui lòng nhập họ tên','error'); return; }
+  const yearVal = parseInt(document.getElementById('np_year').value)||0;
+  if(yearVal && (yearVal < 1900 || yearVal > 2025)){ showToast('Năm sinh không hợp lệ (1900–2025)','error'); return; }
   const p={
     id:'bn_'+Date.now(), name,
-    year:document.getElementById('np_year').value,
+    year:yearVal||'',
     gender:document.getElementById('np_gender').value,
     phone:document.getElementById('np_phone').value,
     addr:document.getElementById('np_addr').value,
