@@ -373,8 +373,9 @@ window.addEventListener('firebase-ready', async () => {
       saveLocal();
       renderPatientList(document.getElementById('searchInput').value);
 
-      // Only re-render detail if user is NOT currently filling the exam form
-      const isEditingForm = document.querySelector('#v_diag') !== null;
+      // Never re-render while user is actively filling the exam form
+      const isEditingForm = document.querySelector('#v_diag') !== null ||
+                            document.querySelector('#v_pulse') !== null;
       if (currentPatientId && !isEditingForm) renderDetail();
 
       setSynced();
@@ -515,7 +516,8 @@ function renderLichSuTab(p) {
       <div class="visit-card">
         <div class="visit-diag">🩺 ${v.diag||'Chưa ghi chẩn đoán'}</div>
         ${v.bp?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px">HA: ${v.bp} · Mạch: ${v.pulse}</div>`:''}
-        ${v.meds&&v.meds.length>0?`<div class="visit-meds">💊 ${v.meds.map(m=>`${m.name} ${m.dose} - ${m.qty||1} ${m.unit||'viên'}/lần x ${m.times} lần/${m.days}ngày`).join(' | ')}</div>`:''}
+        ${v.reason?`<div style="font-size:0.78rem;color:var(--text3);margin-top:4px">📋 Lý do: ${v.reason}</div>`:''}
+        ${v.meds&&v.meds.length>0?`<div class="visit-meds">💊 ${v.meds.map(m=>`${m.name} ${m.dose||''} - ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times} lần/${m.days} ngày${m.remark?' ('+m.remark+')':''}`).join('<br>')}</div>`:''}
         ${v.note?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px;font-style:italic">📝 ${v.note}</div>`:''}
         ${v.nextVisit?`<div class="visit-next">📅 Tái khám: ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
       </div>
@@ -565,28 +567,42 @@ function removeMed(i) {
 // ============ SAVE VISIT ============
 function saveVisit() {
   const p=patients.find(x=>x.id===currentPatientId); if(!p) return;
+
+  // Read all form values directly
+  const dateEl = document.getElementById('v_date');
+  const diagEl = document.getElementById('v_diag');
+  if(!dateEl || !diagEl) { showToast('Lỗi: không tìm thấy form','error'); return; }
+  if(!dateEl.value || !diagEl.value) { showToast('Vui lòng điền Ngày khám và Chẩn đoán','error'); return; }
+
   const visit={
     id: Date.now(),
-    date: document.getElementById('v_date').value,
+    date: dateEl.value,
     type: document.getElementById('v_type').value,
     pulse: document.getElementById('v_pulse').value,
     bp: document.getElementById('v_bp').value,
     reason: document.getElementById('v_reason').value,
-    diag: document.getElementById('v_diag').value,
-    meds: p.currentVisit&&p.currentVisit.meds ? [...p.currentVisit.meds] : [],
+    diag: diagEl.value,
+    meds: p.currentVisit&&p.currentVisit.meds ? JSON.parse(JSON.stringify(p.currentVisit.meds)) : [],
     nextVisit: document.getElementById('v_next').value,
     nextVisitTime: document.getElementById('v_nextTime').value,
     note: document.getElementById('v_note').value,
   };
-  if(!visit.date||!visit.diag) { showToast('Vui lòng điền Ngày khám và Chẩn đoán','error'); return; }
+
   if(!p.visits) p.visits=[];
   p.visits.push(visit);
   p.nextVisit=visit.nextVisit;
   p.nextVisitTime=visit.nextVisitTime;
   p.currentVisit={meds:[]};
-  save(p);
-  showToast('✓ Đã lưu & đồng bộ Firebase!','success');
-  setTimeout(()=>renderDetail(), 400);
+
+  // Save to local + Firebase
+  saveLocal();
+  fbSavePatient(p);
+
+  showToast('✓ Đã lưu lần khám! Đang đồng bộ...','success');
+
+  // Switch to history tab to show saved visit
+  currentTab='lichsu';
+  renderDetail();
 }
 
 function clearCurrentVisit() {
