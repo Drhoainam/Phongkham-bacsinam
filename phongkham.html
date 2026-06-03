@@ -276,13 +276,15 @@ async function fbSavePatient(p) {
   if (!firebaseReady) { saveLocal(); return; }
   try {
     setSyncing();
+    // Deep clone to avoid any reference issues
     const cleanP = JSON.parse(JSON.stringify(p));
+    // Remove currentVisit from Firebase (only save completed visits)
+    delete cleanP.currentVisit;
     await window.__setDoc(window.__doc('patients', p.id), cleanP);
     setSynced();
   } catch(e) {
     console.error('Firebase save error:', e);
     setError();
-    saveLocal();
   }
 }
 
@@ -301,6 +303,7 @@ function saveLocal() {
 
 function save(patient) {
   saveLocal();
+  // Chỉ đẩy lên Firebase khi có patient (không đẩy liên tục)
   if (patient) fbSavePatient(patient);
 }
 
@@ -344,48 +347,34 @@ function updateWelcome() {
   }
 }
 
-// Listen for Firebase ready
+// Listen for Firebase ready - CHỈ load dữ liệu 1 lần lúc khởi động, KHÔNG realtime sync
 window.addEventListener('firebase-ready', async () => {
   firebaseReady = true;
   setConnected();
 
-  // Real-time sync: listen to Firestore changes
-  const q = window.__query(window.__col('patients'));
-  window.__onSnapshot(q, (snapshot) => {
+  try {
+    setSyncing();
+    const snapshot = await window.__getDocs(window.__col('patients'));
     const fbPatients = [];
     snapshot.forEach(doc => fbPatients.push(doc.data()));
 
     if (fbPatients.length > 0) {
-      // Backup any in-progress form data before overwriting
-      const cvBackup = {};
-      patients.forEach(p => {
-        if (p.currentVisit && (p.currentVisit.meds?.length > 0)) {
-          cvBackup[p.id] = JSON.parse(JSON.stringify(p.currentVisit));
-        }
-      });
-
-      // Firebase is source of truth
       patients = fbPatients.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
-
-      // Restore in-progress form data
-      patients.forEach(p => { if (cvBackup[p.id]) p.currentVisit = cvBackup[p.id]; });
-
       saveLocal();
-      renderPatientList(document.getElementById('searchInput').value);
-
-      // Never re-render while user is actively filling the exam form
-      const isEditingForm = document.querySelector('#v_diag') !== null ||
-                            document.querySelector('#v_pulse') !== null;
-      if (currentPatientId && !isEditingForm) renderDetail();
-
+      renderPatientList();
       setSynced();
     } else if (patients.length > 0) {
-      // First time: push local data to Firebase
-      patients.forEach(p => fbSavePatient(p));
+      // Lần đầu: đẩy dữ liệu local lên Firebase
+      for (const p of patients) await fbSavePatient(p);
+      setSynced();
+    } else {
+      setSynced();
     }
-
     updateWelcome();
-  });
+  } catch(e) {
+    console.error('Firebase load error:', e);
+    setError();
+  }
 });
 
 // ============ PATIENT LIST ============
@@ -566,42 +555,47 @@ function removeMed(i) {
 
 // ============ SAVE VISIT ============
 function saveVisit() {
-  const p=patients.find(x=>x.id===currentPatientId); if(!p) return;
+  const p = patients.find(x => x.id === currentPatientId);
+  if (!p) { showToast('Lỗi: không tìm thấy bệnh nhân','error'); return; }
 
-  // Read all form values directly
-  const dateEl = document.getElementById('v_date');
-  const diagEl = document.getElementById('v_diag');
-  if(!dateEl || !diagEl) { showToast('Lỗi: không tìm thấy form','error'); return; }
-  if(!dateEl.value || !diagEl.value) { showToast('Vui lòng điền Ngày khám và Chẩn đoán','error'); return; }
+  // Đọc trực tiếp từ DOM
+  const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
 
-  const visit={
+  const date = getVal('v_date');
+  const diag = getVal('v_diag');
+
+  if (!date) { showToast('Vui lòng chọn Ngày khám','error'); return; }
+  if (!diag) { showToast('Vui lòng điền Chẩn đoán','error'); return; }
+
+  const visit = {
     id: Date.now(),
-    date: dateEl.value,
-    type: document.getElementById('v_type').value,
-    pulse: document.getElementById('v_pulse').value,
-    bp: document.getElementById('v_bp').value,
-    reason: document.getElementById('v_reason').value,
-    diag: diagEl.value,
-    meds: p.currentVisit&&p.currentVisit.meds ? JSON.parse(JSON.stringify(p.currentVisit.meds)) : [],
-    nextVisit: document.getElementById('v_next').value,
-    nextVisitTime: document.getElementById('v_nextTime').value,
-    note: document.getElementById('v_note').value,
+    date:        date,
+    type:        getVal('v_type'),
+    pulse:       getVal('v_pulse'),
+    bp:          getVal('v_bp'),
+    reason:      getVal('v_reason'),
+    diag:        diag,
+    meds:        p.currentVisit && p.currentVisit.meds ? JSON.parse(JSON.stringify(p.currentVisit.meds)) : [],
+    nextVisit:   getVal('v_next'),
+    nextVisitTime: getVal('v_nextTime'),
+    note:        getVal('v_note'),
   };
 
-  if(!p.visits) p.visits=[];
+  // Lưu vào danh sách visits
+  if (!p.visits) p.visits = [];
   p.visits.push(visit);
-  p.nextVisit=visit.nextVisit;
-  p.nextVisitTime=visit.nextVisitTime;
-  p.currentVisit={meds:[]};
+  p.nextVisit = visit.nextVisit;
+  p.nextVisitTime = visit.nextVisitTime;
+  p.currentVisit = { meds: [] };
 
-  // Save to local + Firebase
+  // Lưu local TRƯỚC, Firebase SAU (không block UI)
   saveLocal();
   fbSavePatient(p);
 
-  showToast('✓ Đã lưu lần khám! Đang đồng bộ...','success');
+  showToast('✓ Đã lưu lần khám thành công!', 'success');
 
-  // Switch to history tab to show saved visit
-  currentTab='lichsu';
+  // Chuyển sang tab lịch sử để xác nhận
+  currentTab = 'lichsu';
   renderDetail();
 }
 
