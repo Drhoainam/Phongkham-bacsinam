@@ -8,337 +8,383 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  const cfg = { apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M", authDomain:"phongkham-bacsinam.firebaseapp.com", projectId:"phongkham-bacsinam", storageBucket:"phongkham-bacsinam.firebasestorage.app", messagingSenderId:"187579047275", appId:"1:187579047275:web:c0e30e60a91cbdda82402e" };
+  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const cfg = {
+    apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
+    authDomain:"phongkham-bacsinam.firebaseapp.com",
+    projectId:"phongkham-bacsinam",
+    storageBucket:"phongkham-bacsinam.firebasestorage.app",
+    messagingSenderId:"187579047275",
+    appId:"1:187579047275:web:c0e30e60a91cbdda82402e"
+  };
   const app = initializeApp(cfg);
-  const db  = getFirestore(app);
-  window.__col = (n) => collection(db, n);
-  window.__doc = (c, id) => doc(db, c, id);
+  const db = getFirestore(app);
+  window.__col = n => collection(db, n);
+  window.__doc = (c,id) => doc(db, c, id);
   window.__setDoc = setDoc;
   window.__getDocs = getDocs;
   window.__deleteDoc = deleteDoc;
+  window.__getDoc = getDoc;
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
-:root{--bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;--accent:#2ea043;--accent2:#58a6ff;--accent3:#f0883e;--danger:#f85149;--text:#e6edf3;--text2:#8b949e;--text3:#6e7681;--r:10px}
+:root{--bg:#0d1117;--su:#161b22;--su2:#21262d;--bo:#30363d;--ac:#2ea043;--ac2:#58a6ff;--ac3:#f0883e;--da:#f85149;--tx:#e6edf3;--tx2:#8b949e;--tx3:#6e7681;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
-.logo{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--accent2);display:flex;align-items:center;gap:8px}
-.logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%}
-.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;margin-right:6px;transition:background .3s}
-.sync-dot.syncing{background:var(--accent3);animation:pulse 1s infinite}
-.sync-dot.synced{background:var(--accent)}
-.sync-dot.error{background:var(--danger)}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column}
+/* HEADER */
+header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--ac2);display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;background:var(--ac);border-radius:50%}
+.sd{width:8px;height:8px;border-radius:50%;background:var(--tx3);display:inline-block;margin-right:6px;transition:background .3s}
+.sd.sync{background:var(--ac3);animation:pulse 1s infinite}
+.sd.ok{background:var(--ac)}
+.sd.err{background:var(--da)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.sync-status{font-size:.75rem;color:var(--text2);display:flex;align-items:center}
+/* LAYOUT */
 .app{display:flex;flex:1;height:calc(100vh - 60px)}
-.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.sidebar-top{padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
-.search-box{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;color:var(--text);font-family:inherit;font-size:.85rem;outline:none;transition:border-color .2s}
-.search-box:focus{border-color:var(--accent2)}
-.search-box::placeholder{color:var(--text3)}
-.btn-add{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--r);padding:9px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .2s}
+/* SIDEBAR */
+.sb{width:260px;background:var(--su);border-right:1px solid var(--bo);display:flex;flex-direction:column;overflow:hidden}
+.sb-top{padding:12px;border-bottom:1px solid var(--bo);display:flex;flex-direction:column;gap:7px}
+.search{width:100%;background:var(--bg);border:1px solid var(--bo);border-radius:var(--r);padding:7px 11px;color:var(--tx);font-family:inherit;font-size:.84rem;outline:none}
+.search:focus{border-color:var(--ac2)}
+.search::placeholder{color:var(--tx3)}
+.pt-list{overflow-y:auto;flex:1;padding:7px}
+.pt-item{padding:9px 11px;border-radius:var(--r);cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:background .15s}
+.pt-item:hover{background:var(--su2)}
+.pt-item.active{background:var(--su2);border-color:var(--ac2)}
+.pt-name{font-size:.88rem;font-weight:600}
+.pt-meta{font-size:.73rem;color:var(--tx2);margin-top:2px}
+.badge{display:inline-block;font-size:.63rem;padding:1px 6px;border-radius:20px;margin-top:3px}
+.b-new{background:rgba(46,160,67,.2);color:var(--ac)}
+.b-re{background:rgba(88,166,255,.2);color:var(--ac2)}
+/* MAIN */
+.main{flex:1;overflow-y:auto;padding:22px}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:12px}
+.welcome-icon{font-size:3rem;opacity:.2}
+/* DETAIL */
+.dh{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--bo)}
+.dn{font-family:'Playfair Display',serif;font-size:1.45rem}
+.dm{color:var(--tx2);font-size:.8rem;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.sr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.sc{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:13px}
+.sv{font-size:1.5rem;font-weight:700;font-family:'Playfair Display',serif}
+.sl{font-size:.7rem;color:var(--tx2);margin-top:3px}
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--bo)}
+.tab{padding:7px 15px;font-size:.84rem;font-weight:500;cursor:pointer;color:var(--tx2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.tab:hover{color:var(--tx)}
+.tab.active{color:var(--ac2);border-bottom-color:var(--ac2)}
+/* CARD */
+.card{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.ct{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.ct::after{content:'';flex:1;height:1px;background:var(--bo)}
+/* FORM */
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+label{font-size:.74rem;color:var(--tx2);font-weight:500}
+input,select,textarea{background:var(--bg);border:1px solid var(--bo);border-radius:7px;padding:6px 10px;color:var(--tx);font-family:inherit;font-size:.83rem;outline:none;transition:border-color .2s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--ac2)}
+input::placeholder,textarea::placeholder{color:var(--tx3)}
+select option{background:var(--su2)}
+textarea{resize:vertical;min-height:68px}
+/* TABLES */
+.tbl{width:100%;border-collapse:collapse;font-size:.79rem}
+.tbl th{text-align:left;color:var(--tx3);font-weight:600;padding:5px 7px;border-bottom:1px solid var(--bo);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+.tbl td{padding:5px 7px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl input,.tbl select{padding:4px 6px;font-size:.77rem}
+.btn-add-row{background:rgba(46,160,67,.1);color:var(--ac);border:1px dashed rgba(46,160,67,.4);border-radius:7px;padding:5px 13px;font-family:inherit;font-size:.76rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:7px;display:inline-flex;align-items:center;gap:5px}
+.btn-add-row:hover{background:rgba(46,160,67,.2)}
+.btn-rm{background:none;border:none;color:var(--da);cursor:pointer;opacity:.5;padding:2px 5px;font-size:.88rem}
+.btn-rm:hover{opacity:1}
+/* BUTTONS */
+.btn{border:none;border-radius:var(--r);padding:7px 15px;font-family:inherit;font-size:.81rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-p{background:var(--ac2);color:#0d1117}
+.btn-p:hover{opacity:.85}
+.btn-g{background:transparent;color:var(--tx2);border:1px solid var(--bo)}
+.btn-g:hover{background:var(--su2);color:var(--tx)}
+.btn-d{background:rgba(248,81,73,.12);color:var(--da);border:1px solid rgba(248,81,73,.3)}
+.btn-add{width:100%;background:var(--ac);color:#fff;border:none;border-radius:var(--r);padding:8px;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;transition:opacity .2s}
 .btn-add:hover{opacity:.85}
-.btn-stat{width:100%;background:rgba(88,166,255,.12);color:var(--accent2);border:1px solid rgba(88,166,255,.3);border-radius:var(--r);padding:8px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
-.btn-stat:hover{background:rgba(88,166,255,.2)}
-.patient-list{overflow-y:auto;flex:1;padding:8px}
-.pt-item{padding:10px 12px;border-radius:var(--r);cursor:pointer;border:1px solid transparent;margin-bottom:4px;transition:background .15s}
-.pt-item:hover{background:var(--surface2)}
-.pt-item.active{background:var(--surface2);border-color:var(--accent2)}
-.pt-name{font-size:.9rem;font-weight:600}
-.pt-meta{font-size:.75rem;color:var(--text2);margin-top:2px}
-.badge{display:inline-block;font-size:.65rem;padding:1px 6px;border-radius:20px;margin-top:4px}
-.badge-new{background:rgba(46,160,67,.2);color:var(--accent)}
-.badge-re{background:rgba(88,166,255,.2);color:var(--accent2)}
-.main{flex:1;overflow-y:auto;padding:24px}
-.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:14px}
-.welcome-icon{font-size:3rem;opacity:.25}
-.welcome h2{font-family:'Playfair Display',serif;color:var(--text2);font-size:1.4rem}
-.welcome p{color:var(--text3);font-size:.85rem}
-.detail{max-width:860px}
-.detail-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border)}
-.detail-name{font-family:'Playfair Display',serif;font-size:1.5rem}
-.detail-meta{color:var(--text2);font-size:.82rem;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
-.btn{border:none;border-radius:var(--r);padding:8px 16px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:var(--accent2);color:#0d1117}
-.btn-primary:hover{opacity:.85}
-.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
-.btn-ghost:hover{background:var(--surface2);color:var(--text)}
-.btn-danger{background:rgba(248,81,73,.12);color:var(--danger);border:1px solid rgba(248,81,73,.3)}
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px}
-.stat-val{font-size:1.6rem;font-weight:700;font-family:'Playfair Display',serif}
-.stat-lbl{font-size:.72rem;color:var(--text2);margin-top:3px}
-.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border)}
-.tab{padding:8px 16px;font-size:.85rem;font-weight:500;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px}
-.card-title{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.form-group{display:flex;flex-direction:column;gap:5px}
-.form-group.full{grid-column:1/-1}
-label{font-size:.76rem;color:var(--text2);font-weight:500}
-input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--text);font-family:inherit;font-size:.84rem;outline:none;transition:border-color .2s;width:100%}
-input:focus,select:focus,textarea:focus{border-color:var(--accent2)}
-input::placeholder,textarea::placeholder{color:var(--text3)}
-select option{background:var(--surface2)}
-textarea{resize:vertical;min-height:72px}
-.med-table{width:100%;border-collapse:collapse;font-size:.8rem}
-.med-table th{text-align:left;color:var(--text3);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--border);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
-.med-table td{padding:6px 8px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
-.med-table tr:last-child td{border-bottom:none}
-.med-table input,.med-table select{padding:4px 7px;font-size:.78rem}
-.btn-add-med{background:rgba(46,160,67,.1);color:var(--accent);border:1px dashed rgba(46,160,67,.4);border-radius:7px;padding:6px 14px;font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:8px;display:inline-flex;align-items:center;gap:5px}
-.btn-add-med:hover{background:rgba(46,160,67,.2)}
-.btn-remove{background:none;border:none;color:var(--danger);cursor:pointer;opacity:.5;padding:2px 5px;font-size:.9rem}
-.btn-remove:hover{opacity:1}
-.save-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
-/* Visit history */
-.vt{position:relative;padding-left:22px}
-.vt::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border)}
-.vi{position:relative;margin-bottom:18px}
-.vi::before{content:'';position:absolute;left:-19px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--accent2);border:2px solid var(--bg)}
-.vi-date{font-size:.73rem;color:var(--text3);margin-bottom:5px}
-.vi-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:13px}
-.vi-diag{font-weight:600;font-size:.9rem}
-/* Modal */
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
+.btn-s{width:100%;background:rgba(88,166,255,.12);color:var(--ac2);border:1px solid rgba(88,166,255,.3);border-radius:var(--r);padding:7px;font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.btn-s:hover{background:rgba(88,166,255,.2)}
+.save-bar{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:16px;padding-top:13px;border-top:1px solid var(--bo)}
+/* VISIT HISTORY */
+.vt{position:relative;padding-left:20px}
+.vt::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:2px;background:var(--bo)}
+.vi{position:relative;margin-bottom:16px}
+.vi::before{content:'';position:absolute;left:-18px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--ac2);border:2px solid var(--bg)}
+.vi-d{font-size:.72rem;color:var(--tx3);margin-bottom:4px}
+.vi-c{background:var(--su2);border:1px solid var(--bo);border-radius:var(--r);padding:12px}
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
 .mo.show{display:flex}
-.md{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:480px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.md h3{font-family:'Playfair Display',serif;font-size:1.15rem;margin-bottom:16px}
-/* Toast */
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:.82rem;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:fadeIn .2s ease}
-.toast.success{border-color:var(--accent);color:var(--accent)}
-.toast.error{border-color:var(--danger);color:var(--danger)}
-@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.md{background:var(--su);border:1px solid var(--bo);border-radius:14px;padding:26px;max-width:500px;width:93%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.md h3{font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:15px}
 /* QR */
-#qrcode{display:flex;justify-content:center;margin-bottom:18px}
+#qrcode{display:flex;justify-content:center;margin-bottom:16px}
 #qrcode canvas,#qrcode img{border-radius:8px;padding:10px;background:white}
-.qr-info{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:.78rem;color:var(--text2);margin-bottom:18px;line-height:1.9}
-.qr-info strong{color:var(--text)}
-/* Fee pills */
-.fee-pill{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px}
-.fee-k{background:rgba(46,160,67,.12);color:var(--accent)}
-.fee-t{background:rgba(88,166,255,.12);color:var(--accent2)}
-.fee-p{background:rgba(248,81,73,.12);color:var(--danger)}
-.fee-total{background:rgba(46,160,67,.25);color:var(--accent);font-size:.78rem;font-weight:700}
+.qr-info{background:var(--bg);border:1px solid var(--bo);border-radius:var(--r);padding:11px;font-size:.77rem;color:var(--tx2);margin-bottom:16px;line-height:1.9}
+.qr-info strong{color:var(--tx)}
+/* FEE PILLS */
+.fp{display:inline-block;font-size:.69rem;font-weight:700;padding:2px 8px;border-radius:20px}
+.fp-k{background:rgba(46,160,67,.12);color:var(--ac)}
+.fp-t{background:rgba(88,166,255,.12);color:var(--ac2)}
+.fp-p{background:rgba(248,81,73,.12);color:var(--da)}
+.fp-tot{background:rgba(46,160,67,.25);color:var(--ac);font-size:.76rem;font-weight:700}
+/* ZALO BADGE */
+.zalo-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,102,255,.15);color:#0066ff;border:1px solid rgba(0,102,255,.3);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700}
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--su);border:1px solid var(--bo);border-radius:10px;padding:9px 17px;font-size:.81rem;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:7px;animation:fi .2s ease}
+.toast.success{border-color:var(--ac);color:var(--ac)}
+.toast.error{border-color:var(--da);color:var(--da)}
+.toast.info{border-color:var(--ac2);color:var(--ac2)}
+@keyframes fi{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--bo);border-radius:3px}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo"><div class="logo-dot"></div>PhòngKhám <span style="color:var(--text2);font-family:'Be Vietnam Pro';font-weight:300;font-size:.95rem"> — Quản lý bệnh nhân</span></div>
-  <div style="display:flex;align-items:center;gap:16px">
-    <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncText">Đang kết nối...</span></div>
-    <div style="font-size:.78rem;color:var(--text2)" id="hdrDate"></div>
+  <div class="logo"><div class="logo-dot"></div>PhòngKhám <span style="color:var(--tx2);font-family:'Be Vietnam Pro';font-weight:300;font-size:.93rem"> — BS. Hoài Nam</span></div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Đang kết nối...</span></div>
+    <div style="font-size:.76rem;color:var(--tx2)" id="hd"></div>
   </div>
 </header>
 <div class="app">
-  <div class="sidebar">
-    <div class="sidebar-top">
-      <input class="search-box" type="text" id="searchInput" placeholder="🔍  Tìm bệnh nhân..." oninput="filterPt()">
+  <div class="sb">
+    <div class="sb-top">
+      <input class="search" id="sq" placeholder="🔍  Tìm bệnh nhân..." oninput="filterPt()">
       <button class="btn-add" onclick="openNewPt()">＋ Thêm bệnh nhân mới</button>
-      <button class="btn-stat" onclick="showStats()">📊 Thống kê theo ngày</button>
+      <button class="btn-s" onclick="showStats()">📊 Thống kê theo ngày</button>
     </div>
-    <div class="patient-list" id="ptList"><div style="text-align:center;padding:30px;color:var(--text3);font-size:.82rem">Đang tải...</div></div>
+    <div class="pt-list" id="ptList"><div style="text-align:center;padding:30px;color:var(--tx3);font-size:.81rem">Đang tải...</div></div>
   </div>
   <div class="main" id="main">
-    <div class="welcome"><div class="welcome-icon">🩺</div><h2>Chào bác sĩ!</h2><p>Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>
+    <div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:'Playfair Display',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3);font-size:.84rem">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>
   </div>
 </div>
 
-<!-- Modal: New Patient -->
-<div class="mo" id="moNewPt">
+<!-- Modal: Bệnh nhân mới -->
+<div class="mo" id="moNP">
   <div class="md">
     <h3>Thêm bệnh nhân mới</h3>
-    <div class="form-row">
-      <div class="form-group"><label>Họ và tên *</label><input id="np_name" placeholder="Nguyễn Văn A"></div>
-      <div class="form-group"><label>Năm sinh</label><input type="number" id="np_year" placeholder="1985" min="1900" max="2025"></div>
+    <div class="fr">
+      <div class="fg"><label>Họ và tên *</label><input id="np_n" placeholder="Nguyễn Văn A"></div>
+      <div class="fg"><label>Năm sinh</label><input type="number" id="np_y" placeholder="1985" min="1900" max="2025"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Giới tính</label><select id="np_gender"><option>Nam</option><option>Nữ</option></select></div>
-      <div class="form-group"><label>Số điện thoại</label><input id="np_phone" placeholder="0912 345 678"></div>
+    <div class="fr">
+      <div class="fg"><label>Giới tính</label><select id="np_g"><option>Nam</option><option>Nữ</option></select></div>
+      <div class="fg"><label>Số điện thoại (Zalo)</label><input id="np_p" placeholder="0912 345 678"></div>
     </div>
-    <div class="form-group" style="margin-bottom:10px"><label>Địa chỉ</label><input id="np_addr" placeholder="Số nhà, đường, quận..."></div>
-    <div class="form-group" style="margin-bottom:18px"><label>Tiền sử bệnh / Dị ứng thuốc</label><textarea id="np_hist" placeholder="Tăng huyết áp, Dị ứng Penicillin..."></textarea></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeMo('moNewPt')">Hủy</button>
-      <button class="btn btn-primary" onclick="saveNewPt()">✓ Lưu bệnh nhân</button>
+    <div class="fg" style="margin-bottom:9px"><label>Địa chỉ</label><input id="np_a" placeholder="Số nhà, đường, quận..."></div>
+    <div class="fg" style="margin-bottom:16px"><label>Tiền sử / Dị ứng thuốc</label><textarea id="np_h" placeholder="Tăng huyết áp, Dị ứng Penicillin..."></textarea></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="closeMo('moNP')">Hủy</button>
+      <button class="btn btn-p" onclick="saveNewPt()">✓ Lưu bệnh nhân</button>
     </div>
   </div>
 </div>
 
 <!-- Modal: QR -->
 <div class="mo" id="moQR">
-  <div class="md" style="text-align:center;max-width:420px">
-    <h3>📲 Mã QR cho bệnh nhân</h3>
-    <p style="color:var(--text2);font-size:.82rem;margin-bottom:20px">Bệnh nhân quét để xem đơn thuốc & nhận nhắc nhở</p>
+  <div class="md" style="text-align:center;max-width:400px">
+    <h3>📲 Mã QR đơn thuốc</h3>
+    <p style="color:var(--tx2);font-size:.8rem;margin-bottom:18px">Bệnh nhân quét để xem đơn thuốc & nhận nhắc nhở</p>
     <div id="qrcode"></div>
     <div class="qr-info" id="qrInfo"></div>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button class="btn btn-ghost" onclick="closeMo('moQR')">Đóng</button>
-      <button class="btn btn-primary" onclick="printQR()">🖨️ In QR</button>
+    <div style="display:flex;gap:9px;justify-content:center">
+      <button class="btn btn-g" onclick="closeMo('moQR')">Đóng</button>
+      <button class="btn btn-p" onclick="printQR()">🖨️ In QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Zalo -->
+<div class="mo" id="moZalo">
+  <div class="md" style="max-width:480px">
+    <h3>💬 Gửi nhắc lịch qua Zalo</h3>
+    <div style="background:rgba(0,102,255,.08);border:1px solid rgba(0,102,255,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:.82rem;color:var(--tx2);line-height:1.8">
+      <strong style="color:var(--ac2)">Số Zalo bệnh nhân:</strong> <span id="zalo-phone"></span><br>
+      <strong style="color:var(--ac2)">Nội dung nhắn:</strong>
+    </div>
+    <textarea id="zalo-msg" style="min-height:120px;margin-bottom:14px;font-size:.84rem"></textarea>
+    <div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:10px;font-size:.76rem;color:var(--tx2);margin-bottom:16px">
+      ⚠️ Để gửi tự động qua Zalo OA cần đăng ký Zalo Official Account. Hiện tại có thể copy nội dung và nhắn thủ công qua Zalo.
+    </div>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="closeMo('moZalo')">Đóng</button>
+      <button class="btn" style="background:#0066ff;color:white" onclick="copyZaloMsg()">📋 Copy nội dung</button>
+      <button class="btn" style="background:#0066ff;color:white" onclick="openZalo()">📱 Mở Zalo</button>
     </div>
   </div>
 </div>
 
 <script>
-// ========== STATE ==========
-let patients = [];
-let curId = null;
-let curTab = 'kham';
-let fbReady = false;
+// ===== STATE =====
+let pts = [], curId = null, curTab = 'kham', fbOk = false;
 
-// ========== FIREBASE ==========
+// ===== FIREBASE =====
 async function fbSave(p) {
-  if (!fbReady) return;
+  if(!fbOk) return;
   try {
-    setSyncing();
+    setSd('sync');
     const d = JSON.parse(JSON.stringify(p));
-    delete d.currentVisit;
+    delete d.cv;
     await window.__setDoc(window.__doc('patients', p.id), d);
-    setSynced();
-  } catch(e) { setError(); }
+    setSd('ok');
+  } catch(e){ setSd('err'); }
 }
 
 async function fbDel(id) {
-  if (!fbReady) return;
-  try { await window.__deleteDoc(window.__doc('patients', id)); } catch(e) {}
+  if(!fbOk) return;
+  try { await window.__deleteDoc(window.__doc('patients', id)); } catch(e){}
 }
 
-function saveLocal() { localStorage.setItem('pk_v2', JSON.stringify(patients)); }
-function save(p) { saveLocal(); if(p) fbSave(p); }
+async function fbSaveQR(id, data) {
+  if(!fbOk) return id;
+  try {
+    const d = JSON.parse(JSON.stringify(data));
+    await window.__setDoc(window.__doc('prescriptions', id), d);
+  } catch(e){ console.log(e); }
+  return id;
+}
 
-// ========== SYNC STATUS ==========
-function setSyncing(){ document.getElementById('syncDot').className='sync-dot syncing'; document.getElementById('syncText').textContent='Đang đồng bộ...'; }
-function setSynced(){ document.getElementById('syncDot').className='sync-dot synced'; document.getElementById('syncText').textContent='Firebase ✓'; }
-function setError(){ document.getElementById('syncDot').className='sync-dot error'; document.getElementById('syncText').textContent='Lưu local (offline)'; }
+function svLocal(){ localStorage.setItem('pk3', JSON.stringify(pts)); }
+function sv(p){ svLocal(); if(p) fbSave(p); }
 
-// ========== INIT ==========
-function init() {
-  document.getElementById('hdrDate').textContent = new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  // Load local ngay lập tức
-  try { patients = JSON.parse(localStorage.getItem('pk_v2')||'[]'); } catch(e){ patients=[]; }
+// ===== SYNC UI =====
+function setSd(s){ document.getElementById('sd').className='sd '+(s==='sync'?'sync':s==='ok'?'ok':'err'); document.getElementById('st').textContent=s==='sync'?'Đang đồng bộ...':s==='ok'?'Firebase ✓':'Offline - lưu local'; }
+
+// ===== INIT =====
+function init(){
+  document.getElementById('hd').textContent=new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  try{ pts=JSON.parse(localStorage.getItem('pk3')||'[]'); }catch(e){ pts=[]; }
   renderPtList();
 }
 
-window.addEventListener('firebase-ready', async () => {
-  fbReady = true;
-  try {
-    setSyncing();
-    const snap = await window.__getDocs(window.__col('patients'));
-    const fb = [];
-    snap.forEach(d => fb.push(d.data()));
-    if (fb.length > 0) {
-      patients = fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-      saveLocal();
-      renderPtList();
-    } else if (patients.length > 0) {
-      for (const p of patients) await fbSave(p);
-    }
-    setSynced();
-  } catch(e) { setError(); }
+window.addEventListener('firebase-ready', async()=>{
+  fbOk=true;
+  try{
+    setSd('sync');
+    const snap=await window.__getDocs(window.__col('patients'));
+    const fb=[]; snap.forEach(d=>fb.push(d.data()));
+    if(fb.length>0){
+      pts=fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+      svLocal(); renderPtList(); setSd('ok');
+    } else if(pts.length>0){
+      for(const p of pts) await fbSave(p);
+      setSd('ok');
+    } else setSd('ok');
+  }catch(e){ setSd('err'); }
 });
 
-// ========== PATIENT LIST ==========
+// ===== PATIENT LIST =====
 function renderPtList(q=''){
-  const el = document.getElementById('ptList');
-  const list = patients.filter(p => p.name.toLowerCase().includes(q.toLowerCase())||(p.phone&&p.phone.includes(q)));
-  if(!list.length){ el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--text3);font-size:.82rem">${q?'Không tìm thấy.':'Chưa có bệnh nhân.<br>Nhấn "Thêm bệnh nhân mới".'}</div>`; return; }
-  el.innerHTML = list.map(p=>{
-    const isNew = !(p.visits&&p.visits.length);
+  const el=document.getElementById('ptList');
+  const list=pts.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())||(p.phone&&p.phone.includes(q)));
+  if(!list.length){ el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--tx3);font-size:.8rem">${q?'Không tìm thấy.':'Chưa có bệnh nhân.<br>Nhấn "Thêm bệnh nhân mới".'}</div>`; return; }
+  el.innerHTML=list.map(p=>{
+    const isNew=!(p.visits&&p.visits.length);
     return `<div class="pt-item ${p.id===curId?'active':''}" onclick="selPt('${p.id}')">
       <div class="pt-name">${p.name}</div>
-      <div class="pt-meta">${p.gender||''} · ${p.year?(new Date().getFullYear()-p.year)+' tuổi':''} · ${p.phone||''}</div>
-      <span class="badge ${isNew?'badge-new':'badge-re'}">${isNew?'Mới':'Tái khám'}</span>
+      <div class="pt-meta">${p.gender||''} · ${p.year?(2026-p.year)+' tuổi':''} · ${p.phone||''}</div>
+      <span class="badge ${isNew?'b-new':'b-re'}">${isNew?'Mới':'Tái khám'}</span>
     </div>`;
   }).join('');
 }
 
-function filterPt(){ renderPtList(document.getElementById('searchInput').value); }
+function filterPt(){ renderPtList(document.getElementById('sq').value); }
 
-// ========== SELECT PATIENT ==========
-function selPt(id){ curId=id; curTab='kham'; renderPtList(document.getElementById('searchInput').value); renderDetail(); }
+// ===== SELECT PATIENT =====
+function selPt(id){ curId=id; curTab='kham'; renderPtList(document.getElementById('sq').value); renderDetail(); }
 
 function renderDetail(){
-  const p = patients.find(x=>x.id===curId); if(!p) return;
-  const age = p.year?(new Date().getFullYear()-p.year)+' tuổi':'';
-  const vc = (p.visits||[]).length;
-  document.getElementById('main').innerHTML = `
-    <div class="detail" id="detailArea">
-      <div class="detail-hdr">
-        <div>
-          <div class="detail-name">${p.name}</div>
-          <div class="detail-meta">
-            <span>👤 ${p.gender||''} · ${age}</span>
-            <span>📱 ${p.phone||'—'}</span>
-            <span>🏠 ${p.addr||p.address||'—'}</span>
-          </div>
-          ${p.history||p.hist?`<div style="font-size:.78rem;color:var(--accent3);margin-top:5px">⚠️ Tiền sử: ${p.history||p.hist}</div>`:''}
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const age=p.year?(2026-p.year)+' tuổi':'';
+  const vc=(p.visits||[]).length;
+  document.getElementById('main').innerHTML=`
+  <div style="max-width:880px">
+    <div class="dh">
+      <div>
+        <div class="dn">${p.name}</div>
+        <div class="dm">
+          <span>👤 ${p.gender||''} · ${age}</span>
+          <span>📱 ${p.phone||'—'}</span>
+          <span>🏠 ${p.addr||'—'}</span>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-          <button class="btn btn-ghost" onclick="genQR()">📲 Tạo QR</button>
-          <button class="btn btn-danger" onclick="delPt('${p.id}')">🗑️</button>
-        </div>
+        ${p.history?`<div style="font-size:.77rem;color:var(--ac3);margin-top:5px">⚠️ Tiền sử/Dị ứng: <strong>${p.history}</strong></div>`:''}
       </div>
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-val" style="color:var(--accent2)">${vc}</div><div class="stat-lbl">Lần khám</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:var(--accent);font-size:1rem">${p.nextVisit||'—'}</div><div class="stat-lbl">Tái khám</div></div>
-        <div class="stat-card"><div class="stat-val" style="color:var(--accent3);font-size:1rem">${vc>0?p.visits[vc-1].date:'—'}</div><div class="stat-lbl">Khám gần nhất</div></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start">
+        <button class="btn btn-g" onclick="openZaloModal()">💬 Nhắc Zalo</button>
+        <button class="btn btn-g" onclick="genQR()">📲 Tạo QR</button>
+        <button class="btn btn-d" onclick="delPt('${p.id}')">🗑️</button>
       </div>
-      <div class="tabs">
-        <div class="tab ${curTab==='kham'?'active':''}" onclick="switchTab('kham',this)">📋 Khám mới & Kê đơn</div>
-        <div class="tab ${curTab==='ls'?'active':''}" onclick="switchTab('ls',this)">📜 Lịch sử (${vc})</div>
-      </div>
-      <div id="tabArea"></div>
-    </div>`;
+    </div>
+    <div class="sr">
+      <div class="sc"><div class="sv" style="color:var(--ac2)">${vc}</div><div class="sl">Lần khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:.95rem">${p.nextVisit||'—'}</div><div class="sl">Tái khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac3);font-size:.95rem">${vc>0?p.visits[vc-1].date:'—'}</div><div class="sl">Khám gần nhất</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab ${curTab==='kham'?'active':''}" onclick="swTab('kham',this)">📋 Khám mới & Kê đơn</div>
+      <div class="tab ${curTab==='ls'?'active':''}" onclick="swTab('ls',this)">📜 Lịch sử (${vc})</div>
+    </div>
+    <div id="ta"></div>
+  </div>`;
   renderTab();
 }
 
-function switchTab(t,el){ curTab=t; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); el.classList.add('active'); renderTab(); }
+function swTab(t,el){ curTab=t; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); el.classList.add('active'); renderTab(); }
 
 function renderTab(){
-  const p = patients.find(x=>x.id===curId); if(!p) return;
-  const ta = document.getElementById('tabArea'); if(!ta) return;
-  if(curTab==='kham'){ ta.innerHTML=renderKham(p); if(!p.cv)p.cv={meds:[]}; renderMeds(); }
-  else ta.innerHTML=renderLS(p);
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const ta=document.getElementById('ta'); if(!ta) return;
+  if(curTab==='kham'){
+    if(!p.cv) p.cv={meds:[],supplies:[]};
+    if(!p.cv.meds) p.cv.meds=[];
+    if(!p.cv.supplies) p.cv.supplies=[];
+    ta.innerHTML=renderKham(p);
+    renderMeds(); renderSupplies();
+  } else {
+    ta.innerHTML=renderLS(p);
+  }
 }
 
-// ========== EXAM FORM ==========
+// ===== EXAM FORM =====
 function renderKham(p){
-  const cv = p.cv||{};
-  const today = new Date().toISOString().split('T')[0];
+  const cv=p.cv||{};
+  const today=new Date().toISOString().split('T')[0];
   return `
   <div class="card">
-    <div class="card-title">Thông tin khám hôm nay</div>
-    <div class="form-row">
-      <div class="form-group"><label>Ngày khám</label><input type="date" id="v_date" value="${cv.date||today}"></div>
-      <div class="form-group"><label>Loại khám</label><select id="v_type">
+    <div class="ct">Thông tin khám hôm nay</div>
+    <div class="fr">
+      <div class="fg"><label>Ngày khám</label><input type="date" id="v_date" value="${cv.date||today}"></div>
+      <div class="fg"><label>Loại khám</label><select id="v_type">
         <option ${(cv.type||'Khám mới')==='Khám mới'?'selected':''}>Khám mới</option>
         <option ${cv.type==='Tái khám'?'selected':''}>Tái khám</option>
         <option ${cv.type==='Tiểu phẫu'?'selected':''}>Tiểu phẫu</option>
       </select></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Mạch (lần/phút)</label><input type="number" id="v_pulse" value="${cv.pulse||''}" placeholder="VD: 80"></div>
-      <div class="form-group"><label>Huyết áp (mmHg)</label><input type="text" id="v_bp" value="${cv.bp||''}" placeholder="VD: 120/80"></div>
+    <div class="fr">
+      <div class="fg"><label>Mạch (lần/phút)</label><input type="number" id="v_pulse" value="${cv.pulse||''}" placeholder="VD: 78"></div>
+      <div class="fg"><label>Huyết áp (mmHg)</label><input type="text" id="v_bp" value="${cv.bp||''}" placeholder="VD: 125/80"></div>
     </div>
-    <div class="form-row"><div class="form-group full"><label>Lý do khám / Triệu chứng</label><textarea id="v_reason" placeholder="Mô tả triệu chứng...">${cv.reason||''}</textarea></div></div>
-    <div class="form-row"><div class="form-group full"><label>Chẩn đoán *</label><input id="v_diag" value="${cv.diag||''}" placeholder="VD: Tăng huyết áp độ I, Đau thần kinh tọa L4-L5..."></div></div>
+    <div class="fr"><div class="fg full"><label>Lý do khám / Triệu chứng</label><textarea id="v_reason" placeholder="Mô tả triệu chứng bệnh nhân...">${cv.reason||''}</textarea></div></div>
+    <div class="fr"><div class="fg full"><label>Chẩn đoán *</label><input id="v_diag" value="${cv.diag||''}" placeholder="VD: Thoái hoá khớp gối hai bên, Đau thần kinh tọa L4-L5..."></div></div>
   </div>
 
   <div class="card">
-    <div class="card-title">Đơn thuốc</div>
-    <table class="med-table">
+    <div class="ct">Đơn thuốc</div>
+    <table class="tbl">
       <thead><tr>
-        <th style="width:20%">Tên thuốc</th>
+        <th style="width:22%">Tên thuốc</th>
         <th style="width:11%">Hàm lượng</th>
-        <th style="width:9%">ĐVT</th>
-        <th style="width:9%">SL/lần</th>
+        <th style="width:8%">ĐVT</th>
+        <th style="width:8%">SL/lần</th>
         <th style="width:9%">Lần/ngày</th>
         <th style="width:9%">Số ngày</th>
         <th style="width:14%">Giờ uống</th>
@@ -347,240 +393,361 @@ function renderKham(p){
       </tr></thead>
       <tbody id="medRows"></tbody>
     </table>
-    <button class="btn-add-med" onclick="addMed()">＋ Thêm thuốc</button>
+    <button class="btn-add-row" onclick="addMed()">＋ Thêm thuốc</button>
   </div>
 
   <div class="card">
-    <div class="card-title">🔪 Thủ thuật / Tiêm tại phòng khám</div>
-    <div class="form-row"><div class="form-group full"><label>Mô tả kỹ thuật</label>
-      <textarea id="v_proc" placeholder="VD: Tiêm Depo-Medrol khớp gối phải, phong bế ngoài màng cứng..." style="min-height:60px">${cv.proc||''}</textarea>
+    <div class="ct">🔪 Thủ thuật / Tiêm tại phòng khám</div>
+    <div class="fr"><div class="fg full"><label>Mô tả kỹ thuật thực hiện</label>
+      <textarea id="v_proc" placeholder="VD: Tiêm Depo-Medrol 40mg khớp gối phải, phong bế thần kinh ngoài màng cứng L4-L5..." style="min-height:55px">${cv.proc||''}</textarea>
     </div></div>
-    <div class="form-row"><div class="form-group full"><label>Vật tư tiêu hao</label>
-      <textarea id="v_supply" placeholder="VD: Kim 21G x2, Depo-Medrol 40mg x1, Lidocaine 2% 5ml x1..." style="min-height:50px">${cv.supply||''}</textarea>
-    </div></div>
+    <label style="font-size:.74rem;color:var(--tx2);font-weight:500;display:block;margin-bottom:7px;margin-top:4px">Vật tư tiêu hao</label>
+    <table class="tbl">
+      <thead><tr>
+        <th style="width:36%">Tên vật tư</th>
+        <th style="width:12%">ĐVT</th>
+        <th style="width:12%">Số lượng</th>
+        <th style="width:18%">Đơn giá (đ)</th>
+        <th style="width:16%">Thành tiền</th>
+        <th style="width:5%"></th>
+      </tr></thead>
+      <tbody id="supplyRows"></tbody>
+      <tfoot><tr>
+        <td colspan="4" style="text-align:right;font-size:.76rem;font-weight:700;color:var(--tx2);padding:7px 8px">Tổng vật tư:</td>
+        <td style="font-weight:700;color:var(--ac3);padding:7px 8px" id="supplyTotal">—</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addSupply()">＋ Thêm vật tư</button>
   </div>
 
   <div class="card">
-    <div class="card-title">💰 Thu phí</div>
-    <div class="form-row">
-      <div class="form-group"><label>Tiền khám (đ)</label><input type="number" id="v_fee1" value="${cv.fee1||''}" placeholder="100000" oninput="calcFee()"></div>
-      <div class="form-group"><label>Tiền thuốc (đ)</label><input type="number" id="v_fee2" value="${cv.fee2||''}" placeholder="0" oninput="calcFee()"></div>
+    <div class="ct">💰 Thu phí</div>
+    <div class="fr">
+      <div class="fg"><label>Tiền khám (đ)</label><input type="number" id="v_f1" value="${cv.f1||''}" placeholder="0" oninput="calcFee()"></div>
+      <div class="fg"><label>Tiền thuốc (đ)</label><input type="number" id="v_f2" value="${cv.f2||''}" placeholder="0" oninput="calcFee()"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Phí thủ thuật (đ)</label><input type="number" id="v_fee3" value="${cv.fee3||''}" placeholder="0" oninput="calcFee()"></div>
-      <div class="form-group"><label>Tổng thu</label>
-        <div id="v_total" style="font-size:1.2rem;font-weight:700;color:var(--accent);padding:7px 0">${cv.feeTotal?(cv.feeTotal).toLocaleString('vi-VN')+'đ':'—'}</div>
+    <div class="fr">
+      <div class="fg"><label>Phí thủ thuật (đ)</label><input type="number" id="v_f3" value="${cv.f3||''}" placeholder="0" oninput="calcFee()"></div>
+      <div class="fg"><label>Tổng thu</label>
+        <div id="v_tot" style="font-size:1.2rem;font-weight:700;color:var(--ac);padding:6px 0">${cv.ftot?(cv.ftot).toLocaleString('vi-VN')+'đ':'—'}</div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-title">Lịch hẹn & Dặn dò</div>
-    <div class="form-row">
-      <div class="form-group"><label>Ngày tái khám</label><input type="date" id="v_next" value="${p.nextVisit||''}"></div>
-      <div class="form-group"><label>Giờ hẹn</label><input type="time" id="v_nextTime" value="${p.nextVisitTime||''}"></div>
+    <div class="ct">Lịch hẹn & Dặn dò</div>
+    <div class="fr">
+      <div class="fg"><label>Ngày tái khám</label><input type="date" id="v_next" value="${p.nextVisit||''}"></div>
+      <div class="fg"><label>Giờ hẹn</label><input type="time" id="v_nt" value="${p.nextVisitTime||''}"></div>
     </div>
-    <div class="form-group"><label>Lời dặn dò</label><textarea id="v_note" placeholder="Nghỉ ngơi, hạn chế muối...">${cv.note||''}</textarea></div>
+    <div class="fg"><label>Lời dặn dò</label><textarea id="v_note" placeholder="Nghỉ ngơi, hạn chế muối, tái khám đúng hẹn...">${cv.note||''}</textarea></div>
   </div>
 
   <div class="save-bar">
-    <button class="btn btn-ghost" onclick="clearForm()">↺ Xóa form</button>
-    <button class="btn btn-primary" onclick="saveVisit()">☁️ Lưu & Đồng bộ</button>
+    <button class="btn btn-g" onclick="clearForm()">↺ Xóa form</button>
+    <button class="btn btn-p" onclick="saveVisit()">☁️ Lưu & Đồng bộ</button>
   </div>`;
 }
 
+// ===== FEE CALC =====
 function calcFee(){
-  const f1=parseFloat(document.getElementById('v_fee1')?.value)||0;
-  const f2=parseFloat(document.getElementById('v_fee2')?.value)||0;
-  const f3=parseFloat(document.getElementById('v_fee3')?.value)||0;
+  const f1=parseFloat(document.getElementById('v_f1')?.value)||0;
+  const f2=parseFloat(document.getElementById('v_f2')?.value)||0;
+  const f3=parseFloat(document.getElementById('v_f3')?.value)||0;
   const tot=f1+f2+f3;
-  const el=document.getElementById('v_total');
-  if(el) el.textContent = tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
+  const el=document.getElementById('v_tot');
+  if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
 }
 
-// ========== MEDICINE ROWS ==========
+// ===== MEDICINE ROWS =====
 function renderMeds(){
-  const p=patients.find(x=>x.id===curId); if(!p) return;
+  const p=pts.find(x=>x.id===curId); if(!p) return;
   const tb=document.getElementById('medRows'); if(!tb) return;
   tb.innerHTML=(p.cv&&p.cv.meds||[]).map((m,i)=>`<tr>
-    <td><input value="${m.name||''}" onchange="updMed(${i},'name',this.value)" placeholder="Amoxicillin"></td>
-    <td><input value="${m.dose||''}" onchange="updMed(${i},'dose',this.value)" placeholder="500mg"></td>
-    <td><select onchange="updMed(${i},'unit',this.value)">
-      ${['viên','gói','ống','lọ','ml'].map(u=>`<option ${(m.unit||'viên')===u?'selected':''}>${u}</option>`).join('')}
-    </select></td>
-    <td><input type="number" value="${m.qty||1}" onchange="updMed(${i},'qty',this.value)" min="0.5" step="0.5"></td>
-    <td><input type="number" value="${m.times||''}" onchange="updMed(${i},'times',this.value)" placeholder="2"></td>
-    <td><input type="number" value="${m.days||''}" onchange="updMed(${i},'days',this.value)" placeholder="7"></td>
-    <td><input value="${m.note||''}" onchange="updMed(${i},'note',this.value)" placeholder="8-18"></td>
-    <td><input value="${m.remark||''}" onchange="updMed(${i},'remark',this.value)" placeholder="Uống sau ăn"></td>
-    <td><button class="btn-remove" onclick="remMed(${i})">✕</button></td>
+    <td><input value="${m.name||''}" onchange="updM(${i},'name',this.value)" placeholder="Paracetamol..."></td>
+    <td><input value="${m.dose||''}" onchange="updM(${i},'dose',this.value)" placeholder="500mg"></td>
+    <td><select onchange="updM(${i},'unit',this.value)">${['viên','gói','ống','lọ','ml'].map(u=>`<option ${(m.unit||'viên')===u?'selected':''}>${u}</option>`).join('')}</select></td>
+    <td><input type="number" value="${m.qty||1}" min="0.5" step="0.5" onchange="updM(${i},'qty',parseFloat(this.value)||1)"></td>
+    <td><input type="number" value="${m.times||''}" onchange="updM(${i},'times',this.value)" placeholder="2"></td>
+    <td><input type="number" value="${m.days||''}" onchange="updM(${i},'days',this.value)" placeholder="7"></td>
+    <td><input value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="VD: 8-14-20"></td>
+    <td><input value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn..."></td>
+    <td><button class="btn-rm" onclick="rmM(${i})">✕</button></td>
   </tr>`).join('');
 }
 
 function addMed(){
-  const p=patients.find(x=>x.id===curId); if(!p) return;
-  if(!p.cv) p.cv={meds:[]};
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  if(!p.cv) p.cv={meds:[],supplies:[]};
   p.cv.meds.push({name:'',dose:'',unit:'viên',qty:1,times:'',days:'',note:'',remark:''});
-  saveLocal(); renderMeds();
+  svLocal(); renderMeds();
 }
-function updMed(i,k,v){ const p=patients.find(x=>x.id===curId); if(p&&p.cv&&p.cv.meds[i]){p.cv.meds[i][k]=v; saveLocal();} }
-function remMed(i){ const p=patients.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); saveLocal(); renderMeds();} }
+function updM(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.meds[i]){p.cv.meds[i][k]=v; svLocal();} }
+function rmM(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); svLocal(); renderMeds();} }
 
-// ========== SAVE VISIT ==========
+// ===== SUPPLY ROWS =====
+function renderSupplies(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const tb=document.getElementById('supplyRows'); if(!tb) return;
+  const ss=p.cv&&p.cv.supplies||[];
+  tb.innerHTML=ss.map((s,i)=>`<tr>
+    <td><input value="${s.name||''}" onchange="updS(${i},'name',this.value)" placeholder="Kim 22G, Depo-Medrol..."></td>
+    <td><select onchange="updS(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','bộ'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
+    <td><input type="number" value="${s.qty||1}" min="1" step="1" onchange="updS(${i},'qty',parseFloat(this.value)||1);calcSupTotal()"></td>
+    <td><input type="number" value="${s.price||''}" placeholder="0" min="0" step="1000" onchange="updS(${i},'price',parseFloat(this.value)||0);calcSupTotal()"></td>
+    <td style="font-weight:600;color:var(--ac3);font-size:.8rem">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
+    <td><button class="btn-rm" onclick="rmS(${i})">✕</button></td>
+  </tr>`).join('');
+  calcSupTotal();
+}
+
+function calcSupTotal(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const tot=(p.cv&&p.cv.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+  const el=document.getElementById('supplyTotal');
+  if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
+  // Auto điền phí thủ thuật nếu chưa có
+  const f3=document.getElementById('v_f3');
+  if(f3&&tot>0&&!f3.value){ f3.value=tot; calcFee(); }
+}
+
+function addSupply(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  if(!p.cv) p.cv={meds:[],supplies:[]};
+  if(!p.cv.supplies) p.cv.supplies=[];
+  p.cv.supplies.push({name:'',unit:'cái',qty:1,price:0});
+  svLocal(); renderSupplies();
+}
+function updS(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies&&p.cv.supplies[i]){p.cv.supplies[i][k]=v; svLocal();} }
+function rmS(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies){p.cv.supplies.splice(i,1); svLocal(); renderSupplies();} }
+
+// ===== SAVE VISIT =====
 function saveVisit(){
-  const p=patients.find(x=>x.id===curId); if(!p) return;
+  const p=pts.find(x=>x.id===curId); if(!p) return;
   const g=id=>{ const el=document.getElementById(id); return el?el.value:''; };
   if(!g('v_date')){ showToast('Vui lòng chọn ngày khám','error'); return; }
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
-  const f1=parseFloat(g('v_fee1'))||0, f2=parseFloat(g('v_fee2'))||0, f3=parseFloat(g('v_fee3'))||0;
+  const f1=parseFloat(g('v_f1'))||0, f2=parseFloat(g('v_f2'))||0, f3=parseFloat(g('v_f3'))||0;
   const visit={
-    id: Date.now(),
-    date: g('v_date'), type: g('v_type'),
-    pulse: g('v_pulse'), bp: g('v_bp'),
-    reason: g('v_reason'), diag: g('v_diag'),
-    meds: JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
-    proc: g('v_proc'), supply: g('v_supply'),
-    fee1:f1, fee2:f2, fee3:f3, feeTotal:f1+f2+f3,
-    nextVisit: g('v_next'), nextVisitTime: g('v_nextTime'),
-    note: g('v_note'),
+    id:Date.now(),
+    date:g('v_date'), type:g('v_type'),
+    pulse:g('v_pulse'), bp:g('v_bp'),
+    reason:g('v_reason'), diag:g('v_diag'),
+    meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
+    proc:g('v_proc'),
+    supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
+    f1,f2,f3,ftot:f1+f2+f3,
+    nextVisit:g('v_next'), nextVisitTime:g('v_nt'),
+    note:g('v_note'),
   };
   if(!p.visits) p.visits=[];
   p.visits.push(visit);
   p.nextVisit=visit.nextVisit;
   p.nextVisitTime=visit.nextVisitTime;
-  p.cv={meds:[]};
-  saveLocal();
-  fbSave(p);
+  p.cv={meds:[],supplies:[]};
+  svLocal(); fbSave(p);
   showToast('✓ Đã lưu lần khám!','success');
-  curTab='ls';
-  renderDetail();
+  curTab='ls'; renderDetail();
 }
 
 function clearForm(){
-  const p=patients.find(x=>x.id===curId); if(!p) return;
+  const p=pts.find(x=>x.id===curId); if(!p) return;
   if(!confirm('Xóa toàn bộ thông tin đang nhập?')) return;
-  p.cv={meds:[]}; saveLocal(); renderTab();
+  p.cv={meds:[],supplies:[]}; svLocal(); renderTab();
 }
 
-// ========== VISIT HISTORY ==========
+// ===== VISIT HISTORY =====
 function renderLS(p){
-  const visits=(p.visits||[]).slice().reverse();
-  const histBox = (p.history||p.hist)?`<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.3);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:.8rem;color:var(--accent3)"><strong>⚠️ Tiền sử/Dị ứng:</strong> ${p.history||p.hist}</div>`:'';
-  if(!visits.length) return histBox+'<div style="text-align:center;padding:50px;color:var(--text3)">Chưa có lần khám nào.</div>';
+  const vs=(p.visits||[]).slice().reverse();
+  const hb=p.history?`<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.3);border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:.79rem;color:var(--ac3)"><strong>⚠️ Tiền sử/Dị ứng:</strong> ${p.history}</div>`:'';
+  if(!vs.length) return hb+'<div style="text-align:center;padding:48px;color:var(--tx3)">Chưa có lần khám nào.</div>';
 
-  return histBox+`<div class="vt">${visits.map(v=>{
+  return hb+`<div class="vt">${vs.map(v=>{
+    // Parse giờ uống
     const medLines=(v.meds||[]).map(m=>{
       const parts=(m.note||'').split('-');
       let gio='';
-      // Format 1: "8-14-20" hoặc "8-0-20" → giờ cụ thể
-      // Format 2: "1-0-1" → số viên mỗi buổi
       if(parts.length>=3){
-        const isTime = parts.some(p=>parseInt(p)>2); // nếu có số >2 thì là giờ
+        const isTime=parts.some(x=>parseInt(x)>4);
         const s=[];
         if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
         if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
         if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
-        gio = s.length ? ' · Uống: '+s.join(', ') : (m.note?' · '+m.note:'');
+        gio=s.length?' · Uống: '+s.join(', '):(m.note?' · '+m.note:'');
       } else { gio=m.note?' · '+m.note:''; }
-      return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em>('+m.remark+')</em>':''}`;
+      return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em style="color:var(--tx3)">('+m.remark+')</em>':''}`;
     }).join('<br>');
 
+    // Supply table
+    const supTable=(v.supplies&&v.supplies.length)?`
+      <div style="margin-top:8px;border:1px solid rgba(240,136,62,.2);border-radius:7px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:.74rem">
+          <thead><tr style="background:rgba(240,136,62,.08)">
+            <th style="text-align:left;padding:4px 8px;color:var(--tx3)">Vật tư</th>
+            <th style="text-align:center;padding:4px 8px;color:var(--tx3)">SL</th>
+            <th style="text-align:center;padding:4px 8px;color:var(--tx3)">ĐVT</th>
+            <th style="text-align:right;padding:4px 8px;color:var(--tx3)">Thành tiền</th>
+          </tr></thead>
+          <tbody>${(v.supplies||[]).map(s=>`<tr>
+            <td style="padding:3px 8px;color:var(--tx)">${s.name||'—'}</td>
+            <td style="padding:3px 8px;text-align:center;color:var(--tx2)">${s.qty||1}</td>
+            <td style="padding:3px 8px;text-align:center;color:var(--tx2)">${s.unit||'cái'}</td>
+            <td style="padding:3px 8px;text-align:right;color:var(--ac3)">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`:'';
+
     return `<div class="vi">
-      <div class="vi-date">${v.date} — ${v.type}</div>
-      <div class="vi-card">
-        <div class="vi-diag">🩺 ${v.diag||'Chưa ghi'}</div>
-        ${v.bp||v.pulse?`<div style="font-size:.78rem;color:var(--text2);margin-top:5px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''}${v.bp&&v.pulse?' &nbsp;·&nbsp; ':''}${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
-        ${v.reason?`<div style="font-size:.78rem;color:var(--text3);margin-top:5px;font-style:italic">📋 ${v.reason}</div>`:''}
-        ${medLines?`<div style="font-size:.79rem;color:var(--text2);margin-top:7px;line-height:2">${medLines}</div>`:''}
-        ${v.proc?`<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.2);border-radius:7px;font-size:.79rem"><b style="color:var(--danger)">🔪 Thủ thuật:</b> ${v.proc}${v.supply?'<br><span style="color:var(--text3)">📦 '+v.supply+'</span>':''}</div>`:''}
-        ${v.feeTotal?`<div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          ${v.fee1?`<span class="fee-pill fee-k">Khám: ${v.fee1.toLocaleString('vi-VN')}đ</span>`:''}
-          ${v.fee2?`<span class="fee-pill fee-t">Thuốc: ${v.fee2.toLocaleString('vi-VN')}đ</span>`:''}
-          ${v.fee3?`<span class="fee-pill fee-p">TT: ${v.fee3.toLocaleString('vi-VN')}đ</span>`:''}
-          <span class="fee-pill fee-total">💰 ${v.feeTotal.toLocaleString('vi-VN')}đ</span>
+      <div class="vi-d">${v.date} — ${v.type}</div>
+      <div class="vi-c">
+        <div style="font-weight:600;font-size:.9rem">🩺 ${v.diag||'Chưa ghi'}</div>
+        ${v.bp||v.pulse?`<div style="font-size:.77rem;color:var(--tx2);margin-top:5px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''} ${v.bp&&v.pulse?'·':''} ${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
+        ${v.reason?`<div style="font-size:.77rem;color:var(--tx3);margin-top:5px;font-style:italic">📋 ${v.reason}</div>`:''}
+        ${medLines?`<div style="font-size:.78rem;color:var(--tx2);margin-top:7px;line-height:2">${medLines}</div>`:''}
+        ${v.proc?`<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.18);border-radius:7px;font-size:.78rem"><b style="color:var(--da)">🔪 Thủ thuật:</b> ${v.proc}</div>`:''}
+        ${supTable}
+        ${v.ftot?`<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+          ${v.f1?`<span class="fp fp-k">Khám: ${v.f1.toLocaleString('vi-VN')}đ</span>`:''}
+          ${v.f2?`<span class="fp fp-t">Thuốc: ${v.f2.toLocaleString('vi-VN')}đ</span>`:''}
+          ${v.f3?`<span class="fp fp-p">TT: ${v.f3.toLocaleString('vi-VN')}đ</span>`:''}
+          <span class="fp fp-tot">💰 Tổng: ${v.ftot.toLocaleString('vi-VN')}đ</span>
         </div>`:''}
-        ${v.note?`<div style="font-size:.79rem;color:var(--accent2);margin-top:7px;padding:5px 10px;background:rgba(88,166,255,.07);border-radius:6px">📝 ${v.note}</div>`:''}
-        ${v.nextVisit?`<div style="font-size:.78rem;color:var(--accent3);margin-top:6px">📅 Tái khám: ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
+        ${v.note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:7px;padding:5px 10px;background:rgba(88,166,255,.07);border-radius:6px">📝 ${v.note}</div>`:''}
+        ${v.nextVisit?`<div style="font-size:.77rem;color:var(--ac3);margin-top:6px;display:flex;align-items:center;gap:6px">📅 Tái khám: <b>${v.nextVisit}</b>${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
       </div>
     </div>`;
   }).join('')}</div>`;
 }
 
-// ========== NEW PATIENT ==========
+// ===== NEW PATIENT =====
 function openNewPt(){
-  ['np_name','np_year','np_phone','np_addr','np_hist'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('moNewPt').classList.add('show');
-  setTimeout(()=>document.getElementById('np_name').focus(),100);
+  ['np_n','np_y','np_p','np_a','np_h'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('moNP').classList.add('show');
+  setTimeout(()=>document.getElementById('np_n').focus(),100);
 }
 
 function saveNewPt(){
-  const name=document.getElementById('np_name').value.trim();
+  const name=document.getElementById('np_n').value.trim();
   if(!name){ showToast('Vui lòng nhập họ tên','error'); return; }
-  const yearVal = parseInt(document.getElementById('np_year').value)||0;
-  if(yearVal && (yearVal < 1900 || yearVal > 2025)){ showToast('Năm sinh không hợp lệ (1900–2025)','error'); return; }
+  const yr=parseInt(document.getElementById('np_y').value)||0;
+  if(yr&&(yr<1900||yr>2025)){ showToast('Năm sinh không hợp lệ','error'); return; }
   const p={
     id:'bn_'+Date.now(), name,
-    year:yearVal||'',
-    gender:document.getElementById('np_gender').value,
-    phone:document.getElementById('np_phone').value,
-    addr:document.getElementById('np_addr').value,
-    history:document.getElementById('np_hist').value,
-    visits:[], cv:{meds:[]},
+    year:yr||'',
+    gender:document.getElementById('np_g').value,
+    phone:document.getElementById('np_p').value,
+    addr:document.getElementById('np_a').value,
+    history:document.getElementById('np_h').value,
+    visits:[], cv:{meds:[],supplies:[]},
     createdAt:new Date().toISOString()
   };
-  patients.unshift(p);
-  save(p);
-  closeMo('moNewPt');
-  renderPtList();
-  selPt(p.id);
+  pts.unshift(p); sv(p);
+  closeMo('moNP'); renderPtList(); selPt(p.id);
   showToast('✓ Đã thêm bệnh nhân','success');
 }
 
 function delPt(id){
   if(!confirm('Xóa bệnh nhân này? Dữ liệu sẽ xóa khỏi Firebase!')) return;
-  patients=patients.filter(p=>p.id!==id);
-  fbDel(id); saveLocal(); curId=null;
+  pts=pts.filter(p=>p.id!==id); fbDel(id); svLocal(); curId=null;
   renderPtList();
-  document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><h2>Chào bác sĩ!</h2><p>Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>';
+  document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:\'Playfair Display\',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3);font-size:.84rem">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>';
 }
 
-// ========== QR ==========
-function genQR(){
-  const p=patients.find(x=>x.id===curId); if(!p) return;
+// ===== QR CODE =====
+async function genQR(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
   const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
-  const payload=JSON.stringify({name:p.name,gender:p.gender,year:p.year,diag:lv?lv.diag:'',pulse:lv?lv.pulse:'',bp:lv?lv.bp:'',date:lv?lv.date:'',type:lv?lv.type:'',meds:lv?lv.meds:[],nextVisit:p.nextVisit,nextVisitTime:p.nextVisitTime,note:lv?lv.note:'',clinic:'Phòng khám Bác sĩ Nam'});
-  const base=window.location.href.replace('phongkham.html','don-thuoc.html');
-  const url=base+'?d='+encodeURIComponent(payload);
+  const qrId='qr_'+p.id.replace('bn_','')+'_'+Date.now();
+  const data={
+    name:p.name,gender:p.gender,year:p.year,
+    diag:lv?lv.diag:'',pulse:lv?lv.pulse:'',bp:lv?lv.bp:'',
+    date:lv?lv.date:'',type:lv?lv.type:'',
+    meds:lv?lv.meds:[],
+    nextVisit:p.nextVisit,nextVisitTime:p.nextVisitTime,
+    note:lv?lv.note:'',clinic:'Phòng khám Bác sĩ Nam',
+    createdAt:new Date().toISOString()
+  };
+  await fbSaveQR(qrId, data);
+  const url='https://phongkham-bacsinam.vercel.app/don-thuoc.html?id='+qrId;
   document.getElementById('qrInfo').innerHTML=`<strong>Bệnh nhân:</strong> ${p.name}<br><strong>Chẩn đoán:</strong> ${lv?lv.diag:'Chưa có'}<br><strong>Số thuốc:</strong> ${lv&&lv.meds?lv.meds.length:0} loại<br><strong>Tái khám:</strong> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}`;
   const qd=document.getElementById('qrcode'); qd.innerHTML='';
-  new QRCode(qd,{text:url,width:200,height:200,colorDark:'#0d1117',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  new QRCode(qd,{text:url,width:220,height:220,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
   document.getElementById('moQR').classList.add('show');
 }
 
 function printQR(){
-  const p=patients.find(x=>x.id===curId);
+  const p=pts.find(x=>x.id===curId);
   const lv=p&&p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
   const c=document.querySelector('#qrcode canvas'); if(!c) return;
   const w=window.open('','_blank');
-  w.document.write(`<html><head><title>QR - ${p.name}</title><style>body{font-family:sans-serif;text-align:center;padding:40px}.info{border:1px solid #ddd;border-radius:8px;padding:14px;max-width:280px;margin:16px auto;text-align:left;font-size:13px;line-height:2}</style></head><body><h2>Đơn thuốc điện tử</h2><p>Quét mã để xem đơn thuốc</p><img src="${c.toDataURL()}" width="200"><div class="info"><b>Bệnh nhân:</b> ${p.name}<br><b>Chẩn đoán:</b> ${lv?lv.diag:'N/A'}<br><b>Tái khám:</b> ${p.nextVisit||'Chưa hẹn'}</div></body></html>`);
+  w.document.write(`<html><head><title>QR - ${p.name}</title><style>body{font-family:sans-serif;text-align:center;padding:40px}.info{border:1px solid #ddd;border-radius:8px;padding:14px;max-width:280px;margin:14px auto;text-align:left;font-size:13px;line-height:2}</style></head><body><h2>Đơn thuốc điện tử</h2><p style="color:#666">Quét mã để xem đơn thuốc & nhận nhắc nhở</p><img src="${c.toDataURL()}" width="220"><div class="info"><b>Bệnh nhân:</b> ${p.name}<br><b>Chẩn đoán:</b> ${lv?lv.diag:'N/A'}<br><b>Tái khám:</b> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}</div></body></html>`);
   w.document.close(); w.print();
 }
 
-// ========== DAILY STATS ==========
+// ===== ZALO =====
+function openZaloModal(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
+  document.getElementById('zalo-phone').textContent=p.phone||'Chưa có số điện thoại';
+  let msg=`Xin chào ${p.name}!\n\n`;
+  if(lv){
+    msg+=`🏥 Phòng khám Bác sĩ Nam\n`;
+    msg+=`📋 Chẩn đoán: ${lv.diag||''}\n\n`;
+    if(lv.meds&&lv.meds.length){
+      msg+=`💊 Đơn thuốc:\n`;
+      lv.meds.forEach((m,i)=>{
+        msg+=`${i+1}. ${m.name} ${m.dose||''} - ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/ngày × ${m.days||'?'} ngày`;
+        if(m.note) msg+=` (${m.note})`;
+        if(m.remark) msg+=` - ${m.remark}`;
+        msg+='\n';
+      });
+    }
+    if(p.nextVisit){
+      msg+=`\n📅 Lịch tái khám: ${p.nextVisit}`;
+      if(p.nextVisitTime) msg+=` lúc ${p.nextVisitTime}`;
+      msg+='\n';
+    }
+    if(lv.note) msg+=`\n📝 Lưu ý: ${lv.note}\n`;
+  }
+  msg+='\nTrân trọng,\nPhòng khám Bác sĩ Nguyễn Hoài Nam';
+  document.getElementById('zalo-msg').value=msg;
+  document.getElementById('moZalo').classList.add('show');
+}
+
+function copyZaloMsg(){
+  const msg=document.getElementById('zalo-msg').value;
+  navigator.clipboard.writeText(msg).then(()=>showToast('✓ Đã copy nội dung!','success')).catch(()=>{
+    document.getElementById('zalo-msg').select();
+    document.execCommand('copy');
+    showToast('✓ Đã copy!','success');
+  });
+}
+
+function openZalo(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const phone=(p.phone||'').replace(/\D/g,'');
+  if(!phone){ showToast('Bệnh nhân chưa có số điện thoại','error'); return; }
+  copyZaloMsg();
+  window.open(`https://zalo.me/${phone}`,'_blank');
+  showToast('Đã copy nội dung & mở Zalo!','info');
+}
+
+// ===== DAILY STATS =====
 function showStats(){
   const today=new Date().toISOString().split('T')[0];
   const mo=document.createElement('div');
-  mo.className='mo show'; mo.id='moStats';
-  mo.innerHTML=`<div class="md" style="max-width:620px;width:95%;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  mo.className='mo show'; mo.id='moSt';
+  mo.innerHTML=`<div class="md" style="max-width:640px;width:95%;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <h3 style="margin:0">📊 Thống kê theo ngày</h3>
-      <button class="btn btn-ghost" onclick="document.getElementById('moStats').remove()">✕</button>
+      <button class="btn btn-g" onclick="document.getElementById('moSt').remove()">✕</button>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <label style="font-size:.82rem;color:var(--text2)">Ngày:</label>
-      <input type="date" id="statsDate" value="${today}" onchange="renderStats()" style="width:auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <label style="font-size:.8rem;color:var(--tx2)">Ngày:</label>
+      <input type="date" id="stDate" value="${today}" onchange="renderStats()" style="width:auto">
     </div>
-    <div id="statsBody"></div>
+    <div id="stBody"></div>
   </div>`;
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
@@ -588,48 +755,51 @@ function showStats(){
 }
 
 function renderStats(){
-  const d=document.getElementById('statsDate'); if(!d) return;
+  const d=document.getElementById('stDate'); if(!d) return;
   const date=d.value;
   const rows=[];
-  patients.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
-  const el=document.getElementById('statsBody'); if(!el) return;
-  if(!rows.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text3)">Không có lượt khám nào ngày ${date}</div>`; return; }
-  const tot=rows.reduce((s,v)=>s+(v.feeTotal||0),0);
-  const totK=rows.reduce((s,v)=>s+(v.fee1||0),0);
-  const totT=rows.reduce((s,v)=>s+(v.fee2||0),0);
-  const totP=rows.reduce((s,v)=>s+(v.fee3||0),0);
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const el=document.getElementById('stBody'); if(!el) return;
+  if(!rows.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có lượt khám nào ngày ${date}</div>`; return; }
+  const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
+  const totK=rows.reduce((s,v)=>s+(v.f1||0),0);
+  const totT=rows.reduce((s,v)=>s+(v.f2||0),0);
+  const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
   const nProc=rows.filter(v=>v.proc).length;
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px">
-      <div class="stat-card"><div class="stat-val" style="color:var(--accent2)">${rows.length}</div><div class="stat-lbl">Lượt khám</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--accent);font-size:1.2rem">${tot.toLocaleString('vi-VN')}đ</div><div class="stat-lbl">Tổng thu</div></div>
-      ${totK?`<div class="stat-card"><div class="stat-val" style="color:var(--accent);font-size:1.1rem">${totK.toLocaleString('vi-VN')}đ</div><div class="stat-lbl">Tiền khám</div></div>`:''}
-      ${totT?`<div class="stat-card"><div class="stat-val" style="color:var(--accent2);font-size:1.1rem">${totT.toLocaleString('vi-VN')}đ</div><div class="stat-lbl">Tiền thuốc</div></div>`:''}
-      ${totP?`<div class="stat-card"><div class="stat-val" style="color:var(--danger);font-size:1.1rem">${totP.toLocaleString('vi-VN')}đ</div><div class="stat-lbl">Thủ thuật (${nProc} ca)</div></div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:16px">
+      <div class="sc"><div class="sv" style="color:var(--ac2)">${rows.length}</div><div class="sl">Lượt khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:1.1rem">${tot.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng thu</div></div>
+      ${totK?`<div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${totK.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền khám</div></div>`:''}
+      ${totT?`<div class="sc"><div class="sv" style="color:var(--ac2);font-size:1rem">${totT.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền thuốc</div></div>`:''}
+      ${totP?`<div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${totP.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật (${nProc} ca)</div></div>`:''}
     </div>
-    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Danh sách bệnh nhân trong ngày</div>
+    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:8px">Danh sách bệnh nhân</div>
     ${rows.map((v,i)=>`
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div style="background:var(--su2);border:1px solid var(--bo);border-radius:9px;padding:11px 13px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:flex-start;gap:9px">
         <div style="flex:1">
-          <div style="font-weight:700;font-size:.88rem">${i+1}. ${v.ptName}</div>
-          <div style="font-size:.76rem;color:var(--text2);margin-top:2px">${v.type} · ${v.diag||'Chưa ghi'}</div>
-          ${v.proc?`<div style="font-size:.73rem;color:var(--danger);margin-top:2px">🔪 ${v.proc}</div>`:''}
-          ${v.ptPhone?`<div style="font-size:.72rem;color:var(--text3)">📱 ${v.ptPhone}</div>`:''}
+          <div style="font-weight:700;font-size:.87rem">${i+1}. ${v.ptName}</div>
+          <div style="font-size:.75rem;color:var(--tx2);margin-top:2px">${v.type} · ${v.diag||'Chưa ghi'}</div>
+          ${v.proc?`<div style="font-size:.72rem;color:var(--da);margin-top:2px">🔪 ${v.proc}</div>`:''}
+          ${v.ptPhone?`<div style="font-size:.71rem;color:var(--tx3)">📱 ${v.ptPhone}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          ${v.feeTotal?`<div style="font-weight:700;color:var(--accent)">${v.feeTotal.toLocaleString('vi-VN')}đ</div>`:'<div style="color:var(--text3);font-size:.78rem">Chưa thu</div>'}
-          ${v.fee1||v.fee2||v.fee3?`<div style="font-size:.7rem;color:var(--text3);margin-top:2px">${[v.fee1?'K:'+v.fee1.toLocaleString('vi-VN'):'',v.fee2?'T:'+v.fee2.toLocaleString('vi-VN'):'',v.fee3?'TT:'+v.fee3.toLocaleString('vi-VN'):''].filter(Boolean).join(' · ')}</div>`:''}
+          ${v.ftot?`<div style="font-weight:700;color:var(--ac);font-size:.9rem">${v.ftot.toLocaleString('vi-VN')}đ</div>`:'<div style="color:var(--tx3);font-size:.77rem">Chưa thu</div>'}
+          ${v.f1||v.f2||v.f3?`<div style="font-size:.69rem;color:var(--tx3);margin-top:2px">${[v.f1?'K:'+v.f1.toLocaleString('vi-VN'):'',v.f2?'T:'+v.f2.toLocaleString('vi-VN'):'',v.f3?'TT:'+v.f3.toLocaleString('vi-VN'):''].filter(Boolean).join(' · ')}</div>`:''}
         </div>
       </div>`).join('')}`;
 }
 
-// ========== UTILS ==========
+// ===== UTILS =====
 function closeMo(id){ document.getElementById(id).classList.remove('show'); }
 function showToast(msg,type='success'){ const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3000); }
 document.addEventListener('click',e=>{ if(e.target.classList.contains('mo')) e.target.classList.remove('show'); });
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.mo.show').forEach(m=>m.classList.remove('show')); if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openNewPt();} });
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.mo.show').forEach(m=>m.classList.remove('show'));
+  if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openNewPt();}
+});
 
-// ========== START ==========
+// ===== START =====
 init();
 </script>
 </body>
