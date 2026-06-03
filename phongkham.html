@@ -499,18 +499,43 @@ function renderKhamTab(p) {
 function renderLichSuTab(p) {
   const visits=(p.visits||[]).slice().reverse();
   if(visits.length===0) return '<div class="empty-list" style="padding:60px">Chưa có lần khám nào.</div>';
-  return `<div class="visit-timeline">${visits.map(v=>`
-    <div class="visit-item">
-      <div class="visit-date">${v.date} — ${v.type}</div>
-      <div class="visit-card">
-        <div class="visit-diag">🩺 ${v.diag||'Chưa ghi chẩn đoán'}</div>
-        ${v.bp?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px">HA: ${v.bp} · Mạch: ${v.pulse}</div>`:''}
-        ${v.reason?`<div style="font-size:0.78rem;color:var(--text3);margin-top:4px">📋 Lý do: ${v.reason}</div>`:''}
-        ${v.meds&&v.meds.length>0?`<div class="visit-meds">💊 ${v.meds.map(m=>`${m.name} ${m.dose||''} - ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times} lần/${m.days} ngày${m.remark?' ('+m.remark+')':''}`).join('<br>')}</div>`:''}
-        ${v.note?`<div style="font-size:0.78rem;color:var(--text2);margin-top:4px;font-style:italic">📝 ${v.note}</div>`:''}
-        ${v.nextVisit?`<div class="visit-next">📅 Tái khám: ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
-      </div>
-    </div>`).join('')}</div>`;
+  return `
+    ${p.history ? `<div style="background:rgba(240,136,62,0.1);border:1px solid rgba(240,136,62,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.82rem;color:var(--accent3)">
+      <strong>⚠️ Tiền sử / Dị ứng:</strong> ${p.history}
+    </div>` : ''}
+    <div class="visit-timeline">${visits.map(v=>{
+      // Build giờ uống từng thuốc
+      const medLines = (v.meds||[]).map(m => {
+        const parts = (m.note||'').split('-');
+        let gioUong = '';
+        if(parts.length>=3){
+          const slots=[];
+          if(parts[0]&&parts[0]!=='0') slots.push('sáng '+parts[0]+'h');
+          if(parts[1]&&parts[1]!=='0') slots.push('trưa '+parts[1]+'h');
+          if(parts[2]&&parts[2]!=='0') slots.push('tối '+parts[2]+'h');
+          gioUong = slots.length ? ' · Uống: '+slots.join(', ') : (m.note ? ' · '+m.note : '');
+        } else {
+          gioUong = m.note ? ' · '+m.note : '';
+        }
+        return \`💊 <strong>\${m.name}</strong> \${m.dose||''} — \${m.qty||1} \${m.unit||'viên'}/lần × \${m.times||'?'} lần/ngày × \${m.days||'?'} ngày\${gioUong}\${m.remark?' <em>(\${m.remark})</em>':''}\`;
+      }).join('<br>');
+
+      return \`<div class="visit-item">
+        <div class="visit-date">\${v.date} — \${v.type}</div>
+        <div class="visit-card">
+          <div class="visit-diag">🩺 \${v.diag||'Chưa ghi chẩn đoán'}</div>
+          \${v.bp||v.pulse?'<div style="font-size:0.78rem;color:var(--text2);margin-top:6px">'+
+            (v.bp?'🫀 HA: <strong>'+v.bp+'</strong> mmHg':'')+
+            (v.bp&&v.pulse?' &nbsp;·&nbsp; ':'')+
+            (v.pulse?'💓 Mạch: <strong>'+v.pulse+'</strong> l/ph':'')+
+            '</div>':''}
+          \${v.reason?'<div style="font-size:0.8rem;color:var(--text3);margin-top:6px;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:6px">📋 <em>'+v.reason+'</em></div>':''}
+          \${medLines?'<div style="font-size:0.8rem;color:var(--text2);margin-top:8px;line-height:1.9">'+medLines+'</div>':''}
+          \${v.note?'<div style="font-size:0.8rem;color:var(--accent2);margin-top:8px;padding:6px 10px;background:rgba(88,166,255,0.08);border-radius:6px">📝 '+v.note+'</div>':''}
+          \${v.nextVisit?'<div class="visit-next">📅 Tái khám: '+v.nextVisit+(v.nextVisitTime?' lúc '+v.nextVisitTime:'')+'</div>':''}
+        </div>
+      </div>\`;
+    }).join('')}</div>`;
 }
 
 // ============ MEDICINE ROWS ============
