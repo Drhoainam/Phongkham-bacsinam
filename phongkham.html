@@ -622,7 +622,7 @@ function generateQR() {
     note:lastVisit?lastVisit.note:'',
     clinic:'Phòng khám Bác sĩ Nam'
   });
-  const baseUrl=window.location.href.replace('phongkham.html','don-thuoc.html');
+  const baseUrl='https://phongkham-bacsinam.vercel.app/don-thuoc.html';
   const qrUrl=baseUrl+'?d='+encodeURIComponent(payload);
 
   document.getElementById('qrInfo').innerHTML=`

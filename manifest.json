@@ -2,7 +2,7 @@
   "name": "PhòngKhám - Đơn thuốc",
   "short_name": "Đơn thuốc",
   "description": "Xem đơn thuốc và nhận nhắc nhở uống thuốc từ phòng khám",
-  "start_url": "/don-thuoc.html",
+  "start_url": "https://phongkham-bacsinam.vercel.app/don-thuoc.html",
   "display": "standalone",
   "background_color": "#f0f7f2",
   "theme_color": "#2d6a4f",
