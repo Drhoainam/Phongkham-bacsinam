@@ -214,6 +214,7 @@
     <div class="sidebar-search">
       <input class="search-box" type="text" id="searchInput" placeholder="🔍  Tìm bệnh nhân..." oninput="filterPatients()">
       <button class="btn-new-patient" onclick="openNewPatient()">＋ Thêm bệnh nhân mới</button>
+      <button onclick="showDailyStats()" style="width:100%;margin-top:8px;background:rgba(88,166,255,0.15);color:var(--accent2);border:1px solid rgba(88,166,255,0.3);border-radius:10px;padding:8px;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s">📊 Thống kê theo ngày</button>
     </div>
     <div class="patient-list" id="patientList">
       <div class="empty-list">Đang tải dữ liệu...</div>
@@ -331,13 +332,23 @@ function init() {
   document.getElementById('headerDate').textContent =
     now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  // Load local first for instant display
+  // Load local data immediately (works offline too)
   const local = localStorage.getItem('pk_patients');
   if (local) {
-    patients = JSON.parse(local);
-    renderPatientList();
-    updateWelcome();
+    try {
+      patients = JSON.parse(local);
+    } catch(e) { patients = []; }
   }
+  renderPatientList();
+  updateWelcome();
+
+  // If Firebase doesn't connect in 5 seconds, switch to offline mode
+  setTimeout(() => {
+    if (!firebaseReady) {
+      document.getElementById('syncDot').className = 'sync-dot';
+      document.getElementById('syncText').textContent = 'Chế độ offline (local)';
+    }
+  }, 5000);
 }
 
 function updateWelcome() {
@@ -532,9 +543,16 @@ function renderLichSuTab(p) {
           \${v.reason?'<div style="font-size:0.8rem;color:var(--text3);margin-top:6px;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:6px">📋 <em>'+v.reason+'</em></div>':''}
           \${medLines?'<div style="font-size:0.8rem;color:var(--text2);margin-top:8px;line-height:1.9">'+medLines+'</div>':''}
           \${v.note?'<div style="font-size:0.8rem;color:var(--accent2);margin-top:8px;padding:6px 10px;background:rgba(88,166,255,0.08);border-radius:6px">📝 '+v.note+'</div>':''}
-          \${v.nextVisit?'<div class="visit-next">📅 Tái khám: '+v.nextVisit+(v.nextVisitTime?' lúc '+v.nextVisitTime:'')+'</div>':''}
+          \${v.nextVisit?'<div class="visit-next">📅 Tái khám: '+v.nextVisit+(v.nextVisitTime?' lúc '+v.nextVisitTime:'')+' </div>':''}
+          ${v.proc_desc?`<div style="margin-top:8px;padding:8px 12px;background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.2);border-radius:8px;font-size:0.8rem"><strong style="color:#f85149">🔪 Thủ thuật:</strong> ${v.proc_desc}${v.proc_supply?' | 📦 '+v.proc_supply:''}</div>`:''}
+          ${v.fee_total?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;font-size:0.78rem;align-items:center">
+            ${v.fee_exam?`<span style="background:rgba(46,160,67,0.12);color:var(--accent);padding:2px 8px;border-radius:20px">Khám: ${v.fee_exam.toLocaleString('vi-VN')}đ</span>`:''}
+            ${v.fee_med?`<span style="background:rgba(88,166,255,0.12);color:var(--accent2);padding:2px 8px;border-radius:20px">Thuốc: ${v.fee_med.toLocaleString('vi-VN')}đ</span>`:''}
+            ${v.fee_proc?`<span style="background:rgba(248,81,73,0.12);color:#f85149;padding:2px 8px;border-radius:20px">TT: ${v.fee_proc.toLocaleString('vi-VN')}đ</span>`:''}
+            <span style="background:rgba(46,160,67,0.25);color:var(--accent);padding:3px 12px;border-radius:20px;font-weight:700;font-size:0.82rem">💰 Tổng: ${v.fee_total.toLocaleString('vi-VN')}đ</span>
+          </div>`:''}
         </div>
-      </div>\`;
+      </div>`;
     }).join('')}</div>`;
 }
 
@@ -592,6 +610,9 @@ function saveVisit() {
   if (!date) { showToast('Vui lòng chọn Ngày khám','error'); return; }
   if (!diag) { showToast('Vui lòng điền Chẩn đoán','error'); return; }
 
+  const feeExam = parseFloat(getVal('v_fee_exam'))||0;
+  const feeMed  = parseFloat(getVal('v_fee_med'))||0;
+  const feeProc = parseFloat(getVal('v_fee_proc'))||0;
   const visit = {
     id: Date.now(),
     date:        date,
@@ -601,6 +622,16 @@ function saveVisit() {
     reason:      getVal('v_reason'),
     diag:        diag,
     meds:        p.currentVisit && p.currentVisit.meds ? JSON.parse(JSON.stringify(p.currentVisit.meds)) : [],
+    // Thủ thuật
+    proc_desc:   getVal('v_proc_desc'),
+    proc_supply: getVal('v_proc_supply'),
+    proc_fee:    feeProc,
+    // Thu phí
+    fee_exam:    feeExam,
+    fee_med:     feeMed,
+    fee_proc:    feeProc,
+    fee_total:   feeExam + feeMed + feeProc,
+    // Hẹn & dặn dò
     nextVisit:   getVal('v_next'),
     nextVisitTime: getVal('v_nextTime'),
     note:        getVal('v_note'),
@@ -622,6 +653,21 @@ function saveVisit() {
   // Chuyển sang tab lịch sử để xác nhận
   currentTab = 'lichsu';
   renderDetail();
+}
+
+function calcTotal() {
+  const exam = parseFloat(document.getElementById('v_fee_exam')?.value)||0;
+  const med  = parseFloat(document.getElementById('v_fee_med')?.value)||0;
+  const proc = parseFloat(document.getElementById('v_fee_proc')?.value)||0;
+  const total = exam + med + proc;
+  const el = document.getElementById('v_total');
+  if(el) el.textContent = total > 0 ? total.toLocaleString('vi-VN') + 'đ' : '—';
+  // Sync proc fee
+  const procFeeEl = document.getElementById('v_proc_fee');
+  const feeProc = document.getElementById('v_fee_proc');
+  if(procFeeEl && feeProc && document.activeElement === feeProc) {
+    procFeeEl.value = feeProc.value;
+  }
 }
 
 function clearCurrentVisit() {
@@ -725,6 +771,104 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
   if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openNewPatient();}
 });
+
+// ============ DAILY STATS ============
+function showDailyStats() {
+  const today = new Date().toISOString().split('T')[0];
+  const dateInput = `<input type="date" id="statsDate" value="${today}" onchange="renderStats()" 
+    style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none">`;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay show';
+  modal.id = 'modalStats';
+  modal.innerHTML = `
+    <div class="modal fade-in" style="max-width:640px;width:95%;text-align:left;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h3 style="margin:0">📊 Thống kê theo ngày</h3>
+        <button class="btn btn-ghost" onclick="document.getElementById('modalStats').remove()">✕ Đóng</button>
+      </div>
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <label style="font-size:0.82rem;color:var(--text2)">Chọn ngày:</label>
+        ${dateInput}
+      </div>
+      <div id="statsContent"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  renderStats();
+}
+
+function renderStats() {
+  const dateEl = document.getElementById('statsDate');
+  if (!dateEl) return;
+  const date = dateEl.value;
+  
+  // Find all visits on this date across all patients
+  const visits = [];
+  patients.forEach(p => {
+    (p.visits||[]).forEach(v => {
+      if (v.date === date) visits.push({ ...v, patientName: p.name, patientPhone: p.phone });
+    });
+  });
+
+  const totalRevenue = visits.reduce((s, v) => s + (v.fee_total||0), 0);
+  const totalExam = visits.reduce((s, v) => s + (v.fee_exam||0), 0);
+  const totalMed = visits.reduce((s, v) => s + (v.fee_med||0), 0);
+  const totalProc = visits.reduce((s, v) => s + (v.fee_proc||0), 0);
+  const hasProc = visits.filter(v => v.proc_desc).length;
+
+  const el = document.getElementById('statsContent');
+  if (!el) return;
+
+  if (visits.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3)">Không có lượt khám nào ngày ${date}</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--accent2)">${visits.length}</div>
+        <div style="font-size:0.75rem;color:var(--text2)">Lượt khám</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:var(--accent)">${totalRevenue.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:0.75rem;color:var(--text2)">Tổng thu</div>
+      </div>
+      ${totalExam?`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.1rem;font-weight:700;color:var(--accent)">${totalExam.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:0.75rem;color:var(--text2)">Tiền khám</div>
+      </div>`:''}
+      ${totalMed?`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.1rem;font-weight:700;color:var(--accent2)">${totalMed.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:0.75rem;color:var(--text2)">Tiền thuốc</div>
+      </div>`:''}
+      ${totalProc?`<div style="background:var(--surface2);border:1px solid rgba(248,81,73,0.3);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:1.1rem;font-weight:700;color:#f85149">${totalProc.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:0.75rem;color:var(--text2)">Thủ thuật (${hasProc} ca)</div>
+      </div>`:''}
+    </div>
+
+    <!-- Patient list -->
+    <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:10px">Danh sách bệnh nhân</div>
+    ${visits.map((v,i) => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:0.9rem">${i+1}. ${v.patientName}</div>
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">${v.type} · ${v.diag||'Chưa ghi chẩn đoán'}</div>
+          ${v.proc_desc?`<div style="font-size:0.75rem;color:#f85149;margin-top:3px">🔪 ${v.proc_desc}</div>`:''}
+          ${v.patientPhone?`<div style="font-size:0.72rem;color:var(--text3)">📱 ${v.patientPhone}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${v.fee_total?`<div style="font-weight:700;color:var(--accent);font-size:0.9rem">${v.fee_total.toLocaleString('vi-VN')}đ</div>`:'<div style="color:var(--text3);font-size:0.8rem">Chưa thu</div>'}
+          ${v.fee_exam||v.fee_med||v.fee_proc?`<div style="font-size:0.7rem;color:var(--text3);margin-top:2px">
+            ${[v.fee_exam?'K:'+v.fee_exam.toLocaleString('vi-VN'):'', v.fee_med?'T:'+v.fee_med.toLocaleString('vi-VN'):'', v.fee_proc?'TT:'+v.fee_proc.toLocaleString('vi-VN'):''].filter(Boolean).join(' · ')}
+          </div>`:''}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
 
 // ============ START ============
 init();
