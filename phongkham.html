@@ -3,13 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PhòngKhám — Quản lý bệnh nhân</title>
+<title>PhòngKhám — BS. Hoài Nam</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc }
+  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc, query, where }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
   const cfg = {
     apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
     authDomain:"phongkham-bacsinam.firebaseapp.com",
@@ -20,18 +26,46 @@
   };
   const app = initializeApp(cfg);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+  const storage = getStorage(app);
+  const provider = new GoogleAuthProvider();
+
+  window.__db = db;
   window.__col = n => collection(db, n);
   window.__doc = (c,id) => doc(db, c, id);
   window.__setDoc = setDoc;
   window.__getDocs = getDocs;
   window.__deleteDoc = deleteDoc;
   window.__getDoc = getDoc;
+  window.__query = query;
+  window.__where = where;
+
+  // Auth
+  window.__signIn = () => signInWithPopup(auth, provider);
+  window.__signOut = () => signOut(auth);
+  window.__onAuth = cb => onAuthStateChanged(auth, cb);
+
+  // Storage
+  window.__storageRef = (path) => ref(storage, path);
+  window.__uploadBytes = uploadBytes;
+  window.__getDownloadURL = getDownloadURL;
+  window.__deleteObject = deleteObject;
+
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
 :root{--bg:#0d1117;--su:#161b22;--su2:#21262d;--bo:#30363d;--ac:#2ea043;--ac2:#58a6ff;--ac3:#f0883e;--da:#f85149;--tx:#e6edf3;--tx2:#8b949e;--tx3:#6e7681;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column}
+/* LOGIN SCREEN */
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:24px;background:linear-gradient(135deg,#0d1117 0%,#1a2332 100%)}
+.login-card{background:var(--su);border:1px solid var(--bo);border-radius:20px;padding:48px 40px;text-align:center;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-logo{font-family:'Playfair Display',serif;font-size:2rem;color:var(--ac2);margin-bottom:8px}
+.login-sub{color:var(--tx2);font-size:.88rem;margin-bottom:32px}
+.btn-google{display:flex;align-items:center;gap:12px;background:white;color:#333;border:none;border-radius:12px;padding:14px 28px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s;width:100%;justify-content:center}
+.btn-google:hover{box-shadow:0 4px 20px rgba(255,255,255,.15);transform:translateY(-1px)}
+.btn-google img{width:20px;height:20px}
+.login-note{color:var(--tx3);font-size:.75rem;margin-top:16px}
 /* HEADER */
 header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
 .logo{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--ac2);display:flex;align-items:center;gap:8px}
@@ -41,9 +75,10 @@ header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 24px;dis
 .sd.ok{background:var(--ac)}
 .sd.err{background:var(--da)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-badge{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--tx2)}
+.user-badge img{width:28px;height:28px;border-radius:50%;border:2px solid var(--bo)}
 /* LAYOUT */
 .app{display:flex;flex:1;height:calc(100vh - 60px)}
-/* SIDEBAR */
 .sb{width:260px;background:var(--su);border-right:1px solid var(--bo);display:flex;flex-direction:column;overflow:hidden}
 .sb-top{padding:12px;border-bottom:1px solid var(--bo);display:flex;flex-direction:column;gap:7px}
 .search{width:100%;background:var(--bg);border:1px solid var(--bo);border-radius:var(--r);padding:7px 11px;color:var(--tx);font-family:inherit;font-size:.84rem;outline:none}
@@ -58,7 +93,6 @@ header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 24px;dis
 .badge{display:inline-block;font-size:.63rem;padding:1px 6px;border-radius:20px;margin-top:3px}
 .b-new{background:rgba(46,160,67,.2);color:var(--ac)}
 .b-re{background:rgba(88,166,255,.2);color:var(--ac2)}
-/* MAIN */
 .main{flex:1;overflow-y:auto;padding:22px}
 .welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:12px}
 .welcome-icon{font-size:3rem;opacity:.2}
@@ -70,16 +104,13 @@ header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 24px;dis
 .sc{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:13px}
 .sv{font-size:1.5rem;font-weight:700;font-family:'Playfair Display',serif}
 .sl{font-size:.7rem;color:var(--tx2);margin-top:3px}
-/* TABS */
 .tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--bo)}
 .tab{padding:7px 15px;font-size:.84rem;font-weight:500;cursor:pointer;color:var(--tx2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
 .tab:hover{color:var(--tx)}
 .tab.active{color:var(--ac2);border-bottom-color:var(--ac2)}
-/* CARD */
 .card{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:16px;margin-bottom:12px}
 .ct{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:7px}
 .ct::after{content:'';flex:1;height:1px;background:var(--bo)}
-/* FORM */
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
 .fg{display:flex;flex-direction:column;gap:4px}
 .fg.full{grid-column:1/-1}
@@ -89,6 +120,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac2)}
 input::placeholder,textarea::placeholder{color:var(--tx3)}
 select option{background:var(--su2)}
 textarea{resize:vertical;min-height:68px}
+/* AUTOCOMPLETE */
+.autocomplete-wrap{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--su2);border:1px solid var(--ac2);border-radius:7px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ac-item{padding:8px 12px;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bo)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover{background:var(--bg)}
+.ac-item .ac-name{font-weight:600;color:var(--tx)}
+.ac-item .ac-sub{font-size:.72rem;color:var(--tx3);margin-top:1px}
 /* TABLES */
 .tbl{width:100%;border-collapse:collapse;font-size:.79rem}
 .tbl th{text-align:left;color:var(--tx3);font-weight:600;padding:5px 7px;border-bottom:1px solid var(--bo);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
@@ -99,7 +138,6 @@ textarea{resize:vertical;min-height:68px}
 .btn-add-row:hover{background:rgba(46,160,67,.2)}
 .btn-rm{background:none;border:none;color:var(--da);cursor:pointer;opacity:.5;padding:2px 5px;font-size:.88rem}
 .btn-rm:hover{opacity:1}
-/* BUTTONS */
 .btn{border:none;border-radius:var(--r);padding:7px 15px;font-family:inherit;font-size:.81rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
 .btn-p{background:var(--ac2);color:#0d1117}
 .btn-p:hover{opacity:.85}
@@ -108,51 +146,75 @@ textarea{resize:vertical;min-height:68px}
 .btn-d{background:rgba(248,81,73,.12);color:var(--da);border:1px solid rgba(248,81,73,.3)}
 .btn-add{width:100%;background:var(--ac);color:#fff;border:none;border-radius:var(--r);padding:8px;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;transition:opacity .2s}
 .btn-add:hover{opacity:.85}
-.btn-s{width:100%;background:rgba(88,166,255,.12);color:var(--ac2);border:1px solid rgba(88,166,255,.3);border-radius:var(--r);padding:7px;font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.btn-s{background:rgba(88,166,255,.12);color:var(--ac2);border:1px solid rgba(88,166,255,.3);border-radius:var(--r);padding:6px 14px;font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer}
 .btn-s:hover{background:rgba(88,166,255,.2)}
 .save-bar{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:16px;padding-top:13px;border-top:1px solid var(--bo)}
-/* VISIT HISTORY */
+/* HISTORY */
 .vt{position:relative;padding-left:20px}
 .vt::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:2px;background:var(--bo)}
 .vi{position:relative;margin-bottom:16px}
 .vi::before{content:'';position:absolute;left:-18px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--ac2);border:2px solid var(--bg)}
 .vi-d{font-size:.72rem;color:var(--tx3);margin-bottom:4px}
 .vi-c{background:var(--su2);border:1px solid var(--bo);border-radius:var(--r);padding:12px}
-/* MODAL */
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
-.mo.show{display:flex}
-.md{background:var(--su);border:1px solid var(--bo);border-radius:14px;padding:26px;max-width:500px;width:93%;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.md h3{font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:15px}
-/* QR */
-#qrcode{display:flex;justify-content:center;margin-bottom:16px}
-#qrcode canvas,#qrcode img{border-radius:8px;padding:10px;background:white}
-.qr-info{background:var(--bg);border:1px solid var(--bo);border-radius:var(--r);padding:11px;font-size:.77rem;color:var(--tx2);margin-bottom:16px;line-height:1.9}
-.qr-info strong{color:var(--tx)}
 /* FEE PILLS */
 .fp{display:inline-block;font-size:.69rem;font-weight:700;padding:2px 8px;border-radius:20px}
 .fp-k{background:rgba(46,160,67,.12);color:var(--ac)}
 .fp-t{background:rgba(88,166,255,.12);color:var(--ac2)}
 .fp-p{background:rgba(248,81,73,.12);color:var(--da)}
 .fp-tot{background:rgba(46,160,67,.25);color:var(--ac);font-size:.76rem;font-weight:700}
-/* ZALO BADGE */
-.zalo-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,102,255,.15);color:#0066ff;border:1px solid rgba(0,102,255,.3);border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700}
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
+.mo.show{display:flex}
+.md{background:var(--su);border:1px solid var(--bo);border-radius:14px;padding:26px;max-width:520px;width:93%;box-shadow:0 8px 32px rgba(0,0,0,.4);max-height:90vh;overflow-y:auto}
+.md h3{font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:15px}
+#qrcode{display:flex;justify-content:center;margin-bottom:16px}
+#qrcode canvas,#qrcode img{border-radius:8px;padding:10px;background:white}
+.qr-info{background:var(--bg);border:1px solid var(--bo);border-radius:var(--r);padding:11px;font-size:.77rem;color:var(--tx2);margin-bottom:16px;line-height:1.9}
+.qr-info strong{color:var(--tx)}
 /* TOAST */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--su);border:1px solid var(--bo);border-radius:10px;padding:9px 17px;font-size:.81rem;font-weight:600;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:7px;animation:fi .2s ease}
 .toast.success{border-color:var(--ac);color:var(--ac)}
 .toast.error{border-color:var(--da);color:var(--da)}
 .toast.info{border-color:var(--ac2);color:var(--ac2)}
 @keyframes fi{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* FILE UPLOAD */
+.file-zone{border:2px dashed var(--bo);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;color:var(--tx3);font-size:.82rem}
+.file-zone:hover{border-color:var(--ac2);color:var(--ac2)}
+.file-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border:1px solid var(--bo);border-radius:8px;margin-bottom:6px;font-size:.8rem}
+.file-item a{color:var(--ac2);text-decoration:none;flex:1}
+.file-item a:hover{text-decoration:underline}
+/* CHARTS */
+.chart-bar{height:8px;background:rgba(88,166,255,.15);border-radius:4px;overflow:hidden;margin-top:4px}
+.chart-bar-fill{height:100%;background:var(--ac2);border-radius:4px;transition:width .5s}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--bo);border-radius:3px}
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🩺 PhòngKhám</div>
+    <div class="login-sub">BS. Nguyễn Hoài Nam — Hệ thống quản lý phòng khám</div>
+    <button class="btn-google" onclick="doLogin()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg">
+      Đăng nhập bằng Google
+    </button>
+    <div class="login-note">Chỉ tài khoản được phép mới có thể truy cập</div>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until login) -->
+<div id="appWrap" style="display:none;flex-direction:column;flex:1">
 <header>
   <div class="logo"><div class="logo-dot"></div>PhòngKhám <span style="color:var(--tx2);font-family:'Be Vietnam Pro';font-weight:300;font-size:.93rem"> — BS. Hoài Nam</span></div>
-  <div style="display:flex;align-items:center;gap:12px">
-    <button class="btn-s" onclick="showStats()" style="width:auto;padding:6px 14px;font-size:.78rem">📊 Thống kê</button>
-    <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Đang kết nối...</span></div>
-    <div style="font-size:.76rem;color:var(--tx2)" id="hd"></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="btn-s" onclick="showStats()">📊 Thống kê</button>
+    <button class="btn-s" onclick="showReport()">📈 Báo cáo</button>
+    <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Kết nối...</span></div>
+    <div class="user-badge" id="userBadge"></div>
+    <button class="btn btn-g" style="padding:5px 10px;font-size:.75rem" onclick="doLogout()">Đăng xuất</button>
   </div>
 </header>
 <div class="app">
@@ -160,13 +222,13 @@ textarea{resize:vertical;min-height:68px}
     <div class="sb-top">
       <input class="search" id="sq" placeholder="🔍  Tìm bệnh nhân..." oninput="filterPt()">
       <button class="btn-add" onclick="openNewPt()">＋ Thêm bệnh nhân mới</button>
-
     </div>
-    <div class="pt-list" id="ptList"><div style="text-align:center;padding:30px;color:var(--tx3);font-size:.81rem">Đang tải...</div></div>
+    <div class="pt-list" id="ptList"><div style="text-align:center;padding:30px;color:var(--tx3);font-size:.8rem">Đang tải...</div></div>
   </div>
   <div class="main" id="main">
     <div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:'Playfair Display',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3);font-size:.84rem">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>
   </div>
+</div>
 </div>
 
 <!-- Modal: Bệnh nhân mới -->
@@ -206,82 +268,178 @@ textarea{resize:vertical;min-height:68px}
 
 <!-- Modal: Zalo -->
 <div class="mo" id="moZalo">
-  <div class="md" style="max-width:480px">
-    <h3>💬 Gửi nhắc lịch qua Zalo</h3>
-    <div style="background:rgba(0,102,255,.08);border:1px solid rgba(0,102,255,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:.82rem;color:var(--tx2);line-height:1.8">
-      <strong style="color:var(--ac2)">Số Zalo bệnh nhân:</strong> <span id="zalo-phone"></span><br>
-      <strong style="color:var(--ac2)">Nội dung nhắn:</strong>
+  <div class="md">
+    <h3>💬 Nhắc lịch qua Zalo</h3>
+    <div style="background:rgba(0,102,255,.08);border:1px solid rgba(0,102,255,.2);border-radius:9px;padding:12px;margin-bottom:12px;font-size:.82rem;color:var(--tx2)">
+      <strong style="color:var(--ac2)">Số Zalo:</strong> <span id="zalo-phone"></span>
     </div>
-    <textarea id="zalo-msg" style="min-height:120px;margin-bottom:14px;font-size:.84rem"></textarea>
-    <div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:10px;font-size:.76rem;color:var(--tx2);margin-bottom:16px">
-      ⚠️ Để gửi tự động qua Zalo OA cần đăng ký Zalo Official Account. Hiện tại có thể copy nội dung và nhắn thủ công qua Zalo.
+    <textarea id="zalo-msg" style="min-height:150px;margin-bottom:12px;font-size:.82rem"></textarea>
+    <div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:9px;font-size:.74rem;color:var(--tx2);margin-bottom:14px">
+      ⚠️ Copy nội dung rồi nhắn thủ công qua Zalo. Khi có Zalo OA sẽ gửi tự động.
     </div>
-    <div style="display:flex;gap:9px;justify-content:flex-end">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-g" onclick="closeMo('moZalo')">Đóng</button>
-      <button class="btn" style="background:#0066ff;color:white" onclick="copyZaloMsg()">📋 Copy nội dung</button>
+      <button class="btn" style="background:#0066ff;color:white" onclick="copyZaloMsg()">📋 Copy</button>
       <button class="btn" style="background:#0066ff;color:white" onclick="openZalo()">📱 Mở Zalo</button>
     </div>
   </div>
 </div>
 
+<!-- Modal: In đơn thuốc -->
+<div class="mo" id="moPrint">
+  <div class="md" style="max-width:600px">
+    <h3>🖨️ In đơn thuốc</h3>
+    <div id="printPreview" style="background:white;color:#111;padding:20px;border-radius:8px;font-size:.82rem;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="closeMo('moPrint')">Đóng</button>
+      <button class="btn btn-p" onclick="doPrint()">🖨️ In ngay</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ===== DRUG DATABASE =====
+const DRUG_DB = [
+  {name:'Paracetamol',dose:'500mg',unit:'viên',times:3,days:5,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Paracetamol',dose:'650mg',unit:'viên',times:3,days:5,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Ibuprofen',dose:'400mg',unit:'viên',times:2,days:5,note:'8-0-20',remark:'Uống no'},
+  {name:'Meloxicam',dose:'7.5mg',unit:'viên',times:1,days:7,note:'0-0-20',remark:'Uống no'},
+  {name:'Meloxicam',dose:'15mg',unit:'viên',times:1,days:7,note:'0-0-20',remark:'Uống no'},
+  {name:'Celecoxib',dose:'200mg',unit:'viên',times:1,days:7,note:'8-0-0',remark:'Uống no'},
+  {name:'Diclofenac',dose:'50mg',unit:'viên',times:2,days:7,note:'8-0-20',remark:'Uống no'},
+  {name:'Amoxicillin',dose:'500mg',unit:'viên',times:3,days:7,note:'8-14-20',remark:'Uống trước ăn'},
+  {name:'Amoxicillin',dose:'1g',unit:'viên',times:2,days:7,note:'8-0-20',remark:'Uống trước ăn'},
+  {name:'Azithromycin',dose:'500mg',unit:'viên',times:1,days:5,note:'8-0-0',remark:'Uống xa ăn'},
+  {name:'Ciprofloxacin',dose:'500mg',unit:'viên',times:2,days:7,note:'8-0-20',remark:'Uống xa ăn'},
+  {name:'Metronidazole',dose:'500mg',unit:'viên',times:3,days:7,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Omeprazole',dose:'20mg',unit:'viên',times:1,days:14,note:'8-0-0',remark:'Uống trước ăn 30 phút'},
+  {name:'Omeprazole',dose:'40mg',unit:'viên',times:1,days:14,note:'8-0-0',remark:'Uống trước ăn 30 phút'},
+  {name:'Pantoprazole',dose:'40mg',unit:'viên',times:1,days:14,note:'8-0-0',remark:'Uống trước ăn'},
+  {name:'Esomeprazole',dose:'40mg',unit:'viên',times:1,days:14,note:'8-0-0',remark:'Uống trước ăn'},
+  {name:'Domperidone',dose:'10mg',unit:'viên',times:3,days:7,note:'8-14-20',remark:'Uống trước ăn 30 phút'},
+  {name:'Metoclopramide',dose:'10mg',unit:'viên',times:3,days:5,note:'8-14-20',remark:'Uống trước ăn'},
+  {name:'Amlodipine',dose:'5mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống buổi sáng'},
+  {name:'Amlodipine',dose:'10mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống buổi sáng'},
+  {name:'Enalapril',dose:'5mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Losartan',dose:'50mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Metoprolol',dose:'50mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Atorvastatin',dose:'10mg',unit:'viên',times:1,days:30,note:'0-0-20',remark:'Uống tối'},
+  {name:'Atorvastatin',dose:'20mg',unit:'viên',times:1,days:30,note:'0-0-20',remark:'Uống tối'},
+  {name:'Aspirin',dose:'81mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống sau ăn'},
+  {name:'Aspirin',dose:'100mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống sau ăn'},
+  {name:'Pregabalin',dose:'75mg',unit:'viên',times:2,days:14,note:'8-0-20',remark:''},
+  {name:'Pregabalin',dose:'150mg',unit:'viên',times:2,days:14,note:'8-0-20',remark:''},
+  {name:'Gabapentin',dose:'300mg',unit:'viên',times:3,days:14,note:'8-14-20',remark:''},
+  {name:'Methocarbamol',dose:'500mg',unit:'viên',times:3,days:7,note:'8-14-20',remark:''},
+  {name:'Tolperisone',dose:'150mg',unit:'viên',times:3,days:10,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Eperisone',dose:'50mg',unit:'viên',times:3,days:10,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Vitamin B1B6B12',dose:'1 viên',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Vitamin C',dose:'500mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Glucosamine',dose:'1500mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống sau ăn'},
+  {name:'Chondroitin',dose:'400mg',unit:'viên',times:2,days:30,note:'8-0-20',remark:''},
+  {name:'Dexamethasone',dose:'0.5mg',unit:'viên',times:2,days:5,note:'8-0-20',remark:'Uống sau ăn'},
+  {name:'Methylprednisolone',dose:'4mg',unit:'viên',times:2,days:7,note:'8-0-20',remark:'Uống sau ăn'},
+  {name:'Levocetirizine',dose:'5mg',unit:'viên',times:1,days:7,note:'0-0-20',remark:'Uống tối'},
+  {name:'Loratadine',dose:'10mg',unit:'viên',times:1,days:7,note:'8-0-0',remark:''},
+  {name:'Cetirizine',dose:'10mg',unit:'viên',times:1,days:7,note:'0-0-20',remark:'Uống tối'},
+  {name:'Montelukast',dose:'10mg',unit:'viên',times:1,days:14,note:'0-0-20',remark:'Uống tối'},
+  {name:'Salbutamol',dose:'4mg',unit:'viên',times:3,days:7,note:'8-14-20',remark:''},
+  {name:'Codeine',dose:'30mg',unit:'viên',times:3,days:5,note:'8-14-20',remark:'Uống sau ăn'},
+  {name:'Tramadol',dose:'50mg',unit:'viên',times:2,days:5,note:'8-0-20',remark:'Uống sau ăn'},
+  {name:'Diazepam',dose:'5mg',unit:'viên',times:1,days:7,note:'0-0-21',remark:'Uống trước ngủ'},
+  {name:'Alprazolam',dose:'0.25mg',unit:'viên',times:1,days:7,note:'0-0-21',remark:'Uống trước ngủ'},
+  {name:'Furosemide',dose:'40mg',unit:'viên',times:1,days:7,note:'8-0-0',remark:'Uống buổi sáng'},
+  {name:'Spironolactone',dose:'25mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:''},
+  {name:'Metformin',dose:'500mg',unit:'viên',times:2,days:30,note:'8-0-20',remark:'Uống sau ăn'},
+  {name:'Glibenclamide',dose:'5mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống trước ăn'},
+];
+
 // ===== STATE =====
-let pts = [], curId = null, curTab = 'kham', fbOk = false;
+let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
+const ALLOWED_EMAIL = 'drhoainam@gmail.com'; // Email được phép truy cập
+
+// ===== AUTH =====
+function doLogin(){
+  window.__signIn().catch(e=>showToast('Đăng nhập thất bại: '+e.message,'error'));
+}
+
+function doLogout(){
+  if(!confirm('Đăng xuất?')) return;
+  window.__signOut();
+}
 
 // ===== FIREBASE =====
-async function fbSave(p) {
-  if(!fbOk) return;
-  try {
+async function fbSave(p){
+  if(!fbOk||!curUser) return;
+  try{
     setSd('sync');
-    const d = JSON.parse(JSON.stringify(p));
-    delete d.cv;
-    await window.__setDoc(window.__doc('patients', p.id), d);
+    const d=JSON.parse(JSON.stringify(p)); delete d.cv;
+    await window.__setDoc(window.__doc('patients',p.id),d);
     setSd('ok');
-  } catch(e){ setSd('err'); }
+  }catch(e){ setSd('err'); }
 }
 
-async function fbDel(id) {
+async function fbDel(id){
+  if(!fbOk||!curUser) return;
+  try{ await window.__deleteDoc(window.__doc('patients',id)); }catch(e){}
+}
+
+async function fbSaveQR(id,data){
   if(!fbOk) return;
-  try { await window.__deleteDoc(window.__doc('patients', id)); } catch(e){}
+  try{ await window.__setDoc(window.__doc('prescriptions',id),JSON.parse(JSON.stringify(data))); }catch(e){}
 }
 
-async function fbSaveQR(id, data) {
-  if(!fbOk) return id;
-  try {
-    const d = JSON.parse(JSON.stringify(data));
-    await window.__setDoc(window.__doc('prescriptions', id), d);
-  } catch(e){ console.log(e); }
-  return id;
-}
-
-function svLocal(){ localStorage.setItem('pk3', JSON.stringify(pts)); }
+function svLocal(){ localStorage.setItem('pk3',JSON.stringify(pts)); }
 function sv(p){ svLocal(); if(p) fbSave(p); }
-
-// ===== SYNC UI =====
-function setSd(s){ document.getElementById('sd').className='sd '+(s==='sync'?'sync':s==='ok'?'ok':'err'); document.getElementById('st').textContent=s==='sync'?'Đang đồng bộ...':s==='ok'?'Firebase ✓':'Offline - lưu local'; }
+function setSd(s){ document.getElementById('sd').className='sd '+(s==='sync'?'sync':s==='ok'?'ok':'err'); document.getElementById('st').textContent=s==='sync'?'Đang đồng bộ...':s==='ok'?'Firebase ✓':'Offline'; }
 
 // ===== INIT =====
 function init(){
-  document.getElementById('hd').textContent=new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  try{ pts=JSON.parse(localStorage.getItem('pk3')||'[]'); }catch(e){ pts=[]; }
-  renderPtList();
+  document.getElementById('hd')||document.querySelector('header').insertAdjacentHTML('beforeend','');
+  // Auth listener
+  window.__onAuth(async user=>{
+    if(user){
+      // Check allowed email
+      if(user.email !== ALLOWED_EMAIL){
+        showToast('Tài khoản không được phép truy cập!','error');
+        window.__signOut();
+        return;
+      }
+      curUser=user;
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('appWrap').style.display='flex';
+      document.getElementById('userBadge').innerHTML=`<img src="${user.photoURL}" onerror="this.style.display='none'">${user.displayName||user.email}`;
+      document.querySelector('header').querySelector('#hd')?.remove();
+      await loadData();
+    } else {
+      curUser=null;
+      document.getElementById('loginScreen').style.display='flex';
+      document.getElementById('appWrap').style.display='none';
+    }
+  });
 }
 
-window.addEventListener('firebase-ready', async()=>{
-  fbOk=true;
+async function loadData(){
   try{
-    setSd('sync');
-    const snap=await window.__getDocs(window.__col('patients'));
-    const fb=[]; snap.forEach(d=>fb.push(d.data()));
-    if(fb.length>0){
-      pts=fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-      svLocal(); renderPtList(); setSd('ok');
-    } else if(pts.length>0){
-      for(const p of pts) await fbSave(p);
-      setSd('ok');
-    } else setSd('ok');
-  }catch(e){ setSd('err'); }
-});
+    pts=JSON.parse(localStorage.getItem('pk3')||'[]');
+  }catch(e){ pts=[]; }
+  renderPtList();
+
+  window.addEventListener('firebase-ready',async()=>{
+    fbOk=true;
+    try{
+      setSd('sync');
+      const snap=await window.__getDocs(window.__col('patients'));
+      const fb=[]; snap.forEach(d=>fb.push(d.data()));
+      if(fb.length>0){
+        pts=fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+        svLocal(); renderPtList(); setSd('ok');
+      } else if(pts.length>0){
+        for(const p of pts) await fbSave(p); setSd('ok');
+      } else setSd('ok');
+    }catch(e){ setSd('err'); }
+  },{once:true});
+}
 
 // ===== PATIENT LIST =====
 function renderPtList(q=''){
@@ -300,7 +458,6 @@ function renderPtList(q=''){
 
 function filterPt(){ renderPtList(document.getElementById('sq').value); }
 
-// ===== SELECT PATIENT =====
 function selPt(id){ curId=id; curTab='kham'; renderPtList(document.getElementById('sq').value); renderDetail(); }
 
 function renderDetail(){
@@ -308,7 +465,7 @@ function renderDetail(){
   const age=p.year?(2026-p.year)+' tuổi':'';
   const vc=(p.visits||[]).length;
   document.getElementById('main').innerHTML=`
-  <div style="max-width:880px">
+  <div style="max-width:900px">
     <div class="dh">
       <div>
         <div class="dn">${p.name}</div>
@@ -319,20 +476,21 @@ function renderDetail(){
         </div>
         ${p.history?`<div style="font-size:.77rem;color:var(--ac3);margin-top:5px">⚠️ Tiền sử/Dị ứng: <strong>${p.history}</strong></div>`:''}
       </div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start">
+      <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end">
         <button class="btn btn-g" onclick="openZaloModal()">💬 Nhắc Zalo</button>
-        <button class="btn btn-g" onclick="genQR()">📲 Tạo QR</button>
+        <button class="btn btn-g" onclick="genQR()">📲 QR</button>
         <button class="btn btn-d" onclick="delPt('${p.id}')">🗑️</button>
       </div>
     </div>
     <div class="sr">
       <div class="sc"><div class="sv" style="color:var(--ac2)">${vc}</div><div class="sl">Lần khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac);font-size:.95rem">${p.nextVisit||'—'}</div><div class="sl">Tái khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac3);font-size:.95rem">${vc>0?p.visits[vc-1].date:'—'}</div><div class="sl">Khám gần nhất</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:.9rem">${p.nextVisit||'—'}</div><div class="sl">Tái khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac3);font-size:.9rem">${vc>0?p.visits[vc-1].date:'—'}</div><div class="sl">Khám gần nhất</div></div>
     </div>
     <div class="tabs">
       <div class="tab ${curTab==='kham'?'active':''}" onclick="swTab('kham',this)">📋 Khám mới & Kê đơn</div>
       <div class="tab ${curTab==='ls'?'active':''}" onclick="swTab('ls',this)">📜 Lịch sử (${vc})</div>
+      <div class="tab ${curTab==='files'?'active':''}" onclick="swTab('files',this)">📁 Hồ sơ & Hình ảnh</div>
     </div>
     <div id="ta"></div>
   </div>`;
@@ -350,8 +508,10 @@ function renderTab(){
     if(!p.cv.supplies) p.cv.supplies=[];
     ta.innerHTML=renderKham(p);
     renderMeds(); renderSupplies();
-  } else {
+  } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
+  } else {
+    ta.innerHTML=renderFiles(p);
   }
 }
 
@@ -374,22 +534,18 @@ function renderKham(p){
       <div class="fg"><label>Mạch (lần/phút)</label><input type="number" id="v_pulse" value="${cv.pulse||''}" placeholder="VD: 78"></div>
       <div class="fg"><label>Huyết áp (mmHg)</label><input type="text" id="v_bp" value="${cv.bp||''}" placeholder="VD: 125/80"></div>
     </div>
-    <div class="fr"><div class="fg full"><label>Lý do khám / Triệu chứng</label><textarea id="v_reason" placeholder="Mô tả triệu chứng bệnh nhân...">${cv.reason||''}</textarea></div></div>
-    <div class="fr"><div class="fg full"><label>Chẩn đoán *</label><input id="v_diag" value="${cv.diag||''}" placeholder="VD: Thoái hoá khớp gối hai bên, Đau thần kinh tọa L4-L5..."></div></div>
+    <div class="fr"><div class="fg full"><label>Lý do khám / Triệu chứng</label><textarea id="v_reason" placeholder="Mô tả triệu chứng...">${cv.reason||''}</textarea></div></div>
+    <div class="fr"><div class="fg full"><label>Chẩn đoán *</label><input id="v_diag" value="${cv.diag||''}" placeholder="VD: Thoái hoá cột sống thắt lưng, Đau thần kinh tọa L4-L5..."></div></div>
   </div>
 
   <div class="card">
-    <div class="ct">Đơn thuốc</div>
+    <div class="ct">Đơn thuốc <span style="font-weight:400;text-transform:none;font-size:.72rem;color:var(--ac2)">(gõ tên thuốc để tìm nhanh)</span></div>
     <table class="tbl">
       <thead><tr>
-        <th style="width:22%">Tên thuốc</th>
-        <th style="width:11%">Hàm lượng</th>
-        <th style="width:8%">ĐVT</th>
-        <th style="width:8%">SL/lần</th>
-        <th style="width:9%">Lần/ngày</th>
-        <th style="width:9%">Số ngày</th>
-        <th style="width:14%">Giờ uống</th>
-        <th style="width:14%">Ghi chú</th>
+        <th style="width:20%">Tên thuốc</th><th style="width:11%">Hàm lượng</th>
+        <th style="width:8%">ĐVT</th><th style="width:8%">SL/lần</th>
+        <th style="width:9%">Lần/ngày</th><th style="width:9%">Số ngày</th>
+        <th style="width:14%">Giờ uống</th><th style="width:16%">Ghi chú</th>
         <th style="width:4%"></th>
       </tr></thead>
       <tbody id="medRows"></tbody>
@@ -398,23 +554,20 @@ function renderKham(p){
   </div>
 
   <div class="card">
-    <div class="ct">🔪 Thủ thuật / Tiêm tại phòng khám</div>
-    <div class="fr"><div class="fg full"><label>Mô tả kỹ thuật thực hiện</label>
-      <textarea id="v_proc" placeholder="VD: Tiêm Depo-Medrol 40mg khớp gối phải, phong bế thần kinh ngoài màng cứng L4-L5..." style="min-height:55px">${cv.proc||''}</textarea>
+    <div class="ct">🔪 Thủ thuật / Tiêm</div>
+    <div class="fr"><div class="fg full"><label>Mô tả kỹ thuật</label>
+      <textarea id="v_proc" placeholder="VD: Tiêm Depo-Medrol 40mg khớp gối phải, phong bế TK ngoài màng cứng L4-L5..." style="min-height:55px">${cv.proc||''}</textarea>
     </div></div>
-    <label style="font-size:.74rem;color:var(--tx2);font-weight:500;display:block;margin-bottom:7px;margin-top:4px">Vật tư tiêu hao</label>
+    <label style="font-size:.74rem;color:var(--tx2);font-weight:500;display:block;margin-bottom:7px">Vật tư tiêu hao</label>
     <table class="tbl">
       <thead><tr>
-        <th style="width:36%">Tên vật tư</th>
-        <th style="width:12%">ĐVT</th>
-        <th style="width:12%">Số lượng</th>
-        <th style="width:18%">Đơn giá (đ)</th>
-        <th style="width:16%">Thành tiền</th>
-        <th style="width:5%"></th>
+        <th style="width:36%">Tên vật tư</th><th style="width:12%">ĐVT</th>
+        <th style="width:12%">Số lượng</th><th style="width:18%">Đơn giá (đ)</th>
+        <th style="width:16%">Thành tiền</th><th style="width:5%"></th>
       </tr></thead>
       <tbody id="supplyRows"></tbody>
       <tfoot><tr>
-        <td colspan="4" style="text-align:right;font-size:.76rem;font-weight:700;color:var(--tx2);padding:7px 8px">Tổng vật tư:</td>
+        <td colspan="4" style="text-align:right;font-size:.75rem;font-weight:700;color:var(--tx2);padding:7px 8px">Tổng vật tư:</td>
         <td style="font-weight:700;color:var(--ac3);padding:7px 8px" id="supplyTotal">—</td>
         <td></td>
       </tr></tfoot>
@@ -431,7 +584,7 @@ function renderKham(p){
     <div class="fr">
       <div class="fg"><label>Phí thủ thuật (đ)</label><input type="number" id="v_f3" value="${cv.f3||''}" placeholder="0" oninput="calcFee()"></div>
       <div class="fg"><label>Tổng thu</label>
-        <div id="v_tot" style="font-size:1.2rem;font-weight:700;color:var(--ac);padding:6px 0">${cv.ftot?(cv.ftot).toLocaleString('vi-VN')+'đ':'—'}</div>
+        <div id="v_tot" style="font-size:1.2rem;font-weight:700;color:var(--ac);padding:6px 0">${cv.ftot?cv.ftot.toLocaleString('vi-VN')+'đ':'—'}</div>
       </div>
     </div>
   </div>
@@ -446,12 +599,12 @@ function renderKham(p){
   </div>
 
   <div class="save-bar">
+    <button class="btn btn-g" onclick="openPrintModal()">🖨️ In đơn</button>
     <button class="btn btn-g" onclick="clearForm()">↺ Xóa form</button>
     <button class="btn btn-p" onclick="saveVisit()">☁️ Lưu & Đồng bộ</button>
   </div>`;
 }
 
-// ===== FEE CALC =====
 function calcFee(){
   const f1=parseFloat(document.getElementById('v_f1')?.value)||0;
   const f2=parseFloat(document.getElementById('v_f2')?.value)||0;
@@ -461,21 +614,55 @@ function calcFee(){
   if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
 }
 
-// ===== MEDICINE ROWS =====
+// ===== DRUG AUTOCOMPLETE =====
 function renderMeds(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const tb=document.getElementById('medRows'); if(!tb) return;
   tb.innerHTML=(p.cv&&p.cv.meds||[]).map((m,i)=>`<tr>
-    <td><input value="${m.name||''}" onchange="updM(${i},'name',this.value)" placeholder="Paracetamol..."></td>
-    <td><input value="${m.dose||''}" onchange="updM(${i},'dose',this.value)" placeholder="500mg"></td>
+    <td>
+      <div class="autocomplete-wrap">
+        <input id="med_name_${i}" value="${m.name||''}" onchange="updM(${i},'name',this.value)" oninput="showDrugAC(${i},this.value)" placeholder="Tên thuốc..." autocomplete="off">
+        <div class="ac-list" id="ac_${i}" style="display:none"></div>
+      </div>
+    </td>
+    <td><input id="med_dose_${i}" value="${m.dose||''}" onchange="updM(${i},'dose',this.value)" placeholder="500mg"></td>
     <td><select onchange="updM(${i},'unit',this.value)">${['viên','gói','ống','lọ','ml'].map(u=>`<option ${(m.unit||'viên')===u?'selected':''}>${u}</option>`).join('')}</select></td>
-    <td><input type="number" value="${m.qty||1}" min="0.5" step="0.5" onchange="updM(${i},'qty',parseFloat(this.value)||1)"></td>
-    <td><input type="number" value="${m.times||''}" onchange="updM(${i},'times',this.value)" placeholder="2"></td>
-    <td><input type="number" value="${m.days||''}" onchange="updM(${i},'days',this.value)" placeholder="7"></td>
-    <td><input value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="VD: 8-14-20"></td>
-    <td><input value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn..."></td>
+    <td><input type="number" id="med_qty_${i}" value="${m.qty||1}" min="0.5" step="0.5" onchange="updM(${i},'qty',parseFloat(this.value)||1)"></td>
+    <td><input type="number" id="med_times_${i}" value="${m.times||''}" onchange="updM(${i},'times',this.value)" placeholder="2"></td>
+    <td><input type="number" id="med_days_${i}" value="${m.days||''}" onchange="updM(${i},'days',this.value)" placeholder="7"></td>
+    <td><input id="med_note_${i}" value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="8-14-20"></td>
+    <td><input id="med_remark_${i}" value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn"></td>
     <td><button class="btn-rm" onclick="rmM(${i})">✕</button></td>
   </tr>`).join('');
+}
+
+function showDrugAC(i, val){
+  updM(i,'name',val);
+  const list=document.getElementById('ac_'+i); if(!list) return;
+  if(!val||val.length<2){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const matches=DRUG_DB.filter(d=>d.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map((d,idx)=>`
+    <div class="ac-item" onclick="selectDrug(${i},${idx+1000*i})">
+      <div class="ac-name">${d.name} <span style="color:var(--ac2)">${d.dose}</span></div>
+      <div class="ac-sub">${d.times}x/ngày · ${d.days} ngày · ${d.note} · ${d.remark}</div>
+    </div>`).join('');
+  list.dataset.matches=JSON.stringify(matches);
+  list.style.display='block';
+}
+
+function selectDrug(medIdx, _){
+  const list=document.getElementById('ac_'+medIdx); if(!list) return;
+  const clickedEl=event.target.closest('.ac-item');
+  const allItems=[...list.querySelectorAll('.ac-item')];
+  const idx=allItems.indexOf(clickedEl);
+  const matches=JSON.parse(list.dataset.matches||'[]');
+  const d=matches[idx]; if(!d) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  p.cv.meds[medIdx]={...p.cv.meds[medIdx],...d};
+  svLocal(); renderMeds();
+  list.style.display='none';
 }
 
 function addMed(){
@@ -487,6 +674,11 @@ function addMed(){
 function updM(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.meds[i]){p.cv.meds[i][k]=v; svLocal();} }
 function rmM(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); svLocal(); renderMeds();} }
 
+// Hide autocomplete on outside click
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.autocomplete-wrap')) document.querySelectorAll('.ac-list').forEach(l=>l.style.display='none');
+});
+
 // ===== SUPPLY ROWS =====
 function renderSupplies(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
@@ -495,7 +687,7 @@ function renderSupplies(){
   tb.innerHTML=ss.map((s,i)=>`<tr>
     <td><input value="${s.name||''}" onchange="updS(${i},'name',this.value)" placeholder="Kim 22G, Depo-Medrol..."></td>
     <td><select onchange="updS(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','bộ'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
-    <td><input type="number" value="${s.qty||1}" min="1" step="1" onchange="updS(${i},'qty',parseFloat(this.value)||1);calcSupTotal()"></td>
+    <td><input type="number" value="${s.qty||1}" min="1" onchange="updS(${i},'qty',parseFloat(this.value)||1);calcSupTotal()"></td>
     <td><input type="number" value="${s.price||''}" placeholder="0" min="0" step="1000" onchange="updS(${i},'price',parseFloat(this.value)||0);calcSupTotal()"></td>
     <td style="font-weight:600;color:var(--ac3);font-size:.8rem">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
     <td><button class="btn-rm" onclick="rmS(${i})">✕</button></td>
@@ -508,7 +700,6 @@ function calcSupTotal(){
   const tot=(p.cv&&p.cv.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
   const el=document.getElementById('supplyTotal');
   if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
-  // Auto điền phí thủ thuật nếu chưa có
   const f3=document.getElementById('v_f3');
   if(f3&&tot>0&&!f3.value){ f3.value=tot; calcFee(); }
 }
@@ -531,21 +722,16 @@ function saveVisit(){
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
   const f1=parseFloat(g('v_f1'))||0, f2=parseFloat(g('v_f2'))||0, f3=parseFloat(g('v_f3'))||0;
   const visit={
-    id:Date.now(),
-    date:g('v_date'), type:g('v_type'),
-    pulse:g('v_pulse'), bp:g('v_bp'),
-    reason:g('v_reason'), diag:g('v_diag'),
+    id:Date.now(), date:g('v_date'), type:g('v_type'),
+    pulse:g('v_pulse'), bp:g('v_bp'), reason:g('v_reason'), diag:g('v_diag'),
     meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
-    proc:g('v_proc'),
-    supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
+    proc:g('v_proc'), supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
     f1,f2,f3,ftot:f1+f2+f3,
-    nextVisit:g('v_next'), nextVisitTime:g('v_nt'),
-    note:g('v_note'),
+    nextVisit:g('v_next'), nextVisitTime:g('v_nt'), note:g('v_note'),
   };
   if(!p.visits) p.visits=[];
   p.visits.push(visit);
-  p.nextVisit=visit.nextVisit;
-  p.nextVisitTime=visit.nextVisitTime;
+  p.nextVisit=visit.nextVisit; p.nextVisitTime=visit.nextVisitTime;
   p.cv={meds:[],supplies:[]};
   svLocal(); fbSave(p);
   showToast('✓ Đã lưu lần khám!','success');
@@ -558,14 +744,94 @@ function clearForm(){
   p.cv={meds:[],supplies:[]}; svLocal(); renderTab();
 }
 
+// ===== PRINT PRESCRIPTION (MẪU BYT) =====
+function openPrintModal(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const g=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const meds=p.cv&&p.cv.meds||[];
+  const date=g('v_date')||new Date().toISOString().split('T')[0];
+  const diag=g('v_diag')||'';
+  const note=g('v_note')||'';
+  const next=g('v_next')||'';
+  const nextTime=g('v_nt')||'';
+  const age=p.year?(2026-p.year):'';
+
+  document.getElementById('printPreview').innerHTML=`
+    <div id="don-in" style="font-family:Arial,sans-serif;font-size:13px;line-height:1.6;color:#111;max-width:680px;margin:0 auto">
+      <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px">PHÒNG KHÁM BÁC SĨ NGUYỄN HOÀI NAM</div>
+        <div style="font-size:12px;color:#555">ThS.BSCK1 Nguyễn Hoài Nam — CCHN số: ...</div>
+        <div style="font-size:12px;color:#555">Địa chỉ: ... · ĐT: ...</div>
+      </div>
+      <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:12px;letter-spacing:1px">ĐƠN THUỐC</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px">
+        <div><strong>Họ tên:</strong> ${p.name}</div>
+        <div><strong>Tuổi:</strong> ${age}</div>
+        <div><strong>Giới tính:</strong> ${p.gender||''}</div>
+        <div><strong>Ngày khám:</strong> ${date}</div>
+        <div style="grid-column:1/-1"><strong>Địa chỉ:</strong> ${p.addr||''}</div>
+        <div style="grid-column:1/-1"><strong>Chẩn đoán:</strong> <em>${diag}</em></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
+        <thead><tr style="background:#f0f0f0">
+          <th style="border:1px solid #ccc;padding:5px;width:5%;text-align:center">STT</th>
+          <th style="border:1px solid #ccc;padding:5px;width:30%">Tên thuốc — Hàm lượng</th>
+          <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">SL</th>
+          <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">ĐVT</th>
+          <th style="border:1px solid #ccc;padding:5px">Cách dùng</th>
+        </tr></thead>
+        <tbody>
+          ${meds.map((m,i)=>{
+            const parts=(m.note||'').split('-');
+            const isTime=parts.some(x=>parseInt(x)>4);
+            const slots=[];
+            if(parts[0]&&parts[0]!=='0') slots.push(isTime?parts[0]+'h':'sáng');
+            if(parts[1]&&parts[1]!=='0') slots.push(isTime?parts[1]+'h':'trưa');
+            if(parts[2]&&parts[2]!=='0') slots.push(isTime?parts[2]+'h':'tối');
+            const cachDung=`Ngày ${m.times||'?'} lần, mỗi lần ${m.qty||1} ${m.unit||'viên'}${slots.length?' ('+slots.join(', ')+')':', uống sau ăn'}. Dùng ${m.days||'?'} ngày.${m.remark?' '+m.remark+'.':''}`;
+            const totalQty=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+            return `<tr>
+              <td style="border:1px solid #ccc;padding:5px;text-align:center">${i+1}</td>
+              <td style="border:1px solid #ccc;padding:5px"><strong>${m.name}</strong> ${m.dose||''}</td>
+              <td style="border:1px solid #ccc;padding:5px;text-align:center">${totalQty}</td>
+              <td style="border:1px solid #ccc;padding:5px;text-align:center">${m.unit||'viên'}</td>
+              <td style="border:1px solid #ccc;padding:5px">${cachDung}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      ${note?`<div style="font-size:12px;margin-bottom:10px"><strong>Lời dặn:</strong> ${note}</div>`:''}
+      ${next?`<div style="font-size:12px;margin-bottom:16px"><strong>Tái khám:</strong> ${next}${nextTime?' lúc '+nextTime:''}</div>`:''}
+      <div style="display:flex;justify-content:space-between;margin-top:20px;font-size:12px">
+        <div style="text-align:center">
+          <div>Người bệnh</div>
+          <div style="margin-top:50px">(Ký, ghi rõ họ tên)</div>
+        </div>
+        <div style="text-align:center">
+          <div>Ngày ... tháng ... năm 2026</div>
+          <div style="font-weight:700">Bác sĩ khám bệnh</div>
+          <div style="margin-top:50px">ThS.BSCK1 Nguyễn Hoài Nam</div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('moPrint').classList.add('show');
+}
+
+function doPrint(){
+  const content=document.getElementById('don-in').outerHTML;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Đơn thuốc</title>
+  <style>body{margin:20px;font-family:Arial,sans-serif}@media print{body{margin:10mm}}</style></head>
+  <body>${content}<script>setTimeout(()=>{window.print();},300)<\/script></body></html>`);
+  w.document.close();
+}
+
 // ===== VISIT HISTORY =====
 function renderLS(p){
   const vs=(p.visits||[]).slice().reverse();
   const hb=p.history?`<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.3);border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:.79rem;color:var(--ac3)"><strong>⚠️ Tiền sử/Dị ứng:</strong> ${p.history}</div>`:'';
   if(!vs.length) return hb+'<div style="text-align:center;padding:48px;color:var(--tx3)">Chưa có lần khám nào.</div>';
-
   return hb+`<div class="vt">${vs.map(v=>{
-    // Parse giờ uống
     const medLines=(v.meds||[]).map(m=>{
       const parts=(m.note||'').split('-');
       let gio='';
@@ -576,31 +842,30 @@ function renderLS(p){
         if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
         if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
         gio=s.length?' · Uống: '+s.join(', '):(m.note?' · '+m.note:'');
-      } else { gio=m.note?' · '+m.note:''; }
+      } else gio=m.note?' · '+m.note:'';
       return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em style="color:var(--tx3)">('+m.remark+')</em>':''}`;
     }).join('<br>');
-
-    // Supply table
     const supTable=(v.supplies&&v.supplies.length)?`
-      <div style="margin-top:8px;border:1px solid rgba(240,136,62,.2);border-radius:7px;overflow:hidden">
+      <div style="margin-top:7px;border:1px solid rgba(240,136,62,.2);border-radius:7px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse;font-size:.74rem">
           <thead><tr style="background:rgba(240,136,62,.08)">
-            <th style="text-align:left;padding:4px 8px;color:var(--tx3)">Vật tư</th>
-            <th style="text-align:center;padding:4px 8px;color:var(--tx3)">SL</th>
-            <th style="text-align:center;padding:4px 8px;color:var(--tx3)">ĐVT</th>
-            <th style="text-align:right;padding:4px 8px;color:var(--tx3)">Thành tiền</th>
+            <th style="text-align:left;padding:3px 8px;color:var(--tx3)">Vật tư</th>
+            <th style="text-align:center;padding:3px 8px;color:var(--tx3)">SL</th>
+            <th style="text-align:center;padding:3px 8px;color:var(--tx3)">ĐVT</th>
+            <th style="text-align:right;padding:3px 8px;color:var(--tx3)">Thành tiền</th>
           </tr></thead>
           <tbody>${(v.supplies||[]).map(s=>`<tr>
-            <td style="padding:3px 8px;color:var(--tx)">${s.name||'—'}</td>
-            <td style="padding:3px 8px;text-align:center;color:var(--tx2)">${s.qty||1}</td>
-            <td style="padding:3px 8px;text-align:center;color:var(--tx2)">${s.unit||'cái'}</td>
+            <td style="padding:3px 8px">${s.name||'—'}</td>
+            <td style="padding:3px 8px;text-align:center">${s.qty||1}</td>
+            <td style="padding:3px 8px;text-align:center">${s.unit||'cái'}</td>
             <td style="padding:3px 8px;text-align:right;color:var(--ac3)">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
           </tr>`).join('')}</tbody>
         </table>
-      </div>`:'';
-
+      </div>`:''
     return `<div class="vi">
-      <div class="vi-d">${v.date} — ${v.type}</div>
+      <div class="vi-d">${v.date} — ${v.type}
+        <button class="btn btn-g" style="padding:2px 8px;font-size:.68rem;margin-left:8px" onclick="printVisit('${p.id}','${v.id}')">🖨️ In đơn</button>
+      </div>
       <div class="vi-c">
         <div style="font-weight:600;font-size:.9rem">🩺 ${v.diag||'Chưa ghi'}</div>
         ${v.bp||v.pulse?`<div style="font-size:.77rem;color:var(--tx2);margin-top:5px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''} ${v.bp&&v.pulse?'·':''} ${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
@@ -608,17 +873,123 @@ function renderLS(p){
         ${medLines?`<div style="font-size:.78rem;color:var(--tx2);margin-top:7px;line-height:2">${medLines}</div>`:''}
         ${v.proc?`<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.18);border-radius:7px;font-size:.78rem"><b style="color:var(--da)">🔪 Thủ thuật:</b> ${v.proc}</div>`:''}
         ${supTable}
-        ${v.ftot?`<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        ${v.ftot?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${v.f1?`<span class="fp fp-k">Khám: ${v.f1.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f2?`<span class="fp fp-t">Thuốc: ${v.f2.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f3?`<span class="fp fp-p">TT: ${v.f3.toLocaleString('vi-VN')}đ</span>`:''}
-          <span class="fp fp-tot">💰 Tổng: ${v.ftot.toLocaleString('vi-VN')}đ</span>
+          <span class="fp fp-tot">💰 ${v.ftot.toLocaleString('vi-VN')}đ</span>
         </div>`:''}
         ${v.note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:7px;padding:5px 10px;background:rgba(88,166,255,.07);border-radius:6px">📝 ${v.note}</div>`:''}
-        ${v.nextVisit?`<div style="font-size:.77rem;color:var(--ac3);margin-top:6px;display:flex;align-items:center;gap:6px">📅 Tái khám: <b>${v.nextVisit}</b>${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
+        ${v.nextVisit?`<div style="font-size:.77rem;color:var(--ac3);margin-top:6px">📅 Tái khám: <b>${v.nextVisit}</b>${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
       </div>
     </div>`;
   }).join('')}</div>`;
+}
+
+function printVisit(ptId, visitId){
+  const p=pts.find(x=>x.id===ptId); if(!p) return;
+  const v=p.visits&&p.visits.find(x=>x.id==visitId); if(!v) return;
+  const age=p.year?(2026-p.year):'';
+  const meds=v.meds||[];
+  const content=`<div style="font-family:Arial,sans-serif;font-size:13px;max-width:680px;margin:0 auto">
+    <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:14px">PHÒNG KHÁM BÁC SĨ NGUYỄN HOÀI NAM</div>
+      <div style="font-size:12px;color:#555">ThS.BSCK1 Nguyễn Hoài Nam — CCHN số: ...</div>
+    </div>
+    <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:12px">ĐƠN THUỐC</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px">
+      <div><strong>Họ tên:</strong> ${p.name}</div><div><strong>Tuổi:</strong> ${age}</div>
+      <div><strong>Giới tính:</strong> ${p.gender||''}</div><div><strong>Ngày:</strong> ${v.date}</div>
+      <div style="grid-column:1/-1"><strong>Chẩn đoán:</strong> <em>${v.diag||''}</em></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
+      <thead><tr style="background:#f0f0f0">
+        <th style="border:1px solid #ccc;padding:5px;width:5%;text-align:center">STT</th>
+        <th style="border:1px solid #ccc;padding:5px;width:30%">Tên thuốc</th>
+        <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">SL</th>
+        <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">ĐVT</th>
+        <th style="border:1px solid #ccc;padding:5px">Cách dùng</th>
+      </tr></thead>
+      <tbody>${meds.map((m,i)=>{
+        const parts=(m.note||'').split('-');
+        const isTime=parts.some(x=>parseInt(x)>4);
+        const s=[];
+        if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
+        if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
+        if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
+        const cd=`${m.times||'?'} lần/ngày, ${m.qty||1} ${m.unit||'viên'}/lần${s.length?' ('+s.join(', ')+')':', uống sau ăn'}. ${m.days||'?'} ngày.${m.remark?' '+m.remark+'.':''}`;
+        const tot=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+        return `<tr><td style="border:1px solid #ccc;padding:5px;text-align:center">${i+1}</td>
+          <td style="border:1px solid #ccc;padding:5px"><strong>${m.name}</strong> ${m.dose||''}</td>
+          <td style="border:1px solid #ccc;padding:5px;text-align:center">${tot}</td>
+          <td style="border:1px solid #ccc;padding:5px;text-align:center">${m.unit||'viên'}</td>
+          <td style="border:1px solid #ccc;padding:5px">${cd}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    ${v.note?`<div style="font-size:12px;margin-bottom:10px"><strong>Lời dặn:</strong> ${v.note}</div>`:''}
+    ${v.nextVisit?`<div style="font-size:12px;margin-bottom:20px"><strong>Tái khám:</strong> ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
+    <div style="text-align:right;margin-top:20px;font-size:12px">
+      <div>Ngày ${v.date}</div>
+      <div style="font-weight:700;margin-top:50px">ThS.BSCK1 Nguyễn Hoài Nam</div>
+    </div>
+  </div>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Đơn thuốc - ${p.name}</title>
+  <style>body{margin:20px}@media print{body{margin:10mm}}</style></head>
+  <body>${content}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+
+// ===== FILES TAB =====
+function renderFiles(p){
+  const files=p.files||[];
+  return `
+  <div class="card">
+    <div class="ct">📁 Hình ảnh & Kết quả xét nghiệm</div>
+    <div class="file-zone" onclick="document.getElementById('fileInput').click()">
+      📎 Nhấn để tải lên ảnh / PDF (XQ, xét nghiệm, hình lâm sàng...)
+      <input type="file" id="fileInput" style="display:none" accept="image/*,.pdf" multiple onchange="uploadFiles(this)">
+    </div>
+    <div id="fileList" style="margin-top:12px">
+      ${files.length?files.map((f,i)=>`
+        <div class="file-item">
+          <span>${f.type==='image'?'🖼️':'📄'}</span>
+          <a href="${f.url}" target="_blank">${f.name}</a>
+          <span style="font-size:.72rem;color:var(--tx3)">${f.date||''}</span>
+          <button class="btn-rm" onclick="delFile(${i})">✕</button>
+        </div>`).join(''):'<div style="text-align:center;padding:20px;color:var(--tx3);font-size:.8rem">Chưa có file nào.</div>'}
+    </div>
+  </div>`;
+}
+
+async function uploadFiles(input){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  if(!fbOk){ showToast('Cần kết nối Firebase để upload file','error'); return; }
+  if(!p.files) p.files=[];
+  const files=[...input.files];
+  showToast('Đang upload '+files.length+' file...','info');
+  for(const file of files){
+    try{
+      const path=`patients/${p.id}/${Date.now()}_${file.name}`;
+      const storRef=window.__storageRef(path);
+      await window.__uploadBytes(storRef, file);
+      const url=await window.__getDownloadURL(storRef);
+      p.files.push({name:file.name,url,path,type:file.type.startsWith('image')?'image':'pdf',date:new Date().toLocaleDateString('vi-VN')});
+      sv(p);
+    }catch(e){ showToast('Lỗi upload: '+file.name,'error'); }
+  }
+  showToast('✓ Upload thành công!','success');
+  renderTab();
+}
+
+async function delFile(i){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.files) return;
+  if(!confirm('Xóa file này?')) return;
+  const f=p.files[i];
+  if(f.path && fbOk){
+    try{ await window.__deleteObject(window.__storageRef(f.path)); }catch(e){}
+  }
+  p.files.splice(i,1); sv(p); renderTab();
 }
 
 // ===== NEW PATIENT =====
@@ -634,13 +1005,12 @@ function saveNewPt(){
   const yr=parseInt(document.getElementById('np_y').value)||0;
   if(yr&&(yr<1900||yr>2025)){ showToast('Năm sinh không hợp lệ','error'); return; }
   const p={
-    id:'bn_'+Date.now(), name,
-    year:yr||'',
+    id:'bn_'+Date.now(), name, year:yr||'',
     gender:document.getElementById('np_g').value,
     phone:document.getElementById('np_p').value,
     addr:document.getElementById('np_a').value,
     history:document.getElementById('np_h').value,
-    visits:[], cv:{meds:[],supplies:[]},
+    visits:[], files:[], cv:{meds:[],supplies:[]},
     createdAt:new Date().toISOString()
   };
   pts.unshift(p); sv(p);
@@ -652,57 +1022,26 @@ function delPt(id){
   if(!confirm('Xóa bệnh nhân này? Dữ liệu sẽ xóa khỏi Firebase!')) return;
   pts=pts.filter(p=>p.id!==id); fbDel(id); svLocal(); curId=null;
   renderPtList();
-  document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:\'Playfair Display\',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3);font-size:.84rem">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>';
+  document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:\'Playfair Display\',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3)">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>';
 }
 
 // ===== QR CODE =====
 async function genQR(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
-
-  // Tạo short ID 8 ký tự để URL ngắn nhất có thể
-  const shortId = Math.random().toString(36).substring(2,10);
-
+  const shortId=Math.random().toString(36).substring(2,10);
   const data={
-    name:p.name, gender:p.gender, year:p.year,
-    diag:lv?lv.diag:'', pulse:lv?lv.pulse:'', bp:lv?lv.bp:'',
-    date:lv?lv.date:'', type:lv?lv.type:'',
-    meds:lv?lv.meds:[],
-    nextVisit:p.nextVisit, nextVisitTime:p.nextVisitTime,
-    note:lv?lv.note:'', clinic:'PK Bác sĩ Nam',
-    ts: Date.now()
+    name:p.name,gender:p.gender,year:p.year,
+    diag:lv?lv.diag:'',pulse:lv?lv.pulse:'',bp:lv?lv.bp:'',
+    date:lv?lv.date:'',type:lv?lv.type:'',meds:lv?lv.meds:[],
+    nextVisit:p.nextVisit,nextVisitTime:p.nextVisitTime,
+    note:lv?lv.note:'',clinic:'PK Bác sĩ Nam',ts:Date.now()
   };
-
-  // Lưu Firebase
-  await fbSaveQR(shortId, data);
-
-  // URL cực ngắn
-  const url = 'https://phongkham-bacsinam.vercel.app/don-thuoc.html?id=' + shortId;
-
-  document.getElementById('qrInfo').innerHTML =
-    `<strong>Bệnh nhân:</strong> ${p.name}<br>` +
-    `<strong>Chẩn đoán:</strong> ${lv?lv.diag:'Chưa có'}<br>` +
-    `<strong>Số thuốc:</strong> ${lv&&lv.meds?lv.meds.length:0} loại<br>` +
-    `<strong>Tái khám:</strong> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}` +
-    `<br><span style="font-size:.7rem;color:var(--ac2)">🔗 ${url}</span>`;
-
-  // Xóa QR cũ và tạo mới
-  const qd = document.getElementById('qrcode');
-  qd.innerHTML = '';
-
-  // Dùng correctLevel L (thấp nhất) để mã đơn giản, dễ quét nhất
-  // Màu đen tuyệt đối trên nền trắng
-  setTimeout(()=>{
-    new QRCode(qd, {
-      text: url,
-      width: 256,
-      height: 256,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.L
-    });
-  }, 100);
-
+  await fbSaveQR(shortId,data);
+  const url='https://phongkham-bacsinam.vercel.app/don-thuoc.html?id='+shortId;
+  document.getElementById('qrInfo').innerHTML=`<strong>Bệnh nhân:</strong> ${p.name}<br><strong>Chẩn đoán:</strong> ${lv?lv.diag:'Chưa có'}<br><strong>Số thuốc:</strong> ${lv&&lv.meds?lv.meds.length:0} loại<br><strong>Tái khám:</strong> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}<br><span style="font-size:.7rem;color:var(--ac2)">🔗 ${url}</span>`;
+  const qd=document.getElementById('qrcode'); qd.innerHTML='';
+  setTimeout(()=>new QRCode(qd,{text:url,width:240,height:240,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L}),100);
   document.getElementById('moQR').classList.add('show');
 }
 
@@ -711,7 +1050,7 @@ function printQR(){
   const lv=p&&p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
   const c=document.querySelector('#qrcode canvas'); if(!c) return;
   const w=window.open('','_blank');
-  w.document.write(`<html><head><title>QR - ${p.name}</title><style>body{font-family:sans-serif;text-align:center;padding:40px}.info{border:1px solid #ddd;border-radius:8px;padding:14px;max-width:280px;margin:14px auto;text-align:left;font-size:13px;line-height:2}</style></head><body><h2>Đơn thuốc điện tử</h2><p style="color:#666">Quét mã để xem đơn thuốc & nhận nhắc nhở</p><img src="${c.toDataURL()}" width="220"><div class="info"><b>Bệnh nhân:</b> ${p.name}<br><b>Chẩn đoán:</b> ${lv?lv.diag:'N/A'}<br><b>Tái khám:</b> ${p.nextVisit||'Chưa hẹn'}${p.nextVisitTime?' lúc '+p.nextVisitTime:''}</div></body></html>`);
+  w.document.write(`<html><head><title>QR - ${p.name}</title><style>body{font-family:sans-serif;text-align:center;padding:30px}.info{border:1px solid #ddd;border-radius:8px;padding:12px;max-width:280px;margin:12px auto;text-align:left;font-size:13px;line-height:2}</style></head><body><h2>Đơn thuốc điện tử</h2><p style="color:#666">Quét mã để xem đơn thuốc & nhận nhắc nhở</p><img src="${c.toDataURL()}" width="220"><div class="info"><b>Bệnh nhân:</b> ${p.name}<br><b>Chẩn đoán:</b> ${lv?lv.diag:'N/A'}<br><b>Tái khám:</b> ${p.nextVisit||'Chưa hẹn'}</div></body></html>`);
   w.document.close(); w.print();
 }
 
@@ -719,56 +1058,46 @@ function printQR(){
 function openZaloModal(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
-  document.getElementById('zalo-phone').textContent=p.phone||'Chưa có số điện thoại';
-  let msg=`Xin chào ${p.name}!\n\n`;
+  document.getElementById('zalo-phone').textContent=p.phone||'Chưa có SĐT';
+  let msg=`Xin chào ${p.name}!\n\n🏥 Phòng khám Bác sĩ Nguyễn Hoài Nam\n`;
   if(lv){
-    msg+=`🏥 Phòng khám Bác sĩ Nam\n`;
     msg+=`📋 Chẩn đoán: ${lv.diag||''}\n\n`;
     if(lv.meds&&lv.meds.length){
       msg+=`💊 Đơn thuốc:\n`;
       lv.meds.forEach((m,i)=>{
-        msg+=`${i+1}. ${m.name} ${m.dose||''} - ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/ngày × ${m.days||'?'} ngày`;
+        msg+=`${i+1}. ${m.name} ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/ngày × ${m.days||'?'} ngày`;
         if(m.note) msg+=` (${m.note})`;
-        if(m.remark) msg+=` - ${m.remark}`;
+        if(m.remark) msg+=` — ${m.remark}`;
         msg+='\n';
       });
     }
-    if(p.nextVisit){
-      msg+=`\n📅 Lịch tái khám: ${p.nextVisit}`;
-      if(p.nextVisitTime) msg+=` lúc ${p.nextVisitTime}`;
-      msg+='\n';
-    }
+    if(p.nextVisit){ msg+=`\n📅 Tái khám: ${p.nextVisit}`; if(p.nextVisitTime) msg+=` lúc ${p.nextVisitTime}`; msg+='\n'; }
     if(lv.note) msg+=`\n📝 Lưu ý: ${lv.note}\n`;
   }
-  msg+='\nTrân trọng,\nPhòng khám Bác sĩ Nguyễn Hoài Nam';
+  msg+='\nTrân trọng,\nBS. Nguyễn Hoài Nam';
   document.getElementById('zalo-msg').value=msg;
   document.getElementById('moZalo').classList.add('show');
 }
 
 function copyZaloMsg(){
   const msg=document.getElementById('zalo-msg').value;
-  navigator.clipboard.writeText(msg).then(()=>showToast('✓ Đã copy nội dung!','success')).catch(()=>{
-    document.getElementById('zalo-msg').select();
-    document.execCommand('copy');
-    showToast('✓ Đã copy!','success');
+  navigator.clipboard.writeText(msg).then(()=>showToast('✓ Đã copy!','success')).catch(()=>{
+    document.getElementById('zalo-msg').select(); document.execCommand('copy'); showToast('✓ Đã copy!','success');
   });
 }
 
 function openZalo(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const phone=(p.phone||'').replace(/\D/g,'');
-  if(!phone){ showToast('Bệnh nhân chưa có số điện thoại','error'); return; }
-  copyZaloMsg();
-  window.open(`https://zalo.me/${phone}`,'_blank');
-  showToast('Đã copy nội dung & mở Zalo!','info');
+  if(!phone){ showToast('Bệnh nhân chưa có SĐT','error'); return; }
+  copyZaloMsg(); window.open(`https://zalo.me/${phone}`,'_blank');
 }
 
 // ===== DAILY STATS =====
 function showStats(){
   const today=new Date().toISOString().split('T')[0];
-  const mo=document.createElement('div');
-  mo.className='mo show'; mo.id='moSt';
-  mo.innerHTML=`<div class="md" style="max-width:640px;width:95%;max-height:88vh;overflow-y:auto">
+  const mo=document.createElement('div'); mo.className='mo show'; mo.id='moSt';
+  mo.innerHTML=`<div class="md" style="max-width:680px;width:95%;max-height:88vh">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <h3 style="margin:0">📊 Thống kê theo ngày</h3>
       <button class="btn btn-g" onclick="document.getElementById('moSt').remove()">✕</button>
@@ -777,7 +1106,7 @@ function showStats(){
       <label style="font-size:.8rem;color:var(--tx2)">Ngày:</label>
       <input type="date" id="stDate" value="${today}" onchange="renderStats()" style="width:auto">
     </div>
-    <div id="stBody"></div>
+    <div id="stBody" style="overflow-y:auto;max-height:calc(88vh - 120px)"></div>
   </div>`;
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
@@ -787,8 +1116,7 @@ function showStats(){
 function renderStats(){
   const d=document.getElementById('stDate'); if(!d) return;
   const date=d.value;
-  const rows=[];
-  pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
   const el=document.getElementById('stBody'); if(!el) return;
   if(!rows.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có lượt khám nào ngày ${date}</div>`; return; }
   const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
@@ -797,130 +1125,168 @@ function renderStats(){
   const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
   const nProc=rows.filter(v=>v.proc).length;
   el.innerHTML=`
-    <!-- Tóm tắt -->
-    <div style="background:rgba(46,160,67,.08);border:1px solid rgba(46,160,67,.25);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <div style="font-size:.82rem;color:var(--tx2)">
-        Ngày <strong style="color:var(--tx)">${date}</strong> &nbsp;·&nbsp;
-        Tổng <strong style="color:var(--ac2)">${rows.length} lượt khám</strong>
-        ${nProc?' &nbsp;·&nbsp; <strong style="color:var(--da)">'+nProc+' ca thủ thuật</strong>':''}
-      </div>
+    <div style="background:rgba(46,160,67,.08);border:1px solid rgba(46,160,67,.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-size:.82rem;color:var(--tx2)">Ngày <strong style="color:var(--tx)">${date}</strong> · <strong style="color:var(--ac2)">${rows.length} lượt</strong>${nProc?' · <strong style="color:var(--da)">'+nProc+' ca TT</strong>':''}</div>
       <div style="font-size:1.1rem;font-weight:700;color:var(--ac)">💰 ${tot.toLocaleString('vi-VN')}đ</div>
     </div>
-
-    <!-- Bảng chính -->
     <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:.79rem">
-      <thead>
-        <tr style="background:var(--su2)">
-          <th style="padding:8px 10px;text-align:center;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:4%">#</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:18%">Bệnh nhân</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:12%">SĐT</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Loại khám</th>
-          <th style="padding:8px 10px;text-align:left;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:24%">Chẩn đoán / Thủ thuật</th>
-          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Tiền khám</th>
-          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Tiền thuốc</th>
-          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--tx3);font-size:.7rem;width:10%">Thủ thuật</th>
-          <th style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac);font-size:.7rem;width:12%">Tổng thu</th>
-        </tr>
-      </thead>
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr style="background:var(--su2)">
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem;width:4%">#</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem">Bệnh nhân</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem">SĐT</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem">Loại</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem">Chẩn đoán</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem;text-align:right">Khám</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem;text-align:right">Thuốc</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx3);font-size:.68rem;text-align:right">TT</th>
+        <th style="padding:7px 9px;border:1px solid var(--bo);color:var(--ac);font-size:.68rem;text-align:right">Tổng</th>
+      </tr></thead>
       <tbody>
-        ${rows.map((v,i)=>`
-          <tr style="background:${i%2===0?'var(--bg)':'var(--su2)'}">
-            <td style="padding:8px 10px;text-align:center;border:1px solid var(--bo);color:var(--tx3)">${i+1}</td>
-            <td style="padding:8px 10px;border:1px solid var(--bo);font-weight:600">${v.ptName}</td>
-            <td style="padding:8px 10px;border:1px solid var(--bo);color:var(--tx2)">${v.ptPhone||'—'}</td>
-            <td style="padding:8px 10px;border:1px solid var(--bo);color:var(--tx2)">${v.type||'—'}</td>
-            <td style="padding:8px 10px;border:1px solid var(--bo)">
-              <div style="color:var(--tx)">${v.diag||'—'}</div>
-              ${v.proc?`<div style="color:var(--da);font-size:.72rem;margin-top:2px">🔪 ${v.proc}</div>`:''}
-            </td>
-            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac)">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td>
-            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--ac2)">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td>
-            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);color:var(--da)">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td>
-            <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac)">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'<span style="color:var(--tx3);font-weight:400">Chưa thu</span>'}</td>
-          </tr>`).join('')}
+        ${rows.map((v,i)=>`<tr style="background:${i%2===0?'var(--bg)':'var(--su2)'}">
+          <td style="padding:7px 9px;border:1px solid var(--bo);text-align:center;color:var(--tx3)">${i+1}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);font-weight:600">${v.ptName}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx2)">${v.ptPhone||'—'}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);color:var(--tx2)">${v.type||'—'}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo)">${v.diag||'—'}${v.proc?'<br><span style="color:var(--da);font-size:.7rem">🔪 '+v.proc+'</span>':''}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;color:var(--ac)">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;color:var(--ac2)">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;color:var(--da)">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--ac)">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'<span style="color:var(--tx3);font-weight:400">Chưa thu</span>'}</td>
+        </tr>`).join('')}
       </tbody>
-      <tfoot>
-        <tr style="background:rgba(46,160,67,.1)">
-          <td colspan="5" style="padding:8px 10px;border:1px solid var(--bo);font-weight:700;color:var(--tx)">TỔNG CỘNG (${rows.length} lượt)</td>
-          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac)">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td>
-          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--ac2)">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td>
-          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;color:var(--da)">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td>
-          <td style="padding:8px 10px;text-align:right;border:1px solid var(--bo);font-weight:700;font-size:.9rem;color:var(--ac)">${tot.toLocaleString('vi-VN')}đ</td>
-        </tr>
-      </tfoot>
-    </table>
-    </div>
-
-    <!-- Nút xuất -->
-    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-g" style="font-size:.78rem" onclick="printStats('${date}')">🖨️ In báo cáo</button>
+      <tfoot><tr style="background:rgba(46,160,67,.1)">
+        <td colspan="5" style="padding:7px 9px;border:1px solid var(--bo);font-weight:700">TỔNG (${rows.length} lượt)</td>
+        <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--ac)">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--ac2)">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--da)">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td>
+        <td style="padding:7px 9px;border:1px solid var(--bo);text-align:right;font-weight:700;font-size:.88rem;color:var(--ac)">${tot.toLocaleString('vi-VN')}đ</td>
+      </tr></tfoot>
+    </table></div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-g" style="font-size:.77rem" onclick="printStats('${date}')">🖨️ In báo cáo</button>
+      <button class="btn btn-g" style="font-size:.77rem" onclick="exportExcel('${date}')">📥 Xuất Excel</button>
     </div>`;
 }
 
-// ===== PRINT STATS =====
+// ===== MONTHLY REPORT =====
+function showReport(){
+  const mo=document.createElement('div'); mo.className='mo show'; mo.id='moReport';
+  const now=new Date();
+  mo.innerHTML=`<div class="md" style="max-width:700px;width:95%;max-height:88vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">📈 Báo cáo tháng/năm</h3>
+      <button class="btn btn-g" onclick="document.getElementById('moReport').remove()">✕</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:120px"><label>Năm</label><input type="number" id="rpYear" value="${now.getFullYear()}" min="2020" max="2030" onchange="renderReport()"></div>
+      <div class="fg" style="flex:1;min-width:120px"><label>Tháng (0 = cả năm)</label><input type="number" id="rpMonth" value="${now.getMonth()+1}" min="0" max="12" onchange="renderReport()"></div>
+    </div>
+    <div id="rpBody" style="overflow-y:auto;max-height:calc(88vh - 140px)"></div>
+  </div>`;
+  document.body.appendChild(mo);
+  mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
+  renderReport();
+}
+
+function renderReport(){
+  const year=parseInt(document.getElementById('rpYear')?.value)||2026;
+  const month=parseInt(document.getElementById('rpMonth')?.value)||0;
+  const el=document.getElementById('rpBody'); if(!el) return;
+
+  // Collect visits
+  const allVisits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    const d=new Date(v.date);
+    if(d.getFullYear()===year && (month===0||d.getMonth()+1===month))
+      allVisits.push({...v,ptName:p.name});
+  }));
+
+  if(!allVisits.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có dữ liệu cho kỳ này.</div>`; return; }
+
+  const tot=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
+  const totK=allVisits.reduce((s,v)=>s+(v.f1||0),0);
+  const totT=allVisits.reduce((s,v)=>s+(v.f2||0),0);
+  const totP=allVisits.reduce((s,v)=>s+(v.f3||0),0);
+
+  // Group by month or day
+  const groups={};
+  allVisits.forEach(v=>{
+    const key=month===0?v.date.substring(0,7):v.date; // YYYY-MM or YYYY-MM-DD
+    if(!groups[key]) groups[key]={visits:[],tot:0,f1:0,f2:0,f3:0};
+    groups[key].visits.push(v);
+    groups[key].tot+=(v.ftot||0);
+    groups[key].f1+=(v.f1||0); groups[key].f2+=(v.f2||0); groups[key].f3+=(v.f3||0);
+  });
+
+  const maxTot=Math.max(...Object.values(groups).map(g=>g.tot));
+  const sortedKeys=Object.keys(groups).sort();
+
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:16px">
+      <div class="sc"><div class="sv" style="color:var(--ac2)">${allVisits.length}</div><div class="sl">Lượt khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${tot.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng thu</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac2);font-size:1rem">${totT.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền thuốc</div></div>
+      <div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${totP.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật</div></div>
+    </div>
+
+    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:8px">${month===0?'Doanh thu theo tháng':'Doanh thu theo ngày'}</div>
+    ${sortedKeys.map(k=>{
+      const g=groups[k]; const pct=maxTot>0?Math.round(g.tot/maxTot*100):0;
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px">
+          <span style="color:var(--tx2)">${k} <span style="color:var(--tx3)">(${g.visits.length} lượt)</span></span>
+          <span style="font-weight:700;color:var(--ac)">${g.tot.toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('')}
+
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-g" style="font-size:.77rem" onclick="exportExcelReport(${year},${month})">📥 Xuất Excel</button>
+    </div>`;
+}
+
+// ===== EXPORT EXCEL =====
+function exportExcel(date){
+  const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const data=[['#','Bệnh nhân','SĐT','Loại khám','Chẩn đoán','Thủ thuật','T.Khám','T.Thuốc','T.Thuật','Tổng thu']];
+  rows.forEach((v,i)=>data.push([i+1,v.ptName,v.ptPhone||'',v.type||'',v.diag||'',v.proc||'',v.f1||0,v.f2||0,v.f3||0,v.ftot||0]));
+  data.push(['','','','','','','','','TỔNG',rows.reduce((s,v)=>s+(v.ftot||0),0)]);
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Ngày '+date);
+  XLSX.writeFile(wb,`BaoCao_${date}.xlsx`);
+}
+
+function exportExcelReport(year,month){
+  const allVisits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    const d=new Date(v.date);
+    if(d.getFullYear()===year&&(month===0||d.getMonth()+1===month))
+      allVisits.push({...v,ptName:p.name,ptPhone:p.phone});
+  }));
+  const data=[['Ngày','Bệnh nhân','SĐT','Loại khám','Chẩn đoán','T.Khám','T.Thuốc','T.Thuật','Tổng thu']];
+  allVisits.forEach(v=>data.push([v.date,v.ptName,v.ptPhone||'',v.type||'',v.diag||'',v.f1||0,v.f2||0,v.f3||0,v.ftot||0]));
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,`T${month||'all'}-${year}`);
+  XLSX.writeFile(wb,`BaoCao_${year}_T${month||'all'}.xlsx`);
+}
+
 function printStats(date){
-  const rows=[];
-  pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
   const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
   const totK=rows.reduce((s,v)=>s+(v.f1||0),0);
   const totT=rows.reduce((s,v)=>s+(v.f2||0),0);
   const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Báo cáo ${date}</title>
-  <style>
-    body{font-family:'Be Vietnam Pro',sans-serif;padding:24px;color:#111}
-    h2{margin-bottom:4px;font-size:1.1rem}
-    p{color:#666;font-size:.82rem;margin-bottom:16px}
-    table{width:100%;border-collapse:collapse;font-size:.82rem}
-    th{background:#2d6a4f;color:white;padding:7px 10px;text-align:left;border:1px solid #ccc}
-    th.r{text-align:right}
-    td{padding:7px 10px;border:1px solid #ddd}
-    td.r{text-align:right}
-    tr:nth-child(even){background:#f9f9f9}
-    tfoot tr{background:#e8f5e9;font-weight:700}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-    .clinic{font-size:.8rem;color:#555;text-align:right}
-  </style></head><body>
-  <div class="header">
-    <div><h2>BÁO CÁO DOANH THU NGÀY ${date}</h2><p>Phòng khám Bác sĩ Nguyễn Hoài Nam · In lúc ${new Date().toLocaleString('vi-VN')}</p></div>
-  </div>
-  <table>
-    <thead><tr>
-      <th style="width:4%">#</th>
-      <th style="width:18%">Bệnh nhân</th>
-      <th style="width:12%">SĐT</th>
-      <th style="width:10%">Loại khám</th>
-      <th style="width:26%">Chẩn đoán / Thủ thuật</th>
-      <th class="r" style="width:10%">Tiền khám</th>
-      <th class="r" style="width:10%">Tiền thuốc</th>
-      <th class="r" style="width:10%">Thủ thuật</th>
-      <th class="r" style="width:10%">Tổng thu</th>
-    </tr></thead>
-    <tbody>
-      ${rows.map((v,i)=>`<tr>
-        <td style="text-align:center">${i+1}</td>
-        <td><strong>${v.ptName}</strong></td>
-        <td>${v.ptPhone||'—'}</td>
-        <td>${v.type||'—'}</td>
-        <td>${v.diag||'—'}${v.proc?'<br><em style="color:#c00;font-size:.75rem">🔪 '+v.proc+'</em>':''}</td>
-        <td class="r">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td>
-        <td class="r">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td>
-        <td class="r">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td>
-        <td class="r"><strong>${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</strong></td>
-      </tr>`).join('')}
-    </tbody>
-    <tfoot><tr>
-      <td colspan="5" style="text-align:right">TỔNG CỘNG (${rows.length} lượt khám)</td>
-      <td class="r">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td>
-      <td class="r">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td>
-      <td class="r">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td>
-      <td class="r">${tot.toLocaleString('vi-VN')}đ</td>
-    </tr></tfoot>
-  </table>
-  </body></html>`);
-  w.document.close();
-  setTimeout(()=>w.print(), 500);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BC ${date}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h2{margin-bottom:4px}table{width:100%;border-collapse:collapse}th{background:#2d6a4f;color:white;padding:6px 8px;text-align:left;border:1px solid #ccc}th.r{text-align:right}td{padding:6px 8px;border:1px solid #ddd}td.r{text-align:right}tr:nth-child(even){background:#f9f9f9}tfoot tr{background:#e8f5e9;font-weight:700}</style></head>
+  <body><h2>BÁO CÁO NGÀY ${date}</h2><p style="color:#666;font-size:11px">PK Bác sĩ Nguyễn Hoài Nam · In: ${new Date().toLocaleString('vi-VN')}</p>
+  <table><thead><tr><th>#</th><th>Bệnh nhân</th><th>SĐT</th><th>Loại</th><th>Chẩn đoán</th><th class="r">Khám</th><th class="r">Thuốc</th><th class="r">TT</th><th class="r">Tổng</th></tr></thead>
+  <tbody>${rows.map((v,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${v.ptName}</td><td>${v.ptPhone||'—'}</td><td>${v.type||'—'}</td><td>${v.diag||'—'}${v.proc?'<br><em style="color:#c00">🔪 '+v.proc+'</em>':''}</td><td class="r">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="5" style="text-align:right">TỔNG (${rows.length} lượt)</td><td class="r">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
+  </table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),400);
 }
 
 // ===== UTILS =====
@@ -929,10 +1295,11 @@ function showToast(msg,type='success'){ const t=document.createElement('div'); t
 document.addEventListener('click',e=>{ if(e.target.classList.contains('mo')) e.target.classList.remove('show'); });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape') document.querySelectorAll('.mo.show').forEach(m=>m.classList.remove('show'));
-  if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();openNewPt();}
+  if(e.key==='n'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(curUser)openNewPt();}
 });
 
 // ===== START =====
+window.addEventListener('firebase-ready',()=>{ fbOk=true; }, {once:false});
 init();
 </script>
 </body>
