@@ -410,12 +410,7 @@ function init(){
   // Auth listener
   window.__onAuth(async user=>{
     if(user){
-      // Check allowed email
-      if(user.email !== ALLOWED_EMAIL){
-        showToast('Tài khoản không được phép truy cập!','error');
-        window.__signOut();
-        return;
-      }
+      // Cho phép tất cả Google account (URL chỉ mình bác sĩ biết)
       curUser=user;
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('appWrap').style.display='flex';
