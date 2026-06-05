@@ -188,6 +188,15 @@ textarea{resize:vertical;min-height:68px}
 .chart-bar-fill{height:100%;background:var(--ac2);border-radius:4px;transition:width .5s}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:var(--bo);border-radius:3px}
+/* KHO */
+.kho-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--bo)}
+.kho-tab{padding:6px 14px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--tx2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.kho-tab:hover{color:var(--tx)}
+.kho-tab.active{color:var(--ac3);border-bottom-color:var(--ac3)}
+.ton-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700}
+.ton-ok{background:rgba(46,160,67,.15);color:var(--ac)}
+.ton-low{background:rgba(248,81,73,.15);color:var(--da)}
+.ton-zero{background:rgba(248,81,73,.3);color:var(--da)}
 </style>
 </head>
 <body>
@@ -212,6 +221,7 @@ textarea{resize:vertical;min-height:68px}
   <div style="display:flex;align-items:center;gap:10px">
     <button class="btn-s" onclick="showStats()">📊 Thống kê</button>
     <button class="btn-s" onclick="showReport()">📈 Báo cáo</button>
+    <button class="btn-s" onclick="showKho()" style="background:rgba(240,136,62,.15);color:var(--ac3);border-color:rgba(240,136,62,.4)">📦 Kho thuốc</button>
     <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Kết nối...</span></div>
     <div class="user-badge" id="userBadge"></div>
     <button class="btn btn-g" style="padding:5px 10px;font-size:.75rem" onclick="doLogout()">Đăng xuất</button>
@@ -356,6 +366,7 @@ const DRUG_DB = [
 
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
+let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
 const ALLOWED_EMAIL = 'drhoainam@gmail.com'; // Email được phép truy cập
 
 // ===== AUTH =====
@@ -420,23 +431,32 @@ function init(){
 }
 
 async function loadData(){
-  try{
-    pts=JSON.parse(localStorage.getItem('pk3')||'[]');
-  }catch(e){ pts=[]; }
+  try{ pts=JSON.parse(localStorage.getItem('pk3')||'[]'); }catch(e){ pts=[]; }
+  try{ kho=JSON.parse(localStorage.getItem('pk3_kho')||'[]'); }catch(e){ kho=[]; }
   renderPtList();
 
   window.addEventListener('firebase-ready',async()=>{
     fbOk=true;
     try{
       setSd('sync');
+      // Load patients
       const snap=await window.__getDocs(window.__col('patients'));
       const fb=[]; snap.forEach(d=>fb.push(d.data()));
       if(fb.length>0){
         pts=fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-        svLocal(); renderPtList(); setSd('ok');
+        svLocal(); renderPtList();
       } else if(pts.length>0){
-        for(const p of pts) await fbSave(p); setSd('ok');
-      } else setSd('ok');
+        for(const p of pts) await fbSave(p);
+      }
+      // Load kho
+      const khoSnap=await window.__getDocs(window.__col('kho'));
+      const fbKho=[]; khoSnap.forEach(d=>fbKho.push(d.data()));
+      if(fbKho.length>0){
+        kho=fbKho; svKhoLocal();
+      } else if(kho.length>0){
+        for(const k of kho) await fbSaveKho(k);
+      }
+      setSd('ok');
     }catch(e){ setSd('err'); }
   },{once:true});
 }
@@ -653,16 +673,7 @@ function showDrugAC(i, val){
 }
 
 function selectDrug(medIdx, _){
-  const list=document.getElementById('ac_'+medIdx); if(!list) return;
-  const clickedEl=event.target.closest('.ac-item');
-  const allItems=[...list.querySelectorAll('.ac-item')];
-  const idx=allItems.indexOf(clickedEl);
-  const matches=JSON.parse(list.dataset.matches||'[]');
-  const d=matches[idx]; if(!d) return;
-  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
-  p.cv.meds[medIdx]={...p.cv.meds[medIdx],...d};
-  svLocal(); renderMeds();
-  list.style.display='none';
+  // Replaced by selectDrugFromList
 }
 
 function addMed(){
@@ -1287,6 +1298,484 @@ function printStats(date){
   <tfoot><tr><td colspan="5" style="text-align:right">TỔNG (${rows.length} lượt)</td><td class="r">${totK?totK.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${totT?totT.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${totP?totP.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
   </table></body></html>`);
   w.document.close(); setTimeout(()=>w.print(),400);
+}
+
+// ===== KHO THUỐC =====
+function svKhoLocal(){ localStorage.setItem('pk3_kho', JSON.stringify(kho)); }
+
+async function fbSaveKho(k){
+  if(!fbOk||!curUser) return;
+  try{
+    const d=JSON.parse(JSON.stringify(k));
+    await window.__setDoc(window.__doc('kho', k.id), d);
+  }catch(e){}
+}
+
+async function fbDelKho(id){
+  if(!fbOk||!curUser) return;
+  try{ await window.__deleteDoc(window.__doc('kho', id)); }catch(e){}
+}
+
+function svKho(k){ svKhoLocal(); if(k) fbSaveKho(k); }
+
+// Tính tồn kho
+function getTon(khoItem){
+  const nhap = (khoItem.batches||[]).reduce((s,b)=>s+(b.qty||0), 0);
+  // Tính xuất từ tất cả đơn thuốc
+  let xuat = 0;
+  pts.forEach(p=>(p.visits||[]).forEach(v=>(v.meds||[]).forEach(m=>{
+    if(m.name===khoItem.name && m.dose===khoItem.dose){
+      const total=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+      xuat += total;
+    }
+  })));
+  return nhap - xuat;
+}
+
+// Tính giá vốn trung bình
+function getGiaVon(khoItem){
+  const batches=khoItem.batches||[];
+  if(!batches.length) return 0;
+  const totalQty=batches.reduce((s,b)=>s+(b.qty||0),0);
+  const totalCost=batches.reduce((s,b)=>s+(b.qty||0)*(b.price||0),0);
+  return totalQty>0?totalCost/totalQty:0;
+}
+
+// Tìm kho item từ tên+dose
+function findKhoItem(name, dose){
+  return kho.find(k=>k.name.toLowerCase()===name.toLowerCase() && (k.dose||'')===(dose||''));
+}
+
+// Hiển thị tồn kho trong autocomplete
+function getTonBadge(name, dose){
+  const k=findKhoItem(name, dose);
+  if(!k) return '';
+  const ton=getTon(k);
+  const cls=ton<=0?'ton-zero':ton<=(k.minStock||10)?'ton-low':'ton-ok';
+  return `<span class="ton-badge ${cls}">Tồn: ${ton} ${k.unit||'viên'}</span>`;
+}
+
+// ===== HIỂN THỊ KHO =====
+let khoTab='ton'; // ton | nhap | lãi
+
+function showKho(){
+  const mo=document.createElement('div'); mo.className='mo show'; mo.id='moKho';
+  mo.innerHTML=`<div class="md" style="max-width:900px;width:97%;max-height:92vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="margin:0">📦 Quản lý kho thuốc</h3>
+      <button class="btn btn-g" onclick="document.getElementById('moKho').remove()">✕</button>
+    </div>
+    <div class="kho-tabs">
+      <div class="kho-tab active" onclick="switchKhoTab('ton',this)">📋 Tồn kho</div>
+      <div class="kho-tab" onclick="switchKhoTab('nhap',this)">📥 Nhập kho</div>
+      <div class="kho-tab" onclick="switchKhoTab('lai',this)">💹 Lãi/Lỗ</div>
+    </div>
+    <div id="khoBody" style="overflow-y:auto;max-height:calc(92vh - 140px)"></div>
+  </div>`;
+  document.body.appendChild(mo);
+  mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
+  khoTab='ton';
+  renderKhoTab();
+}
+
+function switchKhoTab(tab, el){
+  khoTab=tab;
+  document.querySelectorAll('.kho-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderKhoTab();
+}
+
+function renderKhoTab(){
+  const el=document.getElementById('khoBody'); if(!el) return;
+  if(khoTab==='ton') el.innerHTML=renderTonKho();
+  else if(khoTab==='nhap') el.innerHTML=renderNhapKho();
+  else { el.innerHTML=renderLaiLo(); setTimeout(renderLaiLoData, 50); }
+}
+
+// ===== TỒN KHO =====
+function renderTonKho(){
+  if(!kho.length) return `<div style="text-align:center;padding:48px;color:var(--tx3)">Kho trống. Vào tab "Nhập kho" để thêm thuốc.</div>`;
+
+  const rows=kho.map(k=>{
+    const ton=getTon(k);
+    const gv=getGiaVon(k);
+    const minStock=k.minStock||10;
+    const cls=ton<=0?'ton-zero':ton<=minStock?'ton-low':'ton-ok';
+    const warning=ton<=0?'🔴 Hết hàng':ton<=minStock?'🟡 Sắp hết':'';
+    return {k,ton,gv,cls,warning};
+  }).sort((a,b)=>a.ton-b.ton); // sắp xếp theo tồn ít nhất lên đầu
+
+  const hetHang=rows.filter(r=>r.ton<=0).length;
+  const sapHet=rows.filter(r=>r.ton>0&&r.ton<=(r.k.minStock||10)).length;
+
+  return `
+    ${hetHang||sapHet?`<div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:9px;padding:10px 14px;margin-bottom:12px;font-size:.8rem;color:var(--da)">
+      ⚠️ ${hetHang?hetHang+' thuốc hết hàng':''}${hetHang&&sapHet?' · ':''}${sapHet?sapHet+' thuốc sắp hết':''}
+    </div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:.72rem;color:var(--tx3)">${kho.length} mặt hàng · ${rows.filter(r=>r.ton>0).length} còn hàng</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g" style="font-size:.76rem" onclick="exportKhoExcel()">📥 Xuất Excel</button>
+        <button class="btn btn-g" style="font-size:.76rem" onclick="khoTab='nhap';document.querySelectorAll('.kho-tab').forEach((t,i)=>{t.classList.toggle('active',i===1)});renderKhoTab()">＋ Nhập thêm</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl" style="font-size:.79rem">
+      <thead><tr>
+        <th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th>
+        <th style="text-align:right">Tồn kho</th>
+        <th style="text-align:right">Tối thiểu</th>
+        <th style="text-align:right">Giá vốn TB</th>
+        <th style="text-align:right">Giá trị tồn</th>
+        <th style="text-align:center">Trạng thái</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(({k,ton,gv,cls,warning})=>`<tr style="${ton<=0?'opacity:.6':''}">
+          <td><strong>${k.name}</strong></td>
+          <td>${k.dose||'—'}</td>
+          <td>${k.unit||'viên'}</td>
+          <td style="text-align:right;font-weight:700"><span class="ton-badge ${cls}">${ton}</span></td>
+          <td style="text-align:right;color:var(--tx3)">${k.minStock||10}</td>
+          <td style="text-align:right;color:var(--tx2)">${gv>0?Math.round(gv).toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--ac)">${ton>0&&gv>0?(ton*gv).toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:center;font-size:.76rem">${warning||'✅ Đủ hàng'}</td>
+          <td>
+            <button class="btn-rm" onclick="delKhoItem('${k.id}')" title="Xóa">✕</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr style="background:rgba(46,160,67,.08)">
+        <td colspan="6" style="font-weight:700;padding:7px">TỔNG GIÁ TRỊ TỒN KHO</td>
+        <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">
+          ${rows.reduce((s,{k,ton,gv})=>s+(ton>0?ton*gv:0),0).toLocaleString('vi-VN')}đ
+        </td>
+        <td colspan="2"></td>
+      </tr></tfoot>
+    </table></div>`;
+}
+
+// ===== NHẬP KHO =====
+function renderNhapKho(){
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="ct">Nhập thuốc mới vào kho</div>
+      <div class="fr">
+        <div class="fg"><label>Tên thuốc *</label>
+          <div class="autocomplete-wrap">
+            <input id="kh_name" placeholder="Paracetamol, Meloxicam..." oninput="showKhoAC(this.value)" autocomplete="off">
+            <div class="ac-list" id="kh_ac" style="display:none"></div>
+          </div>
+        </div>
+        <div class="fg"><label>Hàm lượng</label><input id="kh_dose" placeholder="500mg, 7.5mg..."></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label>Đơn vị tính</label>
+          <select id="kh_unit">${['viên','gói','ống','lọ','ml','hộp','vỉ'].map(u=>`<option>${u}</option>`).join('')}</select>
+        </div>
+        <div class="fg"><label>Tồn kho tối thiểu (cảnh báo)</label><input type="number" id="kh_min" value="10" min="0"></div>
+      </div>
+      <div style="border-top:1px solid var(--bo);margin:12px 0;padding-top:12px">
+        <div style="font-size:.76rem;font-weight:700;color:var(--tx2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Thông tin lô nhập</div>
+        <div class="fr">
+          <div class="fg"><label>Số lượng nhập *</label><input type="number" id="kh_qty" placeholder="100" min="1"></div>
+          <div class="fg"><label>Giá vốn/đơn vị (đ) *</label><input type="number" id="kh_price" placeholder="1500" min="0"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>Ngày nhập</label><input type="date" id="kh_date" value="${new Date().toISOString().split('T')[0]}"></div>
+          <div class="fg"><label>Nhà cung cấp</label><input id="kh_sup" placeholder="Công ty dược ABC..."></div>
+        </div>
+        <div class="fg" style="margin-bottom:0"><label>Ghi chú</label><input id="kh_note" placeholder="Số lô, hạn sử dụng..."></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button class="btn btn-p" style="background:var(--ac3);color:#0d1117" onclick="saveNhapKho()">📥 Lưu nhập kho</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Lịch sử nhập kho</div>
+      ${kho.length?`<div style="overflow-x:auto"><table class="tbl">
+        <thead><tr>
+          <th>Ngày nhập</th><th>Tên thuốc</th><th>Hàm lượng</th><th style="text-align:right">SL nhập</th><th style="text-align:right">Giá vốn</th><th style="text-align:right">Thành tiền</th><th>Nhà CC</th><th>Ghi chú</th>
+        </tr></thead>
+        <tbody>
+          ${kho.flatMap(k=>(k.batches||[]).map(b=>({...b,name:k.name,dose:k.dose,unit:k.unit}))).sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<tr>
+            <td>${b.date}</td>
+            <td><strong>${b.name}</strong></td>
+            <td>${b.dose||'—'}</td>
+            <td style="text-align:right;font-weight:600">${b.qty} ${b.unit||'viên'}</td>
+            <td style="text-align:right;color:var(--tx2)">${b.price?b.price.toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="text-align:right;color:var(--ac3)">${b.qty&&b.price?(b.qty*b.price).toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td>${b.supplier||'—'}</td>
+            <td style="color:var(--tx3)">${b.note||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`:'<div style="text-align:center;padding:30px;color:var(--tx3);font-size:.8rem">Chưa có lịch sử nhập kho.</div>'}
+    </div>`;
+}
+
+function showKhoAC(val){
+  const list=document.getElementById('kh_ac'); if(!list) return;
+  if(!val||val.length<1){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const matches=DRUG_DB.filter(d=>d.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map(d=>`
+    <div class="ac-item" onclick="selectKhoAC('${d.name}','${d.dose}','${d.unit}')">
+      <div class="ac-name">${d.name} <span style="color:var(--ac2)">${d.dose}</span></div>
+    </div>`).join('');
+  list.style.display='block';
+}
+
+function selectKhoAC(name,dose,unit){
+  document.getElementById('kh_name').value=name;
+  document.getElementById('kh_dose').value=dose;
+  document.getElementById('kh_unit').value=unit||'viên';
+  document.getElementById('kh_ac').style.display='none';
+}
+
+function saveNhapKho(){
+  const name=document.getElementById('kh_name').value.trim();
+  const dose=document.getElementById('kh_dose').value.trim();
+  const unit=document.getElementById('kh_unit').value;
+  const qty=parseInt(document.getElementById('kh_qty').value)||0;
+  const price=parseFloat(document.getElementById('kh_price').value)||0;
+  const date=document.getElementById('kh_date').value;
+  const supplier=document.getElementById('kh_sup').value;
+  const note=document.getElementById('kh_note').value;
+  const minStock=parseInt(document.getElementById('kh_min').value)||10;
+
+  if(!name){ showToast('Vui lòng nhập tên thuốc','error'); return; }
+  if(!qty){ showToast('Vui lòng nhập số lượng','error'); return; }
+  if(!price){ showToast('Vui lòng nhập giá vốn','error'); return; }
+
+  const batch={date,qty,price,supplier,note,id:'b_'+Date.now()};
+
+  // Tìm thuốc đã có trong kho
+  let item=kho.find(k=>k.name.toLowerCase()===name.toLowerCase()&&(k.dose||'')===(dose||''));
+  if(item){
+    item.batches.push(batch);
+    item.minStock=minStock;
+  } else {
+    item={id:'kh_'+Date.now(),name,dose,unit,minStock,batches:[batch]};
+    kho.push(item);
+  }
+
+  svKho(item);
+  showToast(`✓ Nhập ${qty} ${unit} ${name} ${dose}!`,'success');
+  renderKhoTab();
+}
+
+function delKhoItem(id){
+  if(!confirm('Xóa thuốc này khỏi kho?')) return;
+  kho=kho.filter(k=>k.id!==id);
+  fbDelKho(id); svKhoLocal();
+  renderKhoTab();
+}
+
+// ===== LÃI / LỖ =====
+function renderLaiLo(){
+  const now=new Date();
+  const year=now.getFullYear();
+  const month=now.getMonth()+1;
+
+  return `
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="fg" style="flex:1;min-width:120px"><label>Năm</label><input type="number" id="ll_year" value="${year}" min="2020" max="2030" onchange="renderLaiLoData()"></div>
+      <div class="fg" style="flex:1;min-width:120px"><label>Tháng (0 = cả năm)</label><input type="number" id="ll_month" value="${month}" min="0" max="12" onchange="renderLaiLoData()"></div>
+    </div>
+    <div id="llData"></div>`;
+}
+
+function renderLaiLoData(){
+  const year=parseInt(document.getElementById('ll_year')?.value)||new Date().getFullYear();
+  const month=parseInt(document.getElementById('ll_month')?.value)||0;
+  const el=document.getElementById('llData'); if(!el) return;
+
+  // Tập hợp tất cả lần khám trong kỳ
+  const visits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    const d=new Date(v.date);
+    if(d.getFullYear()===year&&(month===0||d.getMonth()+1===month))
+      visits.push({...v,ptName:p.name});
+  }));
+
+  if(!visits.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có dữ liệu trong kỳ này.</div>`; return; }
+
+  // Doanh thu
+  const doanhThu=visits.reduce((s,v)=>s+(v.ftot||0),0);
+  const dtKham=visits.reduce((s,v)=>s+(v.f1||0),0);
+  const dtThuoc=visits.reduce((s,v)=>s+(v.f2||0),0);
+  const dtTT=visits.reduce((s,v)=>s+(v.f3||0),0);
+
+  // Giá vốn thuốc (tính từ kho)
+  const giaVonMap={}; // name+dose -> giá vốn TB
+  kho.forEach(k=>{ giaVonMap[k.name+'|'+(k.dose||'')]=getGiaVon(k); });
+
+  let tongGiaVon=0;
+  const chiTietThuoc={}; // name+dose -> {qty, giaVon, thanhTien, doanhThu}
+
+  visits.forEach(v=>(v.meds||[]).forEach(m=>{
+    const key=m.name+'|'+(m.dose||'');
+    const gv=giaVonMap[key]||0;
+    const soLuong=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+    const vonXuat=gv*soLuong;
+    tongGiaVon+=vonXuat;
+    if(!chiTietThuoc[key]) chiTietThuoc[key]={name:m.name,dose:m.dose||'',qty:0,von:0};
+    chiTietThuoc[key].qty+=soLuong;
+    chiTietThuoc[key].von+=vonXuat;
+  }));
+
+  const laiThuoc=dtThuoc-tongGiaVon;
+  const laiGop=doanhThu-tongGiaVon;
+  const tyLeLoiNhuan=doanhThu>0?Math.round(laiGop/doanhThu*100):0;
+
+  el.innerHTML=`
+    <!-- Tổng quan -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div class="sc"><div class="sv" style="color:var(--ac)">${doanhThu.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng doanh thu</div></div>
+      <div class="sc"><div class="sv" style="color:var(--da)">${tongGiaVon.toLocaleString('vi-VN')}đ</div><div class="sl">Giá vốn thuốc</div></div>
+      <div class="sc"><div class="sv" style="color:${laiGop>=0?'var(--ac)':'var(--da)'}">${laiGop.toLocaleString('vi-VN')}đ</div><div class="sl">Lãi gộp (${tyLeLoiNhuan}%)</div></div>
+    </div>
+
+    <!-- Chi tiết doanh thu -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${dtKham.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền khám</div></div>
+      <div class="sc">
+        <div class="sv" style="color:var(--ac2);font-size:1rem">${dtThuoc.toLocaleString('vi-VN')}đ</div>
+        <div class="sl">Tiền thuốc</div>
+        <div style="font-size:.72rem;margin-top:3px;color:${laiThuoc>=0?'var(--ac)':'var(--da)'}">Lãi thuốc: ${laiThuoc.toLocaleString('vi-VN')}đ</div>
+      </div>
+      <div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${dtTT.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật</div></div>
+    </div>
+
+    <!-- Biểu đồ lãi -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="ct">Phân tích lợi nhuận</div>
+      ${[
+        {label:'Doanh thu',val:doanhThu,color:'var(--ac)',pct:100},
+        {label:'Giá vốn thuốc',val:tongGiaVon,color:'var(--da)',pct:doanhThu>0?Math.round(tongGiaVon/doanhThu*100):0},
+        {label:'Lãi gộp',val:laiGop,color:laiGop>=0?'var(--ac)':'var(--da)',pct:Math.abs(tyLeLoiNhuan)},
+      ].map(r=>`<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px">
+          <span style="color:var(--tx2)">${r.label}</span>
+          <span style="font-weight:700;color:${r.color}">${r.val.toLocaleString('vi-VN')}đ (${r.pct}%)</span>
+        </div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="width:${r.pct}%;background:${r.color}"></div></div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Chi tiết từng thuốc -->
+    ${Object.keys(chiTietThuoc).length?`
+    <div class="card">
+      <div class="ct">Chi tiết giá vốn theo thuốc</div>
+      <table class="tbl" style="font-size:.78rem">
+        <thead><tr>
+          <th>Tên thuốc</th><th>Hàm lượng</th>
+          <th style="text-align:right">SL xuất</th>
+          <th style="text-align:right">Giá vốn/đv</th>
+          <th style="text-align:right">Tổng giá vốn</th>
+        </tr></thead>
+        <tbody>
+          ${Object.values(chiTietThuoc).sort((a,b)=>b.von-a.von).map(t=>`<tr>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.dose||'—'}</td>
+            <td style="text-align:right">${t.qty}</td>
+            <td style="text-align:right;color:var(--tx2)">${t.qty>0?Math.round(t.von/t.qty).toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="text-align:right;color:var(--da)">${t.von.toLocaleString('vi-VN')}đ</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td colspan="4" style="font-weight:700;text-align:right;padding:7px">TỔNG GIÁ VỐN</td>
+          <td style="font-weight:700;color:var(--da);text-align:right;padding:7px">${tongGiaVon.toLocaleString('vi-VN')}đ</td>
+        </tr></tfoot>
+      </table>
+    </div>`:''}
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button class="btn btn-g" style="font-size:.77rem" onclick="exportLaiLoExcel(${year},${month})">📥 Xuất Excel</button>
+    </div>`;
+}
+
+function exportKhoExcel(){
+  const data=[['Tên thuốc','Hàm lượng','ĐVT','Tồn kho','Tối thiểu','Giá vốn TB','Giá trị tồn','Trạng thái']];
+  kho.forEach(k=>{
+    const ton=getTon(k); const gv=Math.round(getGiaVon(k));
+    const status=ton<=0?'Hết hàng':ton<=(k.minStock||10)?'Sắp hết':'Đủ hàng';
+    data.push([k.name,k.dose||'',k.unit||'viên',ton,k.minStock||10,gv,ton>0?ton*gv:0,status]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Tồn kho');
+  XLSX.writeFile(wb,'TonKho_'+new Date().toISOString().split('T')[0]+'.xlsx');
+}
+
+function exportLaiLoExcel(year,month){
+  const visits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    const d=new Date(v.date);
+    if(d.getFullYear()===year&&(month===0||d.getMonth()+1===month))
+      visits.push({...v,ptName:p.name});
+  }));
+  const giaVonMap={};
+  kho.forEach(k=>{ giaVonMap[k.name+'|'+(k.dose||'')]=getGiaVon(k); });
+
+  const data=[['Ngày','Bệnh nhân','Chẩn đoán','DT Khám','DT Thuốc','DT TT','Tổng DT','Giá vốn','Lãi gộp']];
+  visits.forEach(v=>{
+    let gv=0;
+    (v.meds||[]).forEach(m=>{
+      const gvUnit=giaVonMap[m.name+'|'+(m.dose||'')]||0;
+      const qty=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+      gv+=gvUnit*qty;
+    });
+    data.push([v.date,v.ptName,v.diag||'',v.f1||0,v.f2||0,v.f3||0,v.ftot||0,Math.round(gv),(v.ftot||0)-Math.round(gv)]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,`LaiLo_T${month||'all'}-${year}`);
+  XLSX.writeFile(wb,`LaiLo_${year}_T${month||'all'}.xlsx`);
+}
+
+// Override drug autocomplete to show tồn kho
+const _origShowDrugAC = showDrugAC;
+function showDrugAC(i, val){
+  updM(i,'name',val);
+  const list=document.getElementById('ac_'+i); if(!list) return;
+  if(!val||val.length<2){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+
+  // Ưu tiên thuốc trong kho
+  const khoMatches=kho.filter(k=>k.name.toLowerCase().includes(q)).map(k=>({
+    name:k.name, dose:k.dose, unit:k.unit,
+    times:'', days:'', note:'', remark:'',
+    ton:getTon(k), isKho:true
+  }));
+
+  const drugMatches=DRUG_DB.filter(d=>d.name.toLowerCase().includes(q)&&!khoMatches.find(k=>k.name===d.name&&k.dose===d.dose)).slice(0,6);
+  const allMatches=[...khoMatches,...drugMatches].slice(0,10);
+
+  if(!allMatches.length){ list.style.display='none'; return; }
+  list.innerHTML=allMatches.map((d,idx)=>{
+    const tonInfo=d.isKho?`<span class="ton-badge ${d.ton<=0?'ton-zero':d.ton<=10?'ton-low':'ton-ok'}">Tồn: ${d.ton} ${d.unit||'viên'}</span>` : '';
+    return `<div class="ac-item" data-idx="${idx}" onclick="selectDrugFromList(${i},${idx})">
+      <div class="ac-name">${d.name} <span style="color:var(--ac2)">${d.dose}</span> ${d.isKho?'<span style="font-size:.68rem;color:var(--ac3)">📦 Kho</span>':''}</div>
+      <div class="ac-sub">${d.times?d.times+'x/ngày · '+d.days+' ngày · ':''} ${tonInfo}</div>
+    </div>`;
+  }).join('');
+  list.dataset.matches=JSON.stringify(allMatches);
+  list.style.display='block';
+}
+
+function selectDrugFromList(medIdx, itemIdx){
+  const list=document.getElementById('ac_'+medIdx); if(!list) return;
+  const allMatches=JSON.parse(list.dataset.matches||'[]');
+  const d=allMatches[itemIdx]; if(!d) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  p.cv.meds[medIdx]={
+    ...p.cv.meds[medIdx],
+    name:d.name, dose:d.dose||'', unit:d.unit||'viên',
+    qty:d.qty||1, times:d.times||'', days:d.days||'',
+    note:d.note||'', remark:d.remark||''
+  };
+  svLocal(); renderMeds(); list.style.display='none';
 }
 
 // ===== UTILS =====
