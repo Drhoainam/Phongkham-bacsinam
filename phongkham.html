@@ -406,28 +406,33 @@ function setSd(s){ document.getElementById('sd').className='sd '+(s==='sync'?'sy
 
 // ===== INIT =====
 function init(){
-  document.getElementById('hd')||document.querySelector('header').insertAdjacentHTML('beforeend','');
-  // Auth listener
-  window.__onAuth(async user=>{
-    if(user){
-      // Chỉ cho phép email bác sĩ
-      if(user.email !== ALLOWED_EMAIL){
-        showToast('Tài khoản không được phép: '+user.email,'error');
-        window.__signOut();
-        return;
-      }
-      curUser=user;
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('appWrap').style.display='flex';
-      document.getElementById('userBadge').innerHTML=`<img src="${user.photoURL}" onerror="this.style.display='none'">${user.displayName||user.email}`;
-      document.querySelector('header').querySelector('#hd')?.remove();
-      await loadData();
-    } else {
-      curUser=null;
-      document.getElementById('loginScreen').style.display='flex';
-      document.getElementById('appWrap').style.display='none';
+  // Chờ Firebase module load xong rồi mới setup auth
+  const setupAuth = () => {
+    if(!window.__onAuth){
+      setTimeout(setupAuth, 100);
+      return;
     }
-  });
+    window.__onAuth(async user=>{
+      if(user){
+        // Chỉ cho phép email bác sĩ
+        if(user.email !== ALLOWED_EMAIL){
+          showToast('Tài khoản không được phép: '+user.email,'error');
+          window.__signOut();
+          return;
+        }
+        curUser=user;
+        document.getElementById('loginScreen').style.display='none';
+        document.getElementById('appWrap').style.display='flex';
+        document.getElementById('userBadge').innerHTML=`<img src="${user.photoURL}" onerror="this.style.display='none'">${user.displayName||user.email}`;
+        await loadData();
+      } else {
+        curUser=null;
+        document.getElementById('loginScreen').style.display='flex';
+        document.getElementById('appWrap').style.display='none';
+      }
+    });
+  };
+  setupAuth();
 }
 
 async function loadData(){
