@@ -367,7 +367,7 @@ const DRUG_DB = [
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
-const ALLOWED_EMAIL = 'drhoainam@gmail.com'; // Email được phép truy cập
+const ALLOWED_EMAIL = 'bsnam115@gmail.com'; // Email được phép truy cập
 
 // ===== AUTH =====
 function doLogin(){
@@ -410,7 +410,12 @@ function init(){
   // Auth listener
   window.__onAuth(async user=>{
     if(user){
-      // Cho phép tất cả Google account (URL chỉ mình bác sĩ biết)
+      // Chỉ cho phép email bác sĩ
+      if(user.email !== ALLOWED_EMAIL){
+        showToast('Tài khoản không được phép: '+user.email,'error');
+        window.__signOut();
+        return;
+      }
       curUser=user;
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('appWrap').style.display='flex';
