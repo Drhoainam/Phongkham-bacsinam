@@ -861,22 +861,10 @@ function renderLS(p){
       } else gio=m.note?' · '+m.note:'';
       return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em style="color:var(--tx3)">('+m.remark+')</em>':''}`;
     }).join('<br>');
+    // Vật tư: chỉ hiện tên+SL, ẩn giá (thông tin nội bộ, xem trong Báo cáo)
     const supTable=(v.supplies&&v.supplies.length)?`
-      <div style="margin-top:7px;border:1px solid rgba(240,136,62,.2);border-radius:7px;overflow:hidden">
-        <table style="width:100%;border-collapse:collapse;font-size:.74rem">
-          <thead><tr style="background:rgba(240,136,62,.08)">
-            <th style="text-align:left;padding:3px 8px;color:var(--tx3)">Vật tư</th>
-            <th style="text-align:center;padding:3px 8px;color:var(--tx3)">SL</th>
-            <th style="text-align:center;padding:3px 8px;color:var(--tx3)">ĐVT</th>
-            <th style="text-align:right;padding:3px 8px;color:var(--tx3)">Thành tiền</th>
-          </tr></thead>
-          <tbody>${(v.supplies||[]).map(s=>`<tr>
-            <td style="padding:3px 8px">${s.name||'—'}</td>
-            <td style="padding:3px 8px;text-align:center">${s.qty||1}</td>
-            <td style="padding:3px 8px;text-align:center">${s.unit||'cái'}</td>
-            <td style="padding:3px 8px;text-align:right;color:var(--ac3)">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
-          </tr>`).join('')}</tbody>
-        </table>
+      <div style="margin-top:7px;padding:5px 10px;background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.15);border-radius:7px;font-size:.75rem;color:var(--tx2)">
+        📦 <span style="color:var(--ac3);font-weight:600">Vật tư:</span> ${(v.supplies||[]).map(s=>`${s.name||''} ×${s.qty||1} ${s.unit||''}`).join(' · ')}
       </div>`:''
     return `<div class="vi">
       <div class="vi-d">${v.date} — ${v.type}
