@@ -364,6 +364,71 @@ const DRUG_DB = [
   {name:'Glibenclamide',dose:'5mg',unit:'viên',times:1,days:30,note:'8-0-0',remark:'Uống trước ăn'},
 ];
 
+// ===== DANH MỤC VẬT TƯ TIÊU HAO =====
+const VATTU_DB = [
+  // Kim tiêm
+  {name:'Kim tiêm 18G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim tiêm 20G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim tiêm 21G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim tiêm 22G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim tiêm 23G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim tiêm 25G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim lấy thuốc 18G',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim nội tủy',unit:'cái',category:'Kim tiêm'},
+  {name:'Kim phong bế 22G dài',unit:'cái',category:'Kim tiêm'},
+  // Bơm tiêm
+  {name:'Bơm tiêm 1ml',unit:'cái',category:'Bơm tiêm'},
+  {name:'Bơm tiêm 3ml',unit:'cái',category:'Bơm tiêm'},
+  {name:'Bơm tiêm 5ml',unit:'cái',category:'Bơm tiêm'},
+  {name:'Bơm tiêm 10ml',unit:'cái',category:'Bơm tiêm'},
+  {name:'Bơm tiêm 20ml',unit:'cái',category:'Bơm tiêm'},
+  {name:'Bơm tiêm 50ml',unit:'cái',category:'Bơm tiêm'},
+  // Găng tay
+  {name:'Găng tay vô khuẩn S',unit:'đôi',category:'Găng tay'},
+  {name:'Găng tay vô khuẩn M',unit:'đôi',category:'Găng tay'},
+  {name:'Găng tay vô khuẩn L',unit:'đôi',category:'Găng tay'},
+  {name:'Găng tay sạch (hộp)',unit:'hộp',category:'Găng tay'},
+  // Săng vải
+  {name:'Săng phẫu thuật lỗ',unit:'cái',category:'Săng vải'},
+  {name:'Săng phủ',unit:'cái',category:'Săng vải'},
+  {name:'Gạc vô khuẩn 10x10',unit:'miếng',category:'Gạc'},
+  {name:'Gạc cuộn',unit:'cuộn',category:'Gạc'},
+  {name:'Bông cầu vô khuẩn',unit:'gói',category:'Gạc'},
+  // Dây truyền
+  {name:'Dây truyền dịch',unit:'bộ',category:'Dây truyền'},
+  {name:'Catheter IV 18G',unit:'cái',category:'Dây truyền'},
+  {name:'Catheter IV 20G',unit:'cái',category:'Dây truyền'},
+  {name:'Catheter IV 22G',unit:'cái',category:'Dây truyền'},
+  // Khử khuẩn
+  {name:'Cồn 70 độ',unit:'ml',category:'Khử khuẩn'},
+  {name:'Betadine 10%',unit:'ml',category:'Khử khuẩn'},
+  {name:'Chlorhexidine',unit:'ml',category:'Khử khuẩn'},
+  {name:'Nước muối sinh lý 0.9% 10ml',unit:'ống',category:'Dung dịch'},
+  {name:'Nước muối sinh lý 0.9% 100ml',unit:'chai',category:'Dung dịch'},
+  {name:'Nước muối sinh lý 0.9% 500ml',unit:'chai',category:'Dung dịch'},
+  {name:'Glucose 5% 500ml',unit:'chai',category:'Dung dịch'},
+  {name:'Ringer Lactat 500ml',unit:'chai',category:'Dung dịch'},
+  // Băng keo
+  {name:'Băng keo y tế',unit:'cuộn',category:'Băng keo'},
+  {name:'Băng dính trong',unit:'cuộn',category:'Băng keo'},
+  {name:'Tegaderm',unit:'miếng',category:'Băng keo'},
+  {name:'Fixomull',unit:'miếng',category:'Băng keo'},
+  // Chỉ khâu
+  {name:'Chỉ khâu Vicryl 2-0',unit:'sợi',category:'Chỉ khâu'},
+  {name:'Chỉ khâu Vicryl 3-0',unit:'sợi',category:'Chỉ khâu'},
+  {name:'Chỉ khâu Nylon 3-0',unit:'sợi',category:'Chỉ khâu'},
+  {name:'Chỉ khâu Nylon 4-0',unit:'sợi',category:'Chỉ khâu'},
+  {name:'Chỉ khâu Nylon 5-0',unit:'sợi',category:'Chỉ khâu'},
+  // Khác
+  {name:'Dao mổ số 11',unit:'cái',category:'Dụng cụ'},
+  {name:'Dao mổ số 15',unit:'cái',category:'Dụng cụ'},
+  {name:'Kẹp phẫu thuật',unit:'cái',category:'Dụng cụ'},
+  {name:'Cốc đựng thuốc',unit:'cái',category:'Dụng cụ'},
+  {name:'Khẩu trang y tế',unit:'cái',category:'Khác'},
+  {name:'Mũ phẫu thuật',unit:'cái',category:'Khác'},
+  {name:'Tấm lót giấy',unit:'tờ',category:'Khác'},
+];
+
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
@@ -701,7 +766,12 @@ function renderSupplies(){
   const tb=document.getElementById('supplyRows'); if(!tb) return;
   const ss=p.cv&&p.cv.supplies||[];
   tb.innerHTML=ss.map((s,i)=>`<tr>
-    <td><input value="${s.name||''}" onchange="updS(${i},'name',this.value)" placeholder="Kim 22G, Depo-Medrol..."></td>
+    <td>
+      <div class="autocomplete-wrap">
+        <input value="${s.name||''}" onchange="updS(${i},'name',this.value)" oninput="showSupplyAC(${i},this.value)" placeholder="Gõ tên vật tư..." autocomplete="off">
+        <div class="ac-list" id="sup_ac_${i}" style="display:none"></div>
+      </div>
+    </td>
     <td><select onchange="updS(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','bộ'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
     <td><input type="number" value="${s.qty||1}" min="1" onchange="updS(${i},'qty',parseFloat(this.value)||1);calcSupTotal()"></td>
     <td><input type="number" value="${s.price||''}" placeholder="0" min="0" step="1000" onchange="updS(${i},'price',parseFloat(this.value)||0);calcSupTotal()"></td>
@@ -726,6 +796,39 @@ function addSupply(){
   if(!p.cv.supplies) p.cv.supplies=[];
   p.cv.supplies.push({name:'',unit:'cái',qty:1,price:0});
   svLocal(); renderSupplies();
+}
+
+// Gợi ý vật tư trong form kê đơn
+function showSupplyAC(rowIdx, val){
+  const listId='sup_ac_'+rowIdx;
+  let list=document.getElementById(listId); if(!list) return;
+  if(!val||val.length<1){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  // Tìm từ kho vật tư trước
+  const khoVT=kho.filter(k=>k.itemtype==='supply'&&k.name.toLowerCase().includes(q));
+  const vtDB=VATTU_DB.filter(d=>d.name.toLowerCase().includes(q)&&!khoVT.find(k=>k.name===d.name));
+  const matches=[...khoVT.map(k=>({name:k.name,unit:k.unit,ton:getTon(k),price:getGiaVon(k),inKho:true})),...vtDB.map(d=>({name:d.name,unit:d.unit,ton:null,price:0,inKho:false}))].slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map((d,i)=>`
+    <div class="ac-item" onclick="selectSupplyAC(${rowIdx},${i})">
+      <div class="ac-name">${d.name} ${d.inKho?`<span style="font-size:.68rem;color:var(--ac3)">📦 Kho</span>`:''}</div>
+      <div class="ac-sub">${d.unit}${d.ton!==null?' · Tồn: '+d.ton:''}${d.price>0?' · Giá vốn: '+Math.round(d.price).toLocaleString('vi-VN')+'đ':''}</div>
+    </div>`).join('');
+  list.dataset.matches=JSON.stringify(matches);
+  list.style.display='block';
+}
+
+function selectSupplyAC(rowIdx, idx){
+  const listId='sup_ac_'+rowIdx;
+  const list=document.getElementById(listId); if(!list) return;
+  const matches=JSON.parse(list.dataset.matches||'[]');
+  const d=matches[idx]; if(!d) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.supplies) return;
+  p.cv.supplies[rowIdx].name=d.name;
+  p.cv.supplies[rowIdx].unit=d.unit||'cái';
+  if(d.price>0) p.cv.supplies[rowIdx].price=Math.round(d.price);
+  svLocal(); renderSupplies();
+  list.style.display='none';
 }
 function updS(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies&&p.cv.supplies[i]){p.cv.supplies[i][k]=v; svLocal();} }
 function rmS(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies){p.cv.supplies.splice(i,1); svLocal(); renderSupplies();} }
@@ -1425,7 +1528,10 @@ function renderTonKho(){
       </tr></thead>
       <tbody>
         ${rows.map(({k,ton,gv,cls,warning})=>`<tr style="${ton<=0?'opacity:.6':''}">
-          <td><strong>${k.name}</strong></td>
+          <td>
+            <span style="font-size:.65rem;padding:1px 5px;border-radius:10px;margin-right:4px;${k.itemtype==='supply'?'background:rgba(240,136,62,.15);color:var(--ac3)':'background:rgba(88,166,255,.15);color:var(--ac2)'}">${k.itemtype==='supply'?'📦':'💊'}</span>
+            <strong>${k.name}</strong>
+          </td>
           <td>${k.dose||'—'}</td>
           <td>${k.unit||'viên'}</td>
           <td style="text-align:right;font-weight:700"><span class="ton-badge ${cls}">${ton}</span></td>
@@ -1452,21 +1558,31 @@ function renderTonKho(){
 function renderNhapKho(){
   return `
     <div class="card" style="margin-bottom:14px">
-      <div class="ct">Nhập thuốc mới vào kho</div>
+      <div class="ct">Nhập hàng vào kho</div>
+      <div class="fr" style="margin-bottom:10px">
+        <div class="fg full">
+          <label>Loại hàng</label>
+          <div style="display:flex;gap:8px">
+            <button id="kh_type_drug" onclick="setKhoType('drug')" class="btn btn-p" style="flex:1;font-size:.8rem">💊 Thuốc</button>
+            <button id="kh_type_supply" onclick="setKhoType('supply')" class="btn btn-g" style="flex:1;font-size:.8rem">📦 Vật tư tiêu hao</button>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="kh_itemtype" value="drug">
       <div class="fr">
-        <div class="fg"><label>Tên thuốc *</label>
+        <div class="fg"><label id="kh_name_label">Tên thuốc *</label>
           <div class="autocomplete-wrap">
             <input id="kh_name" placeholder="Paracetamol, Meloxicam..." oninput="showKhoAC(this.value)" autocomplete="off">
             <div class="ac-list" id="kh_ac" style="display:none"></div>
           </div>
         </div>
-        <div class="fg"><label>Hàm lượng</label><input id="kh_dose" placeholder="500mg, 7.5mg..."></div>
+        <div class="fg" id="kh_dose_wrap"><label>Hàm lượng</label><input id="kh_dose" placeholder="500mg, 7.5mg..."></div>
       </div>
       <div class="fr">
         <div class="fg"><label>Đơn vị tính</label>
-          <select id="kh_unit">${['viên','gói','ống','lọ','ml','hộp','vỉ'].map(u=>`<option>${u}</option>`).join('')}</select>
+          <select id="kh_unit">${['viên','cái','gói','ống','lọ','ml','hộp','vỉ','đôi','cuộn','miếng','bộ','sợi','tờ'].map(u=>`<option>${u}</option>`).join('')}</select>
         </div>
-        <div class="fg"><label>Tồn kho tối thiểu (cảnh báo)</label><input type="number" id="kh_min" value="10" min="0"></div>
+        <div class="fg"><label>Tồn tối thiểu (cảnh báo)</label><input type="number" id="kh_min" value="10" min="0"></div>
       </div>
       <div style="border-top:1px solid var(--bo);margin:12px 0;padding-top:12px">
         <div style="font-size:.76rem;font-weight:700;color:var(--tx2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Thông tin lô nhập</div>
@@ -1507,23 +1623,63 @@ function renderNhapKho(){
     </div>`;
 }
 
+function setKhoType(type){
+  document.getElementById('kh_itemtype').value=type;
+  document.getElementById('kh_name').value='';
+  document.getElementById('kh_dose').value='';
+  document.getElementById('kh_ac').style.display='none';
+  if(type==='drug'){
+    document.getElementById('kh_type_drug').className='btn btn-p';
+    document.getElementById('kh_type_supply').className='btn btn-g';
+    document.getElementById('kh_name_label').textContent='Tên thuốc *';
+    document.getElementById('kh_name').placeholder='Paracetamol, Meloxicam...';
+    document.getElementById('kh_dose_wrap').style.display='';
+    document.getElementById('kh_unit').value='viên';
+  } else {
+    document.getElementById('kh_type_drug').className='btn btn-g';
+    document.getElementById('kh_type_supply').className='btn btn-p';
+    document.getElementById('kh_name_label').textContent='Tên vật tư *';
+    document.getElementById('kh_name').placeholder='Kim tiêm 22G, Găng tay, Săng phẫu thuật...';
+    document.getElementById('kh_dose_wrap').style.display='none';
+    document.getElementById('kh_unit').value='cái';
+  }
+}
+
 function showKhoAC(val){
   const list=document.getElementById('kh_ac'); if(!list) return;
   if(!val||val.length<1){ list.style.display='none'; return; }
   const q=val.toLowerCase();
-  const matches=DRUG_DB.filter(d=>d.name.toLowerCase().includes(q)).slice(0,8);
-  if(!matches.length){ list.style.display='none'; return; }
-  list.innerHTML=matches.map(d=>`
-    <div class="ac-item" onclick="selectKhoAC('${d.name}','${d.dose}','${d.unit}')">
-      <div class="ac-name">${d.name} <span style="color:var(--ac2)">${d.dose}</span></div>
-    </div>`).join('');
+  const type=document.getElementById('kh_itemtype')?.value||'drug';
+
+  if(type==='drug'){
+    const matches=DRUG_DB.filter(d=>d.name.toLowerCase().includes(q)).slice(0,8);
+    if(!matches.length){ list.style.display='none'; return; }
+    list.innerHTML=matches.map(d=>`
+      <div class="ac-item" onclick="selectKhoAC('${d.name}','${d.dose||''}','${d.unit||'viên'}')">
+        <div class="ac-name">${d.name} <span style="color:var(--ac2)">${d.dose||''}</span></div>
+      </div>`).join('');
+  } else {
+    // Tìm trong VATTU_DB, nhóm theo category
+    const matches=VATTU_DB.filter(d=>d.name.toLowerCase().includes(q)).slice(0,10);
+    if(!matches.length){ list.style.display='none'; return; }
+    list.innerHTML=matches.map(d=>`
+      <div class="ac-item" onclick="selectKhoAC('${d.name}','','${d.unit}')">
+        <div class="ac-name">${d.name}</div>
+        <div class="ac-sub">${d.category} · ${d.unit}</div>
+      </div>`).join('');
+  }
   list.style.display='block';
 }
 
 function selectKhoAC(name,dose,unit){
   document.getElementById('kh_name').value=name;
-  document.getElementById('kh_dose').value=dose;
-  document.getElementById('kh_unit').value=unit||'viên';
+  if(document.getElementById('kh_dose')) document.getElementById('kh_dose').value=dose||'';
+  // Set unit
+  const unitSel=document.getElementById('kh_unit');
+  if(unitSel){
+    const opt=[...unitSel.options].find(o=>o.value===unit);
+    if(opt) unitSel.value=unit;
+  }
   document.getElementById('kh_ac').style.display='none';
 }
 
@@ -1545,12 +1701,14 @@ function saveNhapKho(){
   const batch={date,qty,price,supplier,note,id:'b_'+Date.now()};
 
   // Tìm thuốc đã có trong kho
+  const itemtype=document.getElementById('kh_itemtype')?.value||'drug';
   let item=kho.find(k=>k.name.toLowerCase()===name.toLowerCase()&&(k.dose||'')===(dose||''));
   if(item){
     item.batches.push(batch);
     item.minStock=minStock;
+    item.itemtype=itemtype;
   } else {
-    item={id:'kh_'+Date.now(),name,dose,unit,minStock,batches:[batch]};
+    item={id:'kh_'+Date.now(),name,dose,unit,minStock,itemtype,batches:[batch]};
     kho.push(item);
   }
 
@@ -1735,8 +1893,8 @@ function showDrugAC(i, val){
   if(!val||val.length<2){ list.style.display='none'; return; }
   const q=val.toLowerCase();
 
-  // Ưu tiên thuốc trong kho
-  const khoMatches=kho.filter(k=>k.name.toLowerCase().includes(q)).map(k=>({
+  // Ưu tiên thuốc trong kho (chỉ hiện thuốc, không hiện vật tư trong đơn)
+  const khoMatches=kho.filter(k=>k.name.toLowerCase().includes(q)&&k.itemtype!=='supply').map(k=>({
     name:k.name, dose:k.dose, unit:k.unit,
     times:'', days:'', note:'', remark:'',
     ton:getTon(k), isKho:true
