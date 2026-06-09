@@ -501,11 +501,17 @@ function init(){
 }
 
 async function loadData(){
+  // Load local data ngay lập tức
   try{ pts=JSON.parse(localStorage.getItem('pk3')||'[]'); }catch(e){ pts=[]; }
   try{ kho=JSON.parse(localStorage.getItem('pk3_kho')||'[]'); }catch(e){ kho=[]; }
   renderPtList();
 
-  window.addEventListener('firebase-ready',async()=>{
+  // Hàm sync Firebase — retry nếu chưa sẵn sàng
+  const syncFirebase = async () => {
+    if(!window.__getDocs || !window.__col){
+      setTimeout(syncFirebase, 300);
+      return;
+    }
     fbOk=true;
     try{
       setSd('sync');
@@ -515,6 +521,8 @@ async function loadData(){
       if(fb.length>0){
         pts=fb.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
         svLocal(); renderPtList();
+        // Re-render detail nếu đang xem BN
+        if(curId) renderDetail();
       } else if(pts.length>0){
         for(const p of pts) await fbSave(p);
       }
@@ -527,8 +535,14 @@ async function loadData(){
         for(const k of kho) await fbSaveKho(k);
       }
       setSd('ok');
-    }catch(e){ setSd('err'); }
-  },{once:true});
+    }catch(e){
+      console.error('Firebase sync error:', e);
+      setSd('err');
+    }
+  };
+
+  // Bắt đầu sync sau 500ms để Firebase module kịp load
+  setTimeout(syncFirebase, 500);
 }
 
 // ===== PATIENT LIST =====
@@ -753,6 +767,13 @@ function addMed(){
   svLocal(); renderMeds();
 }
 function updM(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.meds[i]){p.cv.meds[i][k]=v; svLocal();} }
+
+// Không dùng cho thuốc vì giá thuốc bán cho BN khác giá vốn kho
+// Nhưng khi chọn thuốc từ kho, điền giá vốn vào trường ẩn để tính lãi lỗ
+function getMedGiaVon(name, dose){
+  const k=kho.find(x=>x.name.toLowerCase()===name.toLowerCase()&&(x.dose||'')===(dose||'')&&x.itemtype!=='supply');
+  return k?Math.round(getGiaVon(k)):0;
+}
 function rmM(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); svLocal(); renderMeds();} }
 
 // Hide autocomplete on outside click
@@ -768,13 +789,13 @@ function renderSupplies(){
   tb.innerHTML=ss.map((s,i)=>`<tr>
     <td>
       <div class="autocomplete-wrap">
-        <input value="${s.name||''}" onchange="updS(${i},'name',this.value)" oninput="showSupplyAC(${i},this.value)" placeholder="Gõ tên vật tư..." autocomplete="off">
+        <input value="${s.name||''}" onchange="updS(${i},'name',this.value);autoFillSupplyPrice(${i},this.value)" oninput="showSupplyAC(${i},this.value)" placeholder="Gõ tên vật tư..." autocomplete="off">
         <div class="ac-list" id="sup_ac_${i}" style="display:none"></div>
       </div>
     </td>
-    <td><select onchange="updS(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','bộ'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
+    <td><select onchange="updS(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','bộ','đôi','cuộn','miếng','sợi','tờ'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
     <td><input type="number" value="${s.qty||1}" min="1" onchange="updS(${i},'qty',parseFloat(this.value)||1);calcSupTotal()"></td>
-    <td><input type="number" value="${s.price||''}" placeholder="0" min="0" step="1000" onchange="updS(${i},'price',parseFloat(this.value)||0);calcSupTotal()"></td>
+    <td><input type="number" id="sup_price_${i}" value="${s.price||''}" placeholder="Tự động từ kho" min="0" step="500" onchange="updS(${i},'price',parseFloat(this.value)||0);calcSupTotal()"></td>
     <td style="font-weight:600;color:var(--ac3);font-size:.8rem">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
     <td><button class="btn-rm" onclick="rmS(${i})">✕</button></td>
   </tr>`).join('');
@@ -829,6 +850,21 @@ function selectSupplyAC(rowIdx, idx){
   if(d.price>0) p.cv.supplies[rowIdx].price=Math.round(d.price);
   svLocal(); renderSupplies();
   list.style.display='none';
+}
+
+// Tự động điền giá từ kho khi nhập tên
+function autoFillSupplyPrice(rowIdx, name){
+  if(!name) return;
+  const khoItem=kho.find(k=>k.name.toLowerCase()===name.toLowerCase());
+  if(!khoItem) return;
+  const gv=Math.round(getGiaVon(khoItem));
+  if(gv<=0) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.supplies) return;
+  if(!p.cv.supplies[rowIdx].price || p.cv.supplies[rowIdx].price===0){
+    p.cv.supplies[rowIdx].price=gv;
+    p.cv.supplies[rowIdx].unit=khoItem.unit||'cái';
+    svLocal(); renderSupplies();
+  }
 }
 function updS(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies&&p.cv.supplies[i]){p.cv.supplies[i][k]=v; svLocal();} }
 function rmS(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies){p.cv.supplies.splice(i,1); svLocal(); renderSupplies();} }
