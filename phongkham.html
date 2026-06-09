@@ -646,10 +646,11 @@ function renderKham(p){
     <div class="ct">Đơn thuốc <span style="font-weight:400;text-transform:none;font-size:.72rem;color:var(--ac2)">(gõ tên thuốc để tìm nhanh)</span></div>
     <table class="tbl">
       <thead><tr>
-        <th style="width:20%">Tên thuốc</th><th style="width:11%">Hàm lượng</th>
-        <th style="width:8%">ĐVT</th><th style="width:8%">SL/lần</th>
-        <th style="width:9%">Lần/ngày</th><th style="width:9%">Số ngày</th>
-        <th style="width:14%">Giờ uống</th><th style="width:16%">Ghi chú</th>
+        <th style="width:18%">Tên thuốc</th><th style="width:10%">Hàm lượng</th>
+        <th style="width:7%">ĐVT</th><th style="width:7%">SL/lần</th>
+        <th style="width:8%">Lần/ngày</th><th style="width:8%">Số ngày</th>
+        <th style="width:11%">Giờ uống</th><th style="width:11%">Ghi chú</th>
+        <th style="width:11%">Giá bán/đv(đ)</th>
         <th style="width:4%"></th>
       </tr></thead>
       <tbody id="medRows"></tbody>
@@ -736,6 +737,7 @@ function renderMeds(){
     <td><input type="number" id="med_days_${i}" value="${m.days||''}" onchange="updM(${i},'days',this.value)" placeholder="7"></td>
     <td><input id="med_note_${i}" value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="8-14-20"></td>
     <td><input id="med_remark_${i}" value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn"></td>
+    <td><input type="number" id="med_sell_${i}" value="${m.sellPrice||''}" onchange="updM(${i},'sellPrice',parseFloat(this.value)||0)" placeholder="Từ kho" style="color:var(--ac2)" title="Giá bán/đơn vị - tự điền từ kho"></td>
     <td><button class="btn-rm" onclick="rmM(${i})">✕</button></td>
   </tr>`).join('');
 }
@@ -1558,6 +1560,8 @@ function renderTonKho(){
         <th style="text-align:right">Tồn kho</th>
         <th style="text-align:right">Tối thiểu</th>
         <th style="text-align:right">Giá vốn TB</th>
+        <th style="text-align:right">Giá bán</th>
+        <th style="text-align:right">Lãi/đv</th>
         <th style="text-align:right">Giá trị tồn</th>
         <th style="text-align:center">Trạng thái</th>
         <th></th>
@@ -1573,6 +1577,14 @@ function renderTonKho(){
           <td style="text-align:right;font-weight:700"><span class="ton-badge ${cls}">${ton}</span></td>
           <td style="text-align:right;color:var(--tx3)">${k.minStock||10}</td>
           <td style="text-align:right;color:var(--tx2)">${gv>0?Math.round(gv).toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right">
+            <input type="number" value="${k.sellPrice||''}" placeholder="Nhập giá" min="0" step="500"
+              style="width:90px;padding:3px 6px;font-size:.76rem;text-align:right;background:var(--bg);border:1px solid var(--bo);border-radius:5px;color:var(--ac2)"
+              onchange="updateKhoSellPrice('${k.id}',this.value)">
+          </td>
+          <td style="text-align:right;font-weight:600;color:${`${k.sellPrice&&gv>0?((k.sellPrice-Math.round(gv))>=0?'var(--ac)':'var(--da)'):'var(--tx3)'}`}">
+            ${k.sellPrice&&gv>0?(k.sellPrice-Math.round(gv)).toLocaleString('vi-VN')+'đ':'—'}
+          </td>
           <td style="text-align:right;color:var(--ac)">${ton>0&&gv>0?(ton*gv).toLocaleString('vi-VN')+'đ':'—'}</td>
           <td style="text-align:center;font-size:.76rem">${warning||'✅ Đủ hàng'}</td>
           <td>
@@ -1581,7 +1593,7 @@ function renderTonKho(){
         </tr>`).join('')}
       </tbody>
       <tfoot><tr style="background:rgba(46,160,67,.08)">
-        <td colspan="6" style="font-weight:700;padding:7px">TỔNG GIÁ TRỊ TỒN KHO</td>
+        <td colspan="8" style="font-weight:700;padding:7px">TỔNG GIÁ TRỊ TỒN KHO</td>
         <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">
           ${rows.reduce((s,{k,ton,gv})=>s+(ton>0?ton*gv:0),0).toLocaleString('vi-VN')}đ
         </td>
@@ -1624,7 +1636,13 @@ function renderNhapKho(){
         <div style="font-size:.76rem;font-weight:700;color:var(--tx2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Thông tin lô nhập</div>
         <div class="fr">
           <div class="fg"><label>Số lượng nhập *</label><input type="number" id="kh_qty" placeholder="100" min="1"></div>
-          <div class="fg"><label>Giá vốn/đơn vị (đ) *</label><input type="number" id="kh_price" placeholder="1500" min="0"></div>
+          <div class="fg"><label>Giá vốn/đơn vị (đ) *</label><input type="number" id="kh_price" placeholder="1500" min="0" oninput="suggestSellPrice()"></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label>Giá bán/đơn vị (đ)</label><input type="number" id="kh_sell" placeholder="Tự động gợi ý" min="0"></div>
+          <div class="fg"><label style="color:var(--ac)">Lãi dự kiến/đv</label>
+            <div id="kh_profit" style="padding:6px 0;font-size:.88rem;font-weight:700;color:var(--ac)">—</div>
+          </div>
         </div>
         <div class="fr">
           <div class="fg"><label>Ngày nhập</label><input type="date" id="kh_date" value="${new Date().toISOString().split('T')[0]}"></div>
@@ -1719,6 +1737,28 @@ function selectKhoAC(name,dose,unit){
   document.getElementById('kh_ac').style.display='none';
 }
 
+function suggestSellPrice(){
+  const cost=parseFloat(document.getElementById('kh_price')?.value)||0;
+  if(!cost) return;
+  const sellEl=document.getElementById('kh_sell');
+  const profitEl=document.getElementById('kh_profit');
+  // Gợi ý giá bán = giá vốn * 1.3 (30% lãi) nếu chưa điền
+  if(sellEl&&!sellEl.value){
+    const suggested=Math.ceil(cost*1.3/500)*500; // làm tròn lên 500đ
+    sellEl.placeholder=suggested.toLocaleString('vi-VN')+'đ (gợi ý 30%)';
+  }
+  // Tính lãi dự kiến
+  const sell=parseFloat(sellEl?.value)||0;
+  if(profitEl){
+    if(sell>0&&cost>0){
+      const profit=sell-cost;
+      const pct=Math.round(profit/cost*100);
+      profitEl.textContent=profit.toLocaleString('vi-VN')+'đ ('+pct+'%)';
+      profitEl.style.color=profit>=0?'var(--ac)':'var(--da)';
+    } else profitEl.textContent='—';
+  }
+}
+
 function saveNhapKho(){
   const name=document.getElementById('kh_name').value.trim();
   const dose=document.getElementById('kh_dose').value.trim();
@@ -1738,19 +1778,29 @@ function saveNhapKho(){
 
   // Tìm thuốc đã có trong kho
   const itemtype=document.getElementById('kh_itemtype')?.value||'drug';
+  const sellPrice=parseFloat(document.getElementById('kh_sell')?.value)||0;
   let item=kho.find(k=>k.name.toLowerCase()===name.toLowerCase()&&(k.dose||'')===(dose||''));
   if(item){
     item.batches.push(batch);
     item.minStock=minStock;
     item.itemtype=itemtype;
+    if(sellPrice>0) item.sellPrice=sellPrice;
   } else {
-    item={id:'kh_'+Date.now(),name,dose,unit,minStock,itemtype,batches:[batch]};
+    item={id:'kh_'+Date.now(),name,dose,unit,minStock,itemtype,sellPrice,batches:[batch]};
     kho.push(item);
   }
 
   svKho(item);
   showToast(`✓ Nhập ${qty} ${unit} ${name} ${dose}!`,'success');
   renderKhoTab();
+}
+
+function updateKhoSellPrice(id, val){
+  const k=kho.find(x=>x.id===id); if(!k) return;
+  k.sellPrice=parseFloat(val)||0;
+  svKho(k);
+  // Re-render để cập nhật lãi/đv
+  setTimeout(()=>renderKhoTab(), 300);
 }
 
 function delKhoItem(id){
@@ -1795,32 +1845,45 @@ function renderLaiLoData(){
   const dtThuoc=visits.reduce((s,v)=>s+(v.f2||0),0);
   const dtTT=visits.reduce((s,v)=>s+(v.f3||0),0);
 
-  // Giá vốn thuốc (tính từ kho)
-  const giaVonMap={}; // name+dose -> giá vốn TB
-  kho.forEach(k=>{ giaVonMap[k.name+'|'+(k.dose||'')]=getGiaVon(k); });
+  // Giá vốn + giá bán thuốc (tính từ kho)
+  const giaVonMap={};
+  const giaBanMap={};
+  kho.forEach(k=>{
+    const key=k.name+'|'+(k.dose||'');
+    giaVonMap[key]=getGiaVon(k);
+    if(k.sellPrice>0) giaBanMap[key]=k.sellPrice;
+  });
 
   let tongGiaVon=0;
-  const chiTietThuoc={}; // name+dose -> {qty, giaVon, thanhTien, doanhThu}
+  let dtThuocTuGiaBan=0; // DT thuốc tính từ giá bán × số lượng
+  const chiTietThuoc={};
 
   visits.forEach(v=>(v.meds||[]).forEach(m=>{
     const key=m.name+'|'+(m.dose||'');
     const gv=giaVonMap[key]||0;
+    const gb=m.sellPrice||giaBanMap[key]||0;
     const soLuong=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
     const vonXuat=gv*soLuong;
+    const banXuat=gb*soLuong;
     tongGiaVon+=vonXuat;
-    if(!chiTietThuoc[key]) chiTietThuoc[key]={name:m.name,dose:m.dose||'',qty:0,von:0};
+    dtThuocTuGiaBan+=banXuat;
+    if(!chiTietThuoc[key]) chiTietThuoc[key]={name:m.name,dose:m.dose||'',qty:0,von:0,ban:0,gv,gb};
     chiTietThuoc[key].qty+=soLuong;
     chiTietThuoc[key].von+=vonXuat;
+    chiTietThuoc[key].ban+=banXuat;
   }));
 
-  const laiThuoc=dtThuoc-tongGiaVon;
-  const laiGop=doanhThu-tongGiaVon;
-  const tyLeLoiNhuan=doanhThu>0?Math.round(laiGop/doanhThu*100):0;
+  // Nếu có giá bán trong kho thì dùng, không thì dùng tiền thuốc thu được
+  const dtThuocFinal = dtThuocTuGiaBan>0 ? dtThuocTuGiaBan : dtThuoc;
+  const laiThuoc=dtThuocFinal-tongGiaVon;
+  const doanhThuFinal = dtKham + dtThuocFinal + dtTT;
+  const laiGop=doanhThuFinal-tongGiaVon;
+  const tyLeLoiNhuan=doanhThuFinal>0?Math.round(laiGop/doanhThuFinal*100):0;
 
   el.innerHTML=`
     <!-- Tổng quan -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-      <div class="sc"><div class="sv" style="color:var(--ac)">${doanhThu.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng doanh thu</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac)">${doanhThuFinal.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng doanh thu</div></div>
       <div class="sc"><div class="sv" style="color:var(--da)">${tongGiaVon.toLocaleString('vi-VN')}đ</div><div class="sl">Giá vốn thuốc</div></div>
       <div class="sc"><div class="sv" style="color:${laiGop>=0?'var(--ac)':'var(--da)'}">${laiGop.toLocaleString('vi-VN')}đ</div><div class="sl">Lãi gộp (${tyLeLoiNhuan}%)</div></div>
     </div>
@@ -1829,8 +1892,8 @@ function renderLaiLoData(){
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
       <div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${dtKham.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền khám</div></div>
       <div class="sc">
-        <div class="sv" style="color:var(--ac2);font-size:1rem">${dtThuoc.toLocaleString('vi-VN')}đ</div>
-        <div class="sl">Tiền thuốc</div>
+        <div class="sv" style="color:var(--ac2);font-size:1rem">${dtThuocFinal.toLocaleString('vi-VN')}đ</div>
+        <div class="sl">DT thuốc ${dtThuocTuGiaBan>0?'(theo giá bán)':'(theo phiếu thu)'}</div>
         <div style="font-size:.72rem;margin-top:3px;color:${laiThuoc>=0?'var(--ac)':'var(--da)'}">Lãi thuốc: ${laiThuoc.toLocaleString('vi-VN')}đ</div>
       </div>
       <div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${dtTT.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật</div></div>
@@ -1861,7 +1924,9 @@ function renderLaiLoData(){
           <th>Tên thuốc</th><th>Hàm lượng</th>
           <th style="text-align:right">SL xuất</th>
           <th style="text-align:right">Giá vốn/đv</th>
+          <th style="text-align:right">Giá bán/đv</th>
           <th style="text-align:right">Tổng giá vốn</th>
+          <th style="text-align:right">Lãi thuốc</th>
         </tr></thead>
         <tbody>
           ${Object.values(chiTietThuoc).sort((a,b)=>b.von-a.von).map(t=>`<tr>
@@ -1869,12 +1934,15 @@ function renderLaiLoData(){
             <td>${t.dose||'—'}</td>
             <td style="text-align:right">${t.qty}</td>
             <td style="text-align:right;color:var(--tx2)">${t.qty>0?Math.round(t.von/t.qty).toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="text-align:right;color:var(--ac2)">${t.gb>0?t.gb.toLocaleString('vi-VN')+'đ':'—'}</td>
             <td style="text-align:right;color:var(--da)">${t.von.toLocaleString('vi-VN')}đ</td>
+            <td style="text-align:right;font-weight:600;color:${t.ban>t.von?'var(--ac)':'var(--da)'}">${t.ban>0?(t.ban-t.von).toLocaleString('vi-VN')+'đ':'—'}</td>
           </tr>`).join('')}
         </tbody>
         <tfoot><tr>
-          <td colspan="4" style="font-weight:700;text-align:right;padding:7px">TỔNG GIÁ VỐN</td>
+          <td colspan="5" style="font-weight:700;text-align:right;padding:7px">TỔNG</td>
           <td style="font-weight:700;color:var(--da);text-align:right;padding:7px">${tongGiaVon.toLocaleString('vi-VN')}đ</td>
+          <td style="font-weight:700;color:var(--ac);text-align:right;padding:7px">${laiThuoc.toLocaleString('vi-VN')}đ</td>
         </tr></tfoot>
       </table>
     </div>`:''}
@@ -1956,11 +2024,14 @@ function selectDrugFromList(medIdx, itemIdx){
   const allMatches=JSON.parse(list.dataset.matches||'[]');
   const d=allMatches[itemIdx]; if(!d) return;
   const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  // Lấy giá bán từ kho nếu có
+  const khoItem=kho.find(k=>k.name===d.name&&(k.dose||'')===(d.dose||'')&&k.itemtype!=='supply');
   p.cv.meds[medIdx]={
     ...p.cv.meds[medIdx],
     name:d.name, dose:d.dose||'', unit:d.unit||'viên',
     qty:d.qty||1, times:d.times||'', days:d.days||'',
-    note:d.note||'', remark:d.remark||''
+    note:d.note||'', remark:d.remark||'',
+    sellPrice:khoItem?.sellPrice||0
   };
   svLocal(); renderMeds(); list.style.display='none';
 }
