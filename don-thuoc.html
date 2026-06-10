@@ -4,205 +4,116 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#2d6a4f">
 <title>Đơn thuốc điện tử</title>
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
-<!-- Firebase SDK -->
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Lora:wght@500;600&display=swap" rel="stylesheet">
+
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
-    authDomain: "phongkham-bacsinam.firebaseapp.com",
-    projectId: "phongkham-bacsinam",
-    storageBucket: "phongkham-bacsinam.firebasestorage.app",
-    messagingSenderId: "187579047275",
-    appId: "1:187579047275:web:c0e30e60a91cbdda82402e"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.__fbApp = app;
-
-  // Messaging (for push notifications)
-  try {
-    const messaging = getMessaging(app);
-    window.__messaging = messaging;
-    window.__getToken = getToken;
-    window.__onMessage = onMessage;
-    window.dispatchEvent(new Event('firebase-messaging-ready'));
-  } catch(e) {
-    console.log('Messaging not available:', e);
-  }
+const cfg = {
+  apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
+  authDomain:"phongkham-bacsinam.firebaseapp.com",
+  projectId:"phongkham-bacsinam",
+  storageBucket:"phongkham-bacsinam.firebasestorage.app",
+  messagingSenderId:"187579047275",
+  appId:"1:187579047275:web:c0e30e60a91cbdda82402e"
+};
+const app = initializeApp(cfg);
+const db = getFirestore(app);
+window.__db = db;
+window.__doc = (c,id) => doc(db, c, id);
+window.__getDoc = getDoc;
+window.dispatchEvent(new Event('firebase-ready'));
 </script>
+
 <style>
-  :root {
-    --green: #2d6a4f;
-    --green-light: #52b788;
-    --green-pale: #d8f3dc;
-    --green-bg: #f0f7f2;
-    --amber: #e76f51;
-    --amber-light: #fdf0ec;
-    --blue: #457b9d;
-    --blue-light: #eaf2f8;
-    --text: #1b2d24;
-    --text2: #4a6355;
-    --text3: #8aa898;
-    --border: #cde8d6;
-    --white: #ffffff;
-    --radius: 16px;
-    --shadow-sm: 0 2px 8px rgba(45,106,79,0.08);
-    --shadow: 0 8px 32px rgba(45,106,79,0.12);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Nunito', sans-serif; background: var(--green-bg); color: var(--text); min-height: 100vh; padding-bottom: 100px; }
-
-  .hero { background: linear-gradient(135deg, var(--green) 0%, #1b4332 100%); padding: 48px 24px 36px; position: relative; overflow: hidden; }
-  .hero::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:rgba(255,255,255,0.05); border-radius:50%; }
-  .hero-clinic { font-size:0.75rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--green-light); margin-bottom:8px; position:relative; z-index:1; }
-  .hero-name { font-family:'Lora',serif; font-size:1.9rem; font-weight:600; color:white; line-height:1.2; margin-bottom:6px; position:relative; z-index:1; }
-  .hero-meta { font-size:0.82rem; color:rgba(255,255,255,0.65); position:relative; z-index:1; display:flex; gap:14px; flex-wrap:wrap; }
-  .hero-diag { margin-top:16px; background:rgba(255,255,255,0.12); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 16px; position:relative; z-index:1; }
-  .hero-diag-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--green-light); margin-bottom:4px; }
-  .hero-diag-text { font-size:0.95rem; color:white; font-weight:600; }
-
-  .content { padding:20px 16px; max-width:480px; margin:0 auto; }
-
-  .section-label { font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); margin:24px 0 12px; display:flex; align-items:center; gap:8px; }
-  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
-
-  .schedule-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:8px; }
-  .time-card { background:var(--white); border:1.5px solid var(--border); border-radius:14px; padding:14px 10px; text-align:center; box-shadow:var(--shadow-sm); transition:transform 0.15s; }
-  .time-card.active-now { border-color:var(--green-light); background:var(--green-pale); box-shadow:0 4px 16px rgba(82,183,136,0.25); }
-  .time-icon { font-size:1.4rem; margin-bottom:4px; }
-  .time-name { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text3); }
-  .time-hour { font-size:0.85rem; font-weight:800; color:var(--text); margin-top:2px; }
-  .time-meds { margin-top:8px; }
-  .time-med-pill { display:inline-block; background:var(--green-pale); color:var(--green); font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:20px; margin:2px; line-height:1.6; }
-  .time-card.active-now .time-med-pill { background:rgba(45,106,79,0.15); }
-  .time-empty { font-size:0.72rem; color:var(--text3); margin-top:6px; }
-
-  .med-card { background:var(--white); border:1.5px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:10px; box-shadow:var(--shadow-sm); display:flex; gap:14px; align-items:flex-start; animation:slideUp 0.3s ease both; }
-  @keyframes slideUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  .med-num { min-width:32px; height:32px; background:var(--green-pale); color:var(--green); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:800; flex-shrink:0; }
-  .med-body { flex:1; }
-  .med-name { font-size:1rem; font-weight:800; color:var(--text); }
-  .med-dose { font-size:0.8rem; color:var(--text2); margin-top:2px; }
-  .med-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-  .med-tag { font-size:0.7rem; font-weight:700; padding:3px 10px; border-radius:20px; }
-  .tag-days { background:var(--blue-light); color:var(--blue); }
-  .tag-times { background:var(--green-pale); color:var(--green); }
-  .tag-note { background:#fef9ec; color:#b5651d; border:1px solid #f5d99a; }
-
-  .revisit-card { background:linear-gradient(135deg,#fff8f0,#fff3e8); border:2px solid #f5c6a0; border-radius:var(--radius); padding:20px; display:flex; gap:16px; align-items:center; box-shadow:0 4px 16px rgba(231,111,81,0.12); animation:slideUp 0.3s ease both; }
-  .revisit-icon { font-size:2.2rem; flex-shrink:0; }
-  .revisit-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--amber); margin-bottom:4px; }
-  .revisit-date { font-family:'Lora',serif; font-size:1.3rem; font-weight:600; color:var(--text); }
-  .revisit-time { font-size:0.85rem; color:var(--text2); margin-top:2px; }
-  .revisit-countdown { margin-top:8px; font-size:0.78rem; font-weight:700; color:var(--amber); background:var(--amber-light); display:inline-block; padding:3px 10px; border-radius:20px; }
-
-  .note-card { background:var(--blue-light); border:1.5px solid #b8d4e8; border-radius:var(--radius); padding:16px; font-size:0.85rem; color:#2c4a5e; line-height:1.7; animation:slideUp 0.3s ease both; }
-  .note-card strong { display:block; font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue); margin-bottom:8px; }
-
-  .vitals-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .vital-card { background:var(--white); border:1.5px solid var(--border); border-radius:14px; padding:14px; text-align:center; box-shadow:var(--shadow-sm); }
-  .vital-val { font-family:'Lora',serif; font-size:1.4rem; font-weight:600; color:var(--green); }
-  .vital-lbl { font-size:0.7rem; color:var(--text3); font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-top:3px; }
-
-  /* NOTIFICATION CARD */
-  .notif-card { background:linear-gradient(135deg,var(--green),#1b4332); border-radius:var(--radius); padding:20px; text-align:center; color:white; }
-  .notif-card h3 { font-size:1rem; font-weight:800; margin-bottom:6px; }
-  .notif-card p { font-size:0.8rem; opacity:0.85; margin-bottom:16px; line-height:1.5; }
-  .btn-notif { background:white; color:var(--green); border:none; border-radius:12px; padding:12px 24px; font-family:'Nunito',sans-serif; font-size:0.88rem; font-weight:800; cursor:pointer; width:100%; transition:all 0.2s; }
-  .btn-notif:active { transform:scale(0.97); }
-  .btn-notif.enabled { background:var(--green-pale); color:var(--green); }
-
-  /* SCHEDULE STATUS */
-  .schedule-status { background:var(--green-pale); border:1.5px solid var(--green-light); border-radius:var(--radius); padding:14px; font-size:0.82rem; color:var(--green); margin-top:12px; line-height:1.8; display:none; }
-  .schedule-status.show { display:block; }
-  .schedule-status strong { display:block; font-weight:800; margin-bottom:4px; }
-
-  /* BOTTOM BANNER */
-  .bottom-banner { position:fixed; bottom:0; left:0; right:0; background:var(--white); border-top:1.5px solid var(--border); padding:12px 16px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 -4px 20px rgba(0,0,0,0.08); z-index:100; }
-  .banner-text { font-size:0.75rem; color:var(--text2); font-weight:600; }
-  .banner-sub { font-size:0.68rem; color:var(--text3); }
-  .btn-install { background:var(--green); color:white; border:none; border-radius:12px; padding:10px 18px; font-family:'Nunito',sans-serif; font-size:0.82rem; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; white-space:nowrap; }
-  .btn-install:active { transform:scale(0.96); }
-
-  /* TOAST */
-  .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#2d6a4f; color:white; padding:12px 20px; border-radius:12px; font-family:'Nunito',sans-serif; font-size:0.85rem; font-weight:700; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.2); max-width:320px; text-align:center; animation:slideUp 0.3s ease; }
-
-  /* DEMO BAR */
-  .demo-bar { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:0.8rem; color:#92400e; }
-  .demo-bar strong { display:block; margin-bottom:8px; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; }
-  .demo-btns { display:flex; gap:8px; flex-wrap:wrap; }
-  .demo-btn { background:white; border:1px solid #fcd34d; border-radius:8px; padding:5px 12px; font-family:'Nunito',sans-serif; font-size:0.78rem; font-weight:700; cursor:pointer; color:#92400e; transition:all 0.15s; }
-  .demo-btn.active-demo { background:#fde68a; }
-
-  /* TOKEN DISPLAY */
-  .token-card { background:#f0f7f2; border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; font-size:0.75rem; color:var(--text2); word-break:break-all; display:none; }
-  .token-card.show { display:block; }
-  .token-card strong { color:var(--green); display:block; margin-bottom:6px; }
+:root{--green:#2d6a4f;--gl:#52b788;--gp:#d8f3dc;--gb:#f0f7f2;--amber:#e76f51;--al:#fdf0ec;--blue:#457b9d;--bl:#eaf2f8;--tx:#1b2d24;--tx2:#4a6355;--tx3:#8aa898;--bo:#cde8d6;--r:16px;--sh:0 4px 16px rgba(45,106,79,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:var(--gb);color:var(--tx);min-height:100vh;padding-bottom:90px}
+.hero{background:linear-gradient(135deg,var(--green) 0%,#1b4332 100%);padding:48px 24px 32px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:rgba(255,255,255,.05);border-radius:50%}
+.hclinic{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gl);margin-bottom:8px;position:relative;z-index:1}
+.hname{font-family:'Lora',serif;font-size:1.9rem;font-weight:600;color:white;line-height:1.2;margin-bottom:6px;position:relative;z-index:1}
+.hmeta{font-size:.82rem;color:rgba(255,255,255,.65);position:relative;z-index:1;display:flex;gap:14px;flex-wrap:wrap}
+.hdiag{margin-top:16px;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px 16px;position:relative;z-index:1}
+.hdiag-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gl);margin-bottom:4px}
+.hdiag-txt{font-size:.95rem;color:white;font-weight:600}
+.content{padding:20px 16px;max-width:480px;margin:0 auto}
+.slbl{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin:24px 0 12px;display:flex;align-items:center;gap:8px}
+.slbl::after{content:'';flex:1;height:1px;background:var(--bo)}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:8px}
+.tc{background:white;border:1.5px solid var(--bo);border-radius:14px;padding:14px 10px;text-align:center;box-shadow:var(--sh)}
+.tc.now{border-color:var(--gl);background:var(--gp)}
+.ti{font-size:1.4rem;margin-bottom:4px}
+.tn{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3)}
+.th{font-size:.85rem;font-weight:800;color:var(--tx);margin-top:2px}
+.pill{display:inline-block;background:var(--gp);color:var(--green);font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin:2px;line-height:1.6}
+.tc.now .pill{background:rgba(45,106,79,.15)}
+.tempty{font-size:.72rem;color:var(--tx3);margin-top:6px}
+.mc{background:white;border:1.5px solid var(--bo);border-radius:var(--r);padding:16px;margin-bottom:10px;box-shadow:var(--sh);display:flex;gap:14px;align-items:flex-start;animation:su .3s ease both}
+@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.mn{min-width:32px;height:32px;background:var(--gp);color:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;flex-shrink:0}
+.mb{flex:1}
+.mname{font-size:1rem;font-weight:800;color:var(--tx)}
+.mdose{font-size:.8rem;color:var(--tx2);margin-top:2px}
+.mtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:20px}
+.td{background:var(--bl);color:var(--blue)}
+.tt{background:var(--gp);color:var(--green)}
+.tn2{background:#fef9ec;color:#b5651d;border:1px solid #f5d99a}
+.rc{background:linear-gradient(135deg,#fff8f0,#fff3e8);border:2px solid #f5c6a0;border-radius:var(--r);padding:20px;display:flex;gap:16px;align-items:center;box-shadow:0 4px 16px rgba(231,111,81,.12);animation:su .3s ease both}
+.ri{font-size:2.2rem;flex-shrink:0}
+.rlbl{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--amber);margin-bottom:4px}
+.rdate{font-family:'Lora',serif;font-size:1.3rem;font-weight:600;color:var(--tx)}
+.rtime{font-size:.85rem;color:var(--tx2);margin-top:2px}
+.rcount{margin-top:8px;font-size:.78rem;font-weight:700;color:var(--amber);background:var(--al);display:inline-block;padding:3px 10px;border-radius:20px}
+.nc{background:var(--bl);border:1.5px solid #b8d4e8;border-radius:var(--r);padding:16px;font-size:.85rem;color:#2c4a5e;line-height:1.7;animation:su .3s ease both}
+.nc strong{display:block;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--blue);margin-bottom:8px}
+.vrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vc{background:white;border:1.5px solid var(--bo);border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh)}
+.vv{font-family:'Lora',serif;font-size:1.4rem;font-weight:600;color:var(--green)}
+.vl{font-size:.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.bb{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1.5px solid var(--bo);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 -4px 20px rgba(0,0,0,.08);z-index:100}
+.bt{font-size:.75rem;color:var(--tx2);font-weight:600}
+.bs{font-size:.68rem;color:var(--tx3)}
+.bi{background:var(--green);color:white;border:none;border-radius:12px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid var(--gp);border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{background:white;border:2px solid #fca5a5;border-radius:var(--r);padding:24px;text-align:center;margin:24px 16px}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div style="color:var(--tx2);font-size:.9rem;font-weight:600">Đang tải đơn thuốc...</div>
+  </div>
+</div>
 
 <script>
-const DEMO_PATIENTS = [
-  {
-    name:'Nguyễn Văn Minh', gender:'Nam', year:1968,
-    diag:'Tăng huyết áp độ I', pulse:'82', bp:'145/90',
-    date:'2026-05-20', type:'Khám mới',
-    meds:[
-      {name:'Amlodipine',dose:'5mg',times:'1',days:'30',note:'1-0-0'},
-      {name:'Aspirin',dose:'81mg',times:'1',days:'30',note:'0-1-0'}
-    ],
-    nextVisit:'2026-06-20', nextVisitTime:'09:00',
-    note:'Hạn chế muối, tập thể dục nhẹ 30 phút/ngày. Đo huyết áp hàng ngày, ghi chép lại. Tái khám đúng hẹn.',
-    clinic:'Phòng khám Bác sĩ Nam'
-  },
-  {
-    name:'Trần Thị Lan', gender:'Nữ', year:1985,
-    diag:'Đau thần kinh tọa L4-L5', pulse:'75', bp:'110/70',
-    date:'2026-06-01', type:'Tái khám',
-    meds:[
-      {name:'Meloxicam',dose:'15mg',times:'1',days:'7',note:'0-0-1'},
-      {name:'Pregabalin',dose:'75mg',times:'2',days:'14',note:'1-0-1'},
-      {name:'Vitamin B1B6B12',dose:'1 viên',times:'1',days:'30',note:'1-0-0'}
-    ],
-    nextVisit:'2026-06-15', nextVisitTime:'10:00',
-    note:'Nằm nghỉ ngơi, tránh mang vác nặng. Nằm trên mặt phẳng cứng. Tái khám ngay nếu tê bì tăng lên hoặc yếu chân.',
-    clinic:'Phòng khám Bác sĩ Nam'
-  }
-];
-
-let currentData = null;
-let notifEnabled = false;
-let swRegistration = null;
-
-// ============ SCHEDULE HELPERS ============
-function parseSchedule(meds) {
-  const slots={morning:[],noon:[],evening:[]};
-  meds.forEach(m=>{
+function parseSchedule(meds){
+  const s={morning:[],noon:[],evening:[]};
+  (meds||[]).forEach(m=>{
     const parts=(m.note||'').split('-');
     if(parts.length>=3){
-      if(parts[0]&&parts[0]!=='0') slots.morning.push(m);
-      if(parts[1]&&parts[1]!=='0') slots.noon.push(m);
-      if(parts[2]&&parts[2]!=='0') slots.evening.push(m);
+      if(parts[0]&&parts[0]!=='0') s.morning.push(m);
+      if(parts[1]&&parts[1]!=='0') s.noon.push(m);
+      if(parts[2]&&parts[2]!=='0') s.evening.push(m);
     } else {
       const t=parseInt(m.times)||1;
-      if(t>=1) slots.morning.push(m);
-      if(t>=3) slots.noon.push(m);
-      if(t>=2) slots.evening.push(m);
+      if(t>=1) s.morning.push(m);
+      if(t>=3) s.noon.push(m);
+      if(t>=2) s.evening.push(m);
     }
   });
-  return slots;
+  return s;
 }
 
-function getCurrentSlot() {
+function getCurrentSlot(){
   const h=new Date().getHours();
   if(h>=5&&h<11) return 'morning';
   if(h>=11&&h<15) return 'noon';
@@ -210,35 +121,32 @@ function getCurrentSlot() {
   return null;
 }
 
-function daysUntil(dateStr) {
-  if(!dateStr) return null;
-  const target=new Date(dateStr); const today=new Date();
-  today.setHours(0,0,0,0); target.setHours(0,0,0,0);
-  return Math.round((target-today)/(1000*60*60*24));
+function daysUntil(d){
+  if(!d) return null;
+  const t=new Date(d),today=new Date();
+  today.setHours(0,0,0,0); t.setHours(0,0,0,0);
+  return Math.round((t-today)/(1000*60*60*24));
 }
 
-function formatDate(dateStr) {
-  if(!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+function fmt(d){
+  if(!d) return '';
+  return new Date(d).toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
-// ============ RENDER ============
-function render(data) {
-  currentData=data;
-  const age=data.year?(2026-data.year)+' tuổi':'';
-  const schedule=parseSchedule(data.meds||[]);
+function render(data){
+  const age=data.year?(new Date().getFullYear()-data.year)+' tuổi':'';
+  const sch=parseSchedule(data.meds||[]);
   const nowSlot=getCurrentSlot();
   const days=daysUntil(data.nextVisit);
-
-  let countdownText='';
+  let cdown='';
   if(days!==null){
-    if(days<0) countdownText=`Đã qua ${Math.abs(days)} ngày — liên hệ phòng khám`;
-    else if(days===0) countdownText='🔔 Hôm nay là ngày tái khám!';
-    else if(days===1) countdownText='⏰ Ngày mai rồi!';
-    else countdownText=`Còn ${days} ngày nữa`;
+    if(days<0) cdown=`Đã qua ${Math.abs(days)} ngày — liên hệ phòng khám`;
+    else if(days===0) cdown='🔔 Hôm nay là ngày tái khám!';
+    else if(days===1) cdown='⏰ Ngày mai rồi!';
+    else cdown=`Còn ${days} ngày nữa`;
   }
 
-  const slotConfig=[
+  const slots=[
     {key:'morning',icon:'🌅',name:'Sáng',hour:'7:00 - 8:00'},
     {key:'noon',icon:'☀️',name:'Trưa',hour:'11:30 - 12:00'},
     {key:'evening',icon:'🌙',name:'Tối',hour:'19:00 - 20:00'},
@@ -246,235 +154,150 @@ function render(data) {
 
   document.getElementById('app').innerHTML=`
     <div class="hero">
-      <div class="hero-clinic">🏥 ${data.clinic||'Phòng khám'}</div>
-      <div class="hero-name">${data.name}</div>
-      <div class="hero-meta">
+      <div class="hclinic">🏥 ${data.clinic||'PK CK Thần kinh - CXK - Da liễu'}</div>
+      <div class="hname">${data.name||'Bệnh nhân'}</div>
+      <div class="hmeta">
         <span>👤 ${data.gender||''} · ${age}</span>
-        <span>📅 ${formatDate(data.date)}</span>
+        <span>📅 ${fmt(data.date)}</span>
       </div>
-      ${data.diag?`<div class="hero-diag"><div class="hero-diag-label">Chẩn đoán</div><div class="hero-diag-text">${data.diag}</div></div>`:''}
+      ${data.diag?`<div class="hdiag"><div class="hdiag-lbl">Chẩn đoán</div><div class="hdiag-txt">${data.diag}</div></div>`:''}
     </div>
 
     <div class="content">
-      ${renderDemoBar()}
-
       ${(data.bp||data.pulse)?`
-        <div class="section-label">Sinh hiệu lúc khám</div>
-        <div class="vitals-row">
-          ${data.bp?`<div class="vital-card"><div class="vital-val">${data.bp}</div><div class="vital-lbl">Huyết áp (mmHg)</div></div>`:''}
-          ${data.pulse?`<div class="vital-card"><div class="vital-val">${data.pulse}</div><div class="vital-lbl">Mạch (l/ph)</div></div>`:''}
+        <div class="slbl">Sinh hiệu lúc khám</div>
+        <div class="vrow">
+          ${data.bp?`<div class="vc"><div class="vv">${data.bp}</div><div class="vl">Huyết áp (mmHg)</div></div>`:''}
+          ${data.pulse?`<div class="vc"><div class="vv">${data.pulse}</div><div class="vl">Mạch (l/ph)</div></div>`:''}
         </div>`:''}
 
-      ${data.meds&&data.meds.length>0?`
-        <div class="section-label">Lịch uống thuốc trong ngày</div>
-        <div class="schedule-grid">
-          ${slotConfig.map(s=>`
-            <div class="time-card ${nowSlot===s.key?'active-now':''}">
-              <div class="time-icon">${s.icon}</div>
-              <div class="time-name">${s.name}</div>
-              <div class="time-hour">${s.hour}</div>
-              <div class="time-meds">
-                ${schedule[s.key].length>0
-                  ? schedule[s.key].map(m=>`<span class="time-med-pill">${m.name}</span>`).join('')
-                  : `<div class="time-empty">Không uống</div>`}
+      ${data.meds&&data.meds.length?`
+        <div class="slbl">Lịch uống thuốc trong ngày</div>
+        <div class="sgrid">
+          ${slots.map(s=>`
+            <div class="tc ${nowSlot===s.key?'now':''}">
+              <div class="ti">${s.icon}</div>
+              <div class="tn">${s.name}</div>
+              <div class="th">${s.hour}</div>
+              <div>
+                ${sch[s.key].length>0
+                  ?sch[s.key].map(m=>`<span class="pill">${m.name}</span>`).join('')
+                  :`<div class="tempty">Không uống</div>`}
               </div>
-              ${nowSlot===s.key?`<div style="margin-top:6px;font-size:0.65rem;font-weight:800;color:var(--green);text-transform:uppercase">▶ Bây giờ</div>`:''}
-            </div>
-          `).join('')}
+              ${nowSlot===s.key?`<div style="margin-top:5px;font-size:.63rem;font-weight:800;color:var(--green);text-transform:uppercase">▶ Bây giờ</div>`:''}
+            </div>`).join('')}
         </div>
 
-        <div class="section-label">Chi tiết đơn thuốc (${data.meds.length} loại)</div>
+        <div class="slbl">Chi tiết đơn thuốc (${data.meds.length} loại)</div>
         ${data.meds.map((m,i)=>`
-          <div class="med-card" style="animation-delay:${i*0.05}s">
-            <div class="med-num">${i+1}</div>
-            <div class="med-body">
-              <div class="med-name">💊 ${m.name}</div>
-              <div class="med-dose">${m.dose||''}</div>
-              <div class="med-tags">
-                ${m.days?`<span class="med-tag tag-days">📆 ${m.days} ngày</span>`:''}
-                ${m.times?`<span class="med-tag tag-times">🔄 ${m.times} lần/ngày</span>`:''}
-                ${m.note?`<span class="med-tag tag-note">⏰ ${m.note}</span>`:''}
+          <div class="mc" style="animation-delay:${i*.05}s">
+            <div class="mn">${i+1}</div>
+            <div class="mb">
+              <div class="mname">💊 ${m.name}</div>
+              <div class="mdose">${m.dose||''}</div>
+              <div class="mtags">
+                ${m.days?`<span class="tag td">📆 ${m.days} ngày</span>`:''}
+                ${m.times?`<span class="tag tt">🔄 ${m.times} lần/ngày</span>`:''}
+                ${m.qty?`<span class="tag tt">· ${m.qty} ${m.unit||'viên'}/lần</span>`:''}
+                ${m.note?`<span class="tag tn2">⏰ ${m.note}</span>`:''}
+                ${m.remark?`<span class="tag tn2">${m.remark}</span>`:''}
               </div>
             </div>
-          </div>`).join('')}`:''}
+          </div>`).join('')}
+      `:'<div style="text-align:center;padding:24px;color:var(--tx3)">Không có thuốc trong đơn này.</div>'}
 
       ${data.nextVisit?`
-        <div class="section-label">Lịch tái khám</div>
-        <div class="revisit-card">
-          <div class="revisit-icon">📅</div>
-          <div class="revisit-body">
-            <div class="revisit-label">Ngày hẹn tái khám</div>
-            <div class="revisit-date">${formatDate(data.nextVisit)}</div>
-            ${data.nextVisitTime?`<div class="revisit-time">🕐 ${data.nextVisitTime}</div>`:''}
-            ${countdownText?`<div class="revisit-countdown">${countdownText}</div>`:''}
+        <div class="slbl">Lịch tái khám</div>
+        <div class="rc">
+          <div class="ri">📅</div>
+          <div>
+            <div class="rlbl">Ngày hẹn tái khám</div>
+            <div class="rdate">${fmt(data.nextVisit)}</div>
+            ${data.nextVisitTime?`<div class="rtime">🕐 ${data.nextVisitTime}</div>`:''}
+            ${cdown?`<div class="rcount">${cdown}</div>`:''}
           </div>
         </div>`:''}
 
       ${data.note?`
-        <div class="section-label">Lời dặn của bác sĩ</div>
-        <div class="note-card"><strong>📋 Lưu ý quan trọng</strong>${data.note}</div>`:''}
+        <div class="slbl">Lời dặn của bác sĩ</div>
+        <div class="nc"><strong>📋 Lưu ý quan trọng</strong>${data.note}</div>`:''}
 
-      <div class="section-label">Nhắc nhở tự động</div>
-      <div class="notif-card">
-        <h3>🔔 Bật nhắc uống thuốc</h3>
-        <p>Nhận thông báo đúng giờ uống thuốc buổi sáng, trưa, tối và nhắc lịch tái khám tự động.</p>
-        <button class="btn-notif ${notifEnabled?'enabled':''}" id="btnNotif" onclick="setupNotifications()">
-          ${notifEnabled?'✓ Đã bật thông báo':'Bật thông báo ngay'}
-        </button>
-        <div class="schedule-status" id="scheduleStatus"></div>
-        <div class="token-card" id="tokenCard"></div>
-      </div>
-
-      <div style="text-align:center;margin-top:24px;font-size:0.72rem;color:var(--text3);line-height:1.8">
-        Đơn thuốc được tạo bởi hệ thống PhòngKhám Pro<br>
-        Nếu có thắc mắc, vui lòng liên hệ trực tiếp phòng khám
+      <div style="text-align:center;margin-top:28px;font-size:.72rem;color:var(--tx3);line-height:2">
+        Phòng khám CK Thần kinh, Cơ xương khớp, Da liễu<br>
+        ThS.BSCK1 Nguyễn Hoài Nam &nbsp;·&nbsp; 📱 0912839115
       </div>
     </div>
 
-    <div class="bottom-banner">
+    <div class="bb">
       <div>
-        <div class="banner-text">📲 Lưu đơn thuốc</div>
-        <div class="banner-sub">Thêm vào màn hình chính để xem nhanh</div>
+        <div class="bt">📲 Lưu đơn thuốc</div>
+        <div class="bs">Thêm vào màn hình chính để xem nhanh</div>
       </div>
-      <button class="btn-install" onclick="installApp()">+ Thêm vào máy</button>
+      <button class="bi" onclick="installApp()">+ Thêm vào máy</button>
     </div>`;
 }
 
-function renderDemoBar() {
-  return `<div class="demo-bar">
-    <strong>🎯 Demo — Chọn bệnh nhân</strong>
-    <div class="demo-btns">
-      ${DEMO_PATIENTS.map((p,i)=>`<button class="demo-btn ${currentData&&currentData.name===p.name?'active-demo':''}" onclick="loadDemo(${i})">${p.name}</button>`).join('')}
-    </div>
-  </div>`;
+function showError(msg){
+  document.getElementById('app').innerHTML=`
+    <div class="content">
+      <div class="err">
+        <div style="font-size:2.5rem;margin-bottom:12px">😕</div>
+        <div style="font-weight:800;font-size:1rem;margin-bottom:8px">Không tìm thấy đơn thuốc</div>
+        <div style="color:var(--tx2);font-size:.85rem">${msg}</div>
+        <div style="margin-top:16px;font-size:.78rem;color:var(--tx3)">
+          Phòng khám CK Thần kinh - CXK - Da liễu<br>
+          BS. Nguyễn Hoài Nam · 0912839115
+        </div>
+      </div>
+    </div>`;
 }
 
-function loadDemo(i) { render(DEMO_PATIENTS[i]); }
-
-// ============ SERVICE WORKER + NOTIFICATIONS ============
-async function registerSW() {
-  if('serviceWorker' in navigator) {
-    try {
-      swRegistration = await navigator.serviceWorker.register('sw.js');
-      console.log('SW registered:', swRegistration.scope);
-    } catch(e) {
-      console.log('SW registration failed:', e);
+// Load từ Firebase theo ?id=
+async function loadFromFirebase(id){
+  const tryLoad = async () => {
+    if(!window.__getDoc || !window.__doc){
+      await new Promise(r=>setTimeout(r,300));
+      return tryLoad();
     }
-  }
+    try{
+      const snap = await window.__getDoc(window.__doc('prescriptions', id));
+      if(snap.exists()){
+        render(snap.data());
+      } else {
+        showError(`Mã đơn thuốc "${id}" không tồn tại hoặc đã hết hạn.`);
+      }
+    } catch(e){
+      showError('Lỗi kết nối: ' + e.message);
+    }
+  };
+  await tryLoad();
 }
 
-async function setupNotifications() {
-  if(!('Notification' in window)) {
-    showToast('Trình duyệt không hỗ trợ thông báo. Dùng Chrome/Edge nhé!');
+// PWA install
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; });
+function installApp(){
+  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; }
+  else alert('📱 Thêm vào màn hình:\niOS (Safari): nút Chia sẻ → "Thêm vào MH chính"\nAndroid (Chrome): menu ⋮ → "Thêm vào MH chính"');
+}
+
+// INIT
+(async function(){
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get('id');
+
+  if(!id){
+    showError('Không có mã đơn thuốc trong đường dẫn. Vui lòng quét lại mã QR.');
     return;
   }
 
-  const perm = await Notification.requestPermission();
-  if(perm !== 'granted') {
-    showToast('Vào cài đặt trình duyệt để bật thông báo');
-    return;
-  }
-
-  notifEnabled = true;
-  document.getElementById('btnNotif').textContent = '✓ Đã bật thông báo';
-  document.getElementById('btnNotif').classList.add('enabled');
-
-  // Schedule local notifications via Service Worker
-  scheduleLocalReminders();
-
-  // Show demo notification immediately
-  if(swRegistration) {
-    swRegistration.showNotification('✅ Nhắc thuốc đã được bật!', {
-      body: `Sẽ nhắc nhở ${currentData?.name} đúng giờ uống thuốc`,
-      tag: 'setup-confirm'
-    });
+  // Chờ Firebase sẵn sàng rồi load
+  if(window.__getDoc){
+    await loadFromFirebase(id);
   } else {
-    new Notification('✅ Nhắc thuốc đã được bật!', {
-      body: currentData ? `Sẽ nhắc ${currentData.name} đúng giờ` : 'Thông báo đã sẵn sàng'
-    });
+    window.addEventListener('firebase-ready', ()=>loadFromFirebase(id), {once:true});
   }
-}
-
-function scheduleLocalReminders() {
-  if(!currentData || !currentData.meds) return;
-  const schedule = parseSchedule(currentData.meds);
-
-  const slotTimes = { morning:'07:00', noon:'12:00', evening:'19:00' };
-  const slotNames = { morning:'sáng (7:00)', noon:'trưa (12:00)', evening:'tối (19:00)' };
-
-  const reminders = [];
-  const statusLines = [];
-
-  Object.entries(slotTimes).forEach(([slot, time]) => {
-    if(schedule[slot].length > 0) {
-      const medNames = schedule[slot].map(m => `${m.name} ${m.dose}`).join(', ');
-      reminders.push({ time, meds: medNames });
-      statusLines.push(`⏰ ${slotNames[slot]}: ${medNames}`);
-    }
-  });
-
-  // Tái khám reminder
-  if(currentData.nextVisit) {
-    const days = daysUntil(currentData.nextVisit);
-    if(days === 1) statusLines.push(`📅 Nhắc ngày mai: tái khám lúc ${currentData.nextVisitTime||'9:00'}`);
-    else if(days > 0) statusLines.push(`📅 Nhắc tái khám còn ${days} ngày`);
-  }
-
-  // Send to Service Worker
-  if(swRegistration && swRegistration.active) {
-    swRegistration.active.postMessage({ type:'SCHEDULE_REMINDERS', reminders });
-  }
-
-  // Show schedule status
-  const el = document.getElementById('scheduleStatus');
-  if(el && statusLines.length > 0) {
-    el.innerHTML = `<strong>📋 Lịch nhắc đã đặt:</strong>${statusLines.join('<br>')}`;
-    el.classList.add('show');
-  }
-
-  showToast('✅ Đã đặt lịch nhắc thuốc thành công!');
-}
-
-// ============ PWA INSTALL ============
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-});
-
-function installApp() {
-  if(deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(r => {
-      if(r.outcome==='accepted') showToast('✅ Đã thêm vào màn hình chính!');
-      deferredPrompt = null;
-    });
-  } else {
-    alert('📱 Thêm vào màn hình chính:\n\niOS (Safari): Nhấn chia sẻ → "Thêm vào màn hình chính"\n\nAndroid (Chrome): Menu ⋮ → "Thêm vào màn hình chính"');
-  }
-}
-
-// ============ TOAST ============
-function showToast(msg) {
-  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
-  document.body.appendChild(t); setTimeout(()=>t.remove(),3500);
-}
-
-// ============ INIT ============
-function init() {
-  // Register Service Worker
-  registerSW();
-
-  // Check URL params for real QR data
-  const params = new URLSearchParams(window.location.search);
-  const rawData = params.get('d');
-  if(rawData) {
-    try { render(JSON.parse(decodeURIComponent(rawData))); return; } catch(e){}
-  }
-  render(DEMO_PATIENTS[0]);
-}
-
-init();
+})();
 </script>
 </body>
 </html>
