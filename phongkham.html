@@ -1150,9 +1150,8 @@ function openPrintModal(){
   document.getElementById('printPreview').innerHTML=`
     <div id="don-in" style="font-family:Arial,sans-serif;font-size:13px;line-height:1.6;color:#111;max-width:680px;margin:0 auto">
       <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:12px">
-        <div style="font-weight:700;font-size:14px">PHÒNG KHÁM BÁC SĨ NGUYỄN HOÀI NAM</div>
-        <div style="font-size:12px;color:#555">ThS.BSCK1 Nguyễn Hoài Nam — CCHN số: ...</div>
-        <div style="font-size:12px;color:#555">Địa chỉ: ... · ĐT: ...</div>
+        <div style="font-weight:700;font-size:15px;text-transform:uppercase">Phòng khám chuyên khoa Thần kinh, Cơ xương khớp, Da liễu</div>
+        <div style="font-size:12px;color:#333;margin-top:2px">Thạc sĩ, Bác sĩ Chuyên khoa 1: Nguyễn Hoài Nam &nbsp;·&nbsp; Mobile/Zalo: 0912839115</div>
       </div>
       <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:12px;letter-spacing:1px">ĐƠN THUỐC</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px">
@@ -1201,7 +1200,7 @@ function openPrintModal(){
         <div style="text-align:center">
           <div>Ngày ... tháng ... năm 2026</div>
           <div style="font-weight:700">Bác sĩ khám bệnh</div>
-          <div style="margin-top:50px">ThS.BSCK1 Nguyễn Hoài Nam</div>
+          <div style="margin-top:50px">Thạc sĩ, BSCK1 Nguyễn Hoài Nam</div>
         </div>
       </div>
     </div>`;
@@ -1279,8 +1278,8 @@ function printVisit(ptId, visitId){
   const meds=v.meds||[];
   const content=`<div style="font-family:Arial,sans-serif;font-size:13px;max-width:680px;margin:0 auto">
     <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:12px">
-      <div style="font-weight:700;font-size:14px">PHÒNG KHÁM BÁC SĨ NGUYỄN HOÀI NAM</div>
-      <div style="font-size:12px;color:#555">ThS.BSCK1 Nguyễn Hoài Nam — CCHN số: ...</div>
+      <div style="font-weight:700;font-size:15px;text-transform:uppercase">Phòng khám chuyên khoa Thần kinh, Cơ xương khớp, Da liễu</div>
+      <div style="font-size:12px;color:#333;margin-top:3px">Thạc sĩ, Bác sĩ Chuyên khoa 1: Nguyễn Hoài Nam &nbsp;·&nbsp; Mobile/Zalo: 0912839115</div>
     </div>
     <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:12px">ĐƠN THUỐC</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px">
@@ -1316,7 +1315,7 @@ function printVisit(ptId, visitId){
     ${v.nextVisit?`<div style="font-size:12px;margin-bottom:20px"><strong>Tái khám:</strong> ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
     <div style="text-align:right;margin-top:20px;font-size:12px">
       <div>Ngày ${v.date}</div>
-      <div style="font-weight:700;margin-top:50px">ThS.BSCK1 Nguyễn Hoài Nam</div>
+      <div style="font-weight:700;margin-top:50px">Thạc sĩ, BSCK1 Nguyễn Hoài Nam</div>
     </div>
   </div>`;
   const w=window.open('','_blank');
@@ -2180,7 +2179,7 @@ function printStatsRange(){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BC ${label}</title>
   <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}h2{margin-bottom:4px}table{width:100%;border-collapse:collapse}th{background:#2d6a4f;color:white;padding:5px 8px;text-align:left;border:1px solid #ccc}th.r{text-align:right}td{padding:5px 8px;border:1px solid #ddd}td.r{text-align:right}tr:nth-child(even){background:#f9f9f9}tfoot tr{background:#e8f5e9;font-weight:700}</style></head>
-  <body><h2>BÁO CÁO ${label.toUpperCase()}</h2><p style="color:#666;font-size:11px">PK BS. Nguyễn Hoài Nam · In: ${new Date().toLocaleString('vi-VN')}</p>
+  <body><h2>BÁO CÁO ${label.toUpperCase()}</h2><p style="color:#666;font-size:11px">PK CK Thần kinh - CXK - Da liễu / BS. Nguyễn Hoài Nam · In: ${new Date().toLocaleString('vi-VN')}</p>
   <table><thead><tr><th>#</th><th>Ngày</th><th>Bệnh nhân</th><th>Chẩn đoán</th><th class="r">Khám</th><th class="r">Thuốc</th><th class="r">TT</th><th class="r">Tổng</th></tr></thead>
   <tbody>${rows.map((v,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${v.date}</td><td>${v.ptName}</td><td>${v.diag||'—'}</td><td class="r">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r"><strong>${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</strong></td></tr>`).join('')}</tbody>
   <tfoot><tr><td colspan="4" style="text-align:right">TỔNG (${rows.length} lượt)</td><td class="r">${totK.toLocaleString('vi-VN')}đ</td><td class="r">${totT.toLocaleString('vi-VN')}đ</td><td class="r">${totP.toLocaleString('vi-VN')}đ</td><td class="r">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
@@ -2209,7 +2208,7 @@ function printReport(){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Báo cáo ${label}</title>
   <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#2d6a4f;color:white;padding:5px 8px;border:1px solid #ccc}td{padding:5px 8px;border:1px solid #ddd}tfoot tr{background:#e8f5e9;font-weight:700}</style></head>
-  <body><h2>BÁO CÁO LÃI LỖ - ${label}</h2><p>PK BS. Nguyễn Hoài Nam · ${new Date().toLocaleString('vi-VN')}</p>
+  <body><h2>BÁO CÁO LÃI LỖ - ${label}</h2><p>PK CK Thần kinh - CXK - Da liễu / BS. Nguyễn Hoài Nam · ${new Date().toLocaleString('vi-VN')}</p>
   <table><thead><tr><th>#</th><th>Ngày</th><th>Bệnh nhân</th><th>Chẩn đoán</th><th>Khám</th><th>Thuốc</th><th>TT</th><th>Giảm</th><th>Thực thu</th></tr></thead>
   <tbody>${allVisits.map((v,i)=>`<tr><td>${i+1}</td><td>${v.date}</td><td>${v.ptName}</td><td>${v.diag||'—'}</td><td style="text-align:right">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right;color:red">${v.disc_pct?'-'+v.disc_pct+'%':v.disc_amt?'-'+v.disc_amt.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right;font-weight:700">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</td></tr>`).join('')}</tbody>
   <tfoot><tr><td colspan="8" style="text-align:right">TỔNG</td><td style="text-align:right">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
