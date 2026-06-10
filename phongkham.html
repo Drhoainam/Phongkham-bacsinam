@@ -2487,18 +2487,24 @@ function renderNhapKho(){
       <div class="ct">Lịch sử nhập kho</div>
       ${kho.length?`<div style="overflow-x:auto"><table class="tbl">
         <thead><tr>
-          <th>Ngày nhập</th><th>Tên thuốc</th><th>Hàm lượng</th><th style="text-align:right">SL nhập</th><th style="text-align:right">Giá vốn</th><th style="text-align:right">Thành tiền</th><th>Nhà CC</th><th>Ghi chú</th>
+          <th>Ngày nhập</th><th>Tên thuốc/Vật tư</th><th>Hàm lượng</th>
+          <th style="text-align:right">SL nhập</th><th style="text-align:right">Giá vốn</th>
+          <th style="text-align:right">Thành tiền</th><th>Nhà CC</th><th>Ghi chú</th><th></th>
         </tr></thead>
         <tbody>
-          ${kho.flatMap(k=>(k.batches||[]).map(b=>({...b,name:k.name,dose:k.dose,unit:k.unit}))).sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<tr>
+          ${kho.flatMap(k=>(k.batches||[]).filter(b=>b.qty>0).map(b=>({...b,khoId:k.id,name:k.name,dose:k.dose,unit:k.unit,itype:k.itemtype}))).sort((a,b)=>b.date.localeCompare(a.date)).map(b=>`<tr>
             <td>${b.date}</td>
-            <td><strong>${b.name}</strong></td>
+            <td><span style="font-size:.63rem;margin-right:3px">${b.itype==='supply'?'📦':'💊'}</span><strong>${b.name}</strong></td>
             <td>${b.dose||'—'}</td>
             <td style="text-align:right;font-weight:600">${b.qty} ${b.unit||'viên'}</td>
             <td style="text-align:right;color:var(--tx2)">${b.price?b.price.toLocaleString('vi-VN')+'đ':'—'}</td>
             <td style="text-align:right;color:var(--ac3)">${b.qty&&b.price?(b.qty*b.price).toLocaleString('vi-VN')+'đ':'—'}</td>
             <td>${b.supplier||'—'}</td>
             <td style="color:var(--tx3)">${b.note||'—'}</td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-g" style="padding:2px 6px;font-size:.7rem;margin-right:2px" onclick="editKhoBatchInline('${b.khoId}','${b.id}')">✏️</button>
+              <button class="btn-rm" onclick="delKhoBatchById('${b.khoId}','${b.id}')">✕</button>
+            </td>
           </tr>`).join('')}
         </tbody>
       </table></div>`:'<div style="text-align:center;padding:30px;color:var(--tx3);font-size:.8rem">Chưa có lịch sử nhập kho.</div>'}
@@ -3115,6 +3121,57 @@ function delThuThuat(id){
   if(!confirm('Xóa thủ thuật này?')) return;
   thuThuat=thuThuat.filter(t=>t.id!==id);
   fbDelTT(id); svTTLocal(); renderKhoTab();
+}
+
+function delKhoBatchById(khoId, batchId){
+  const k=kho.find(x=>x.id===khoId); if(!k) return;
+  if(!confirm('Xóa lô nhập này?')) return;
+  k.batches=k.batches.filter(b=>b.id!==batchId);
+  svKho(k); renderKhoTab();
+}
+
+function editKhoBatchInline(khoId, batchId){
+  const k=kho.find(x=>x.id===khoId); if(!k) return;
+  const b=k.batches.find(x=>x.id===batchId); if(!b) return;
+
+  // Tạo modal sửa lô nhập
+  const existing=document.getElementById('moBatchEdit');
+  if(existing) existing.remove();
+
+  const mo=document.createElement('div');
+  mo.className='mo show'; mo.id='moBatchEdit';
+  mo.innerHTML=`<div class="md" style="max-width:480px">
+    <h3>✏️ Sửa lô nhập — ${k.name} ${k.dose||''}</h3>
+    <div class="fr">
+      <div class="fg"><label>Ngày nhập</label><input type="date" id="be_date" value="${b.date}"></div>
+      <div class="fg"><label>Số lượng</label><input type="number" id="be_qty" value="${b.qty}" min="1"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Giá vốn/đơn vị (đ)</label><input type="number" id="be_price" value="${b.price||0}" min="0" step="500"></div>
+      <div class="fg"><label>Nhà cung cấp</label><input id="be_sup" value="${b.supplier||''}"></div>
+    </div>
+    <div class="fg" style="margin-bottom:16px"><label>Ghi chú</label><input id="be_note" value="${b.note||''}" placeholder="Số lô, hạn sử dụng..."></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="document.getElementById('moBatchEdit').remove()">Hủy</button>
+      <button class="btn btn-p" onclick="saveBatchEdit('${khoId}','${batchId}')">✓ Lưu</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+  mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
+}
+
+function saveBatchEdit(khoId, batchId){
+  const k=kho.find(x=>x.id===khoId); if(!k) return;
+  const b=k.batches.find(x=>x.id===batchId); if(!b) return;
+  b.date=document.getElementById('be_date')?.value||b.date;
+  b.qty=parseFloat(document.getElementById('be_qty')?.value)||b.qty;
+  b.price=parseFloat(document.getElementById('be_price')?.value)||0;
+  b.supplier=document.getElementById('be_sup')?.value||'';
+  b.note=document.getElementById('be_note')?.value||'';
+  svKho(k);
+  document.getElementById('moBatchEdit')?.remove();
+  showToast('✓ Đã cập nhật lô nhập!','success');
+  renderKhoTab();
 }
 
 function exportKhoExcel(){
