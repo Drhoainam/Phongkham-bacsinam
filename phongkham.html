@@ -616,6 +616,8 @@ function renderTab(){
     if(!p.cv.supplies) p.cv.supplies=[];
     ta.innerHTML=renderKham(p);
     renderMeds();
+    if(!p.cv.procs) p.cv.procs=p.cv.proc?[{name:p.cv.proc,price:p.cv.f3||0}]:[];
+    renderProcRows();
   } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
   } else {
@@ -664,24 +666,27 @@ function renderKham(p){
 
   <div class="card">
     <div class="ct">🔪 Thủ thuật / Tiêm</div>
-    <div class="fr">
-      <div class="fg full">
-        <label>Chọn thủ thuật <span style="font-weight:400;color:var(--ac3);font-size:.72rem">(từ danh mục kho — vật tư tự trừ báo cáo)</span></label>
-        <div class="autocomplete-wrap">
-          <input id="v_proc" value="${cv.proc||''}" placeholder="Gõ tên thủ thuật hoặc mô tả tự do..."
-            oninput="showProcAC(this.value)" onchange="updCvField('proc',this.value)" autocomplete="off">
-          <div class="ac-list" id="proc_ac" style="display:none"></div>
-        </div>
-      </div>
+    <table class="tbl" style="margin-bottom:8px">
+      <thead><tr>
+        <th style="width:55%">Tên thủ thuật</th>
+        <th style="width:35%">Giá thu (đ)</th>
+        <th style="width:8%"></th>
+      </tr></thead>
+      <tbody id="procRows"></tbody>
+    </table>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+      <button class="btn-add-row" onclick="addProcRow()">＋ Thêm thủ thuật</button>
+      <div style="font-size:.8rem;color:var(--tx2)">Tổng TT: <strong id="procTotal" style="color:var(--ac3)">—</strong></div>
     </div>
-    <div id="proc_info" style="margin-top:8px">${cv.proc&&thuThuat.find(t=>t.name===cv.proc)?renderProcInfo(thuThuat.find(t=>t.name===cv.proc)):''}</div>
   </div>
 
   <div class="card">
     <div class="ct">💰 Thu phí</div>
     <div class="fr">
       <div class="fg"><label>Tiền khám (đ)</label><input type="number" id="v_f1" value="${cv.f1||''}" placeholder="0" oninput="calcFee()"></div>
-      <div class="fg"><label>Tiền thuốc (đ)</label><input type="number" id="v_f2" value="${cv.f2||''}" placeholder="0" oninput="calcFee()"></div>
+      <div class="fg"><label>Tiền thuốc (đ) <span id="v_f2_sum" style="font-size:.7rem;color:var(--ac);font-weight:600"></span></label>
+        <input type="number" id="v_f2" value="${cv.f2||''}" placeholder="Tự tính từ đơn thuốc" oninput="calcFee()">
+      </div>
     </div>
     <div class="fr">
       <div class="fg"><label>Phí thủ thuật (đ)</label><input type="number" id="v_f3" value="${cv.f3||''}" placeholder="0" oninput="calcFee()"></div>
@@ -716,6 +721,30 @@ function calcFee(){
   if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
 }
 
+function calcMedTotal(){
+  // Tính tổng tiền thuốc = SUM(giá bán × SL/lần × lần/ngày × số ngày)
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  let total=0;
+  (p.cv.meds||[]).forEach(m=>{
+    const sell=parseFloat(m.sellPrice)||0;
+    const qty=parseFloat(m.qty)||1;
+    const times=parseFloat(m.times)||0;
+    const days=parseFloat(m.days)||0;
+    if(sell>0&&times>0&&days>0) total+=sell*qty*times*days;
+  });
+  const f2El=document.getElementById('v_f2');
+  const f2SumEl=document.getElementById('v_f2_sum');
+  if(total>0){
+    if(f2El&&(!f2El.value||parseFloat(f2El.value)===0)){
+      f2El.value=total;
+    }
+    if(f2SumEl) f2SumEl.textContent='Tổng tự tính: '+total.toLocaleString('vi-VN')+'đ';
+  } else {
+    if(f2SumEl) f2SumEl.textContent='';
+  }
+  calcFee();
+}
+
 // ===== DRUG AUTOCOMPLETE =====
 function renderMeds(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
@@ -729,12 +758,12 @@ function renderMeds(){
     </td>
     <td><input id="med_dose_${i}" value="${m.dose||''}" onchange="updM(${i},'dose',this.value)" placeholder="500mg"></td>
     <td><select onchange="updM(${i},'unit',this.value)">${['viên','gói','ống','lọ','ml'].map(u=>`<option ${(m.unit||'viên')===u?'selected':''}>${u}</option>`).join('')}</select></td>
-    <td><input type="number" id="med_qty_${i}" value="${m.qty||1}" min="0.5" step="0.5" onchange="updM(${i},'qty',parseFloat(this.value)||1)"></td>
-    <td><input type="number" id="med_times_${i}" value="${m.times||''}" onchange="updM(${i},'times',this.value)" placeholder="2"></td>
-    <td><input type="number" id="med_days_${i}" value="${m.days||''}" onchange="updM(${i},'days',this.value)" placeholder="7"></td>
+    <td><input type="number" id="med_qty_${i}" value="${m.qty||1}" min="0.5" step="0.5" onchange="updM(${i},'qty',parseFloat(this.value)||1);calcMedTotal()"></td>
+    <td><input type="number" id="med_times_${i}" value="${m.times||''}" onchange="updM(${i},'times',this.value);calcMedTotal()" placeholder="2"></td>
+    <td><input type="number" id="med_days_${i}" value="${m.days||''}" onchange="updM(${i},'days',this.value);calcMedTotal()" placeholder="7"></td>
     <td><input id="med_note_${i}" value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="8-14-20"></td>
     <td><input id="med_remark_${i}" value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn"></td>
-    <td><input type="number" id="med_sell_${i}" value="${m.sellPrice||''}" onchange="updM(${i},'sellPrice',parseFloat(this.value)||0)" placeholder="Từ kho" style="color:var(--ac2)" title="Giá bán/đơn vị - tự điền từ kho"></td>
+    <td><input type="number" id="med_sell_${i}" value="${m.sellPrice||''}" onchange="updM(${i},'sellPrice',parseFloat(this.value)||0);calcMedTotal()" placeholder="Từ kho" style="color:var(--ac2)" title="Giá bán/đơn vị - tự điền từ kho"></td>
     <td><button class="btn-rm" onclick="rmM(${i})">✕</button></td>
   </tr>`).join('');
 }
@@ -867,6 +896,79 @@ function autoFillSupplyPrice(rowIdx, name){
 function updS(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies&&p.cv.supplies[i]){p.cv.supplies[i][k]=v; svLocal();} }
 function rmS(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies){p.cv.supplies.splice(i,1); svLocal(); renderSupplies();} }
 
+// ===== PROC ROWS (multiple procedures) =====
+function renderProcRows(){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  if(!p.cv.procs) p.cv.procs=[];
+  const tb=document.getElementById('procRows'); if(!tb) return;
+  tb.innerHTML=(p.cv.procs||[]).map((pr,i)=>`<tr>
+    <td>
+      <div class="autocomplete-wrap">
+        <input value="${pr.name||''}" placeholder="Gõ tên thủ thuật..."
+          oninput="showProcRowAC(${i},this.value)"
+          onchange="updProc(${i},'name',this.value)" autocomplete="off">
+        <div class="ac-list" id="proc_ac_${i}" style="display:none"></div>
+      </div>
+    </td>
+    <td><input type="number" value="${pr.price||''}" placeholder="0" min="0" step="10000"
+      onchange="updProc(${i},'price',parseFloat(this.value)||0);calcProcTotal()"></td>
+    <td><button class="btn-rm" onclick="rmProc(${i})">✕</button></td>
+  </tr>`).join('');
+  calcProcTotal();
+}
+
+function showProcRowAC(i, val){
+  const list=document.getElementById('proc_ac_'+i); if(!list) return;
+  if(!val||val.length<1){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const matches=thuThuat.filter(t=>t.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map((t,idx)=>`
+    <div class="ac-item" onclick="selectProcRow(${i},'${t.id}')">
+      <div class="ac-name">${t.name}</div>
+      <div class="ac-sub" style="color:var(--ac)">${(t.price||0).toLocaleString('vi-VN')}đ</div>
+    </div>`).join('');
+  list.style.display='block';
+}
+
+function selectProcRow(i, ttId){
+  const t=thuThuat.find(x=>x.id===ttId); if(!t) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.procs) return;
+  p.cv.procs[i].name=t.name;
+  p.cv.procs[i].price=t.price||0;
+  p.cv.procs[i].ttId=t.id;
+  svLocal(); renderProcRows();
+  document.getElementById('proc_ac_'+i).style.display='none';
+}
+
+function addProcRow(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  if(!p.cv) p.cv={meds:[],supplies:[],procs:[]};
+  if(!p.cv.procs) p.cv.procs=[];
+  p.cv.procs.push({name:'',price:0});
+  svLocal(); renderProcRows();
+}
+
+function rmProc(i){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.procs) return;
+  p.cv.procs.splice(i,1); svLocal(); renderProcRows();
+}
+
+function updProc(i,k,v){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.procs) return;
+  p.cv.procs[i][k]=v; svLocal();
+}
+
+function calcProcTotal(){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  const total=(p.cv.procs||[]).reduce((s,pr)=>s+(pr.price||0),0);
+  const el=document.getElementById('procTotal');
+  if(el) el.textContent=total>0?total.toLocaleString('vi-VN')+'đ':'—';
+  // Tự điền vào phí thủ thuật
+  const f3El=document.getElementById('v_f3');
+  if(f3El&&total>0) { f3El.value=total; calcFee(); }
+}
+
 // ===== PROC AUTOCOMPLETE =====
 function showProcAC(val){
   const list=document.getElementById('proc_ac'); if(!list) return;
@@ -951,35 +1053,34 @@ function saveVisit(){
   p.cv={meds:[],supplies:[]};
   svLocal(); fbSave(p);
 
-  // Tự động trừ tồn kho vật tư của thủ thuật
-  const ttItem=thuThuat.find(t=>t.name===visit.proc);
-  if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
-    let changed=false;
-    ttItem.supplies.forEach(s=>{
-      const khoItem=kho.find(k=>k.itemtype==='supply'&&k.name.toLowerCase()===s.name.toLowerCase());
-      if(khoItem){
-        // Thêm batch âm để trừ tồn
-        if(!khoItem.batches) khoItem.batches=[];
-        khoItem.batches.push({
-          id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
-          date:visit.date, qty:-(s.qty||1), price:s.price||0,
-          supplier:'Xuất TT: '+visit.proc, note:'Tự động xuất kho'
-        });
-        changed=true; svKho(khoItem);
-      }
-    });
-    if(changed) showToast('✓ Đã lưu & trừ vật tư khỏi kho!','success');
-    else showToast('✓ Đã lưu lần khám!','success');
-  } else {
-    showToast('✓ Đã lưu lần khám!','success');
-  }
+  // Tự động trừ tồn kho vật tư cho từng thủ thuật
+  let deducted=false;
+  (visit.procs||[]).forEach(pr=>{
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
+      ttItem.supplies.forEach(s=>{
+        const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
+        if(khoItem){
+          if(!khoItem.batches) khoItem.batches=[];
+          khoItem.batches.push({
+            id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+            date:visit.date, qty:-(s.qty||1), price:s.price||0,
+            supplier:'Xuất: '+pr.name, note:'Tự động xuất kho'
+          });
+          deducted=true; svKho(khoItem);
+        }
+      });
+    }
+  });
+  if(deducted) showToast('✓ Đã lưu & trừ vật tư khỏi kho!','success');
+  else showToast('✓ Đã lưu lần khám!','success');
   curTab='ls'; renderDetail();
 }
 
 function clearForm(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   if(!confirm('Xóa toàn bộ thông tin đang nhập?')) return;
-  p.cv={meds:[],supplies:[]}; svLocal(); renderTab();
+  p.cv={meds:[],supplies:[],procs:[]}; svLocal(); renderTab();
 }
 
 // ===== PRINT PRESCRIPTION (MẪU BYT) =====
@@ -1097,7 +1198,13 @@ function renderLS(p){
         ${v.bp||v.pulse?`<div style="font-size:.77rem;color:var(--tx2);margin-top:5px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''} ${v.bp&&v.pulse?'·':''} ${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
         ${v.reason?`<div style="font-size:.77rem;color:var(--tx3);margin-top:5px;font-style:italic">📋 ${v.reason}</div>`:''}
         ${medLines?`<div style="font-size:.78rem;color:var(--tx2);margin-top:7px;line-height:2">${medLines}</div>`:''}
-        ${v.proc?`<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.18);border-radius:7px;font-size:.78rem"><b style="color:var(--da)">🔪 Thủ thuật:</b> ${v.proc}</div>`:''}
+        ${(v.procs&&v.procs.length?v.procs:v.proc?[{name:v.proc,price:v.f3||0}]:[]).length?
+          `<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.18);border-radius:7px;font-size:.78rem">
+            <b style="color:var(--da)">🔪 Thủ thuật:</b>
+            ${(v.procs&&v.procs.length?v.procs:[{name:v.proc,price:v.f3||0}]).map(pr=>
+              `<span style="display:inline-block;margin-top:3px">${pr.name}${pr.price?' — <span style=\"color:var(--ac)\">'+pr.price.toLocaleString('vi-VN')+'đ</span>':''}</span>`
+            ).join('<br>')}
+          </div>`:''}
         ${supTable}
         ${v.ftot?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${v.f1?`<span class="fp fp-k">Khám: ${v.f1.toLocaleString('vi-VN')}đ</span>`:''}
