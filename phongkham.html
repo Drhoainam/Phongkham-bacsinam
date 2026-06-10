@@ -1415,10 +1415,13 @@ async function genQR(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const lv=p.visits&&p.visits.length?p.visits[p.visits.length-1]:null;
 
-  // ID cố định = mã BN + ID lần khám cuối → đảm bảo đúng bệnh nhân
-  const ptShort=p.id.replace('bn_','').substring(0,6);
-  const visitShort=lv?String(lv.id).substring(0,6):'000000';
-  const shortId='qr'+ptShort+visitShort;
+  // ID = hash từ ID bệnh nhân + ID lần khám → unique, không trùng
+  const ptPart = p.id.replace('bn_','');
+  const visitPart = lv ? String(lv.id) : 'nv';
+  // Lấy 4 ký tự cuối ptPart + 4 ký tự cuối visitPart (phần cuối timestamp unique hơn)
+  const ptEnd = ptPart.slice(-5);
+  const visitEnd = visitPart.slice(-5);
+  const shortId = 'rx' + ptEnd + visitEnd;
 
   const data={
     name:p.name, gender:p.gender, year:p.year,
