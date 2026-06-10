@@ -2176,14 +2176,18 @@ function showTTSupplyAC(i, val){
   const listId='tt_ac_'+i; const list=document.getElementById(listId); if(!list) return;
   if(!val||val.length<1){ list.style.display='none'; return; }
   const q=val.toLowerCase();
-  const khoVT=kho.filter(k=>k.itemtype==='supply'&&k.name.toLowerCase().includes(q));
-  const vtDB=VATTU_DB.filter(d=>d.name.toLowerCase().includes(q)&&!khoVT.find(k=>k.name===d.name));
-  const matches=[...khoVT.map(k=>({name:k.name,unit:k.unit,price:Math.round(getGiaVon(k)),inKho:true})),...vtDB.map(d=>({name:d.name,unit:d.unit,price:0,inKho:false}))].slice(0,8);
+  // Tìm trong kho — tất cả (thuốc + vật tư)
+  const khoAll=kho.filter(k=>k.name.toLowerCase().includes(q));
+  const vtDB=VATTU_DB.filter(d=>d.name.toLowerCase().includes(q)&&!khoAll.find(k=>k.name===d.name));
+  const matches=[
+    ...khoAll.map(k=>({name:k.name,unit:k.unit,price:Math.round(getGiaVon(k)),inKho:true,tag:k.itemtype==='supply'?'📦':'💊'})),
+    ...vtDB.map(d=>({name:d.name,unit:d.unit,price:0,inKho:false,tag:'📦'}))
+  ].slice(0,10);
   if(!matches.length){ list.style.display='none'; return; }
   list.innerHTML=matches.map((d,idx)=>`
     <div class="ac-item" onclick="selectTTSupplyAC(${i},${idx})">
-      <div class="ac-name">${d.name} ${d.inKho?'<span style="font-size:.68rem;color:var(--ac3)">📦</span>':''}</div>
-      <div class="ac-sub">${d.unit}${d.price>0?' · '+d.price.toLocaleString('vi-VN')+'đ':''}</div>
+      <div class="ac-name">${d.tag} ${d.name} ${d.inKho?'<span style="font-size:.68rem;color:var(--ac3);background:rgba(240,136,62,.15);padding:1px 5px;border-radius:8px">Kho</span>':''}</div>
+      <div class="ac-sub">${d.unit}${d.price>0?' · <strong style="color:var(--ac3)">'+d.price.toLocaleString('vi-VN')+'đ</strong>':'<span style="color:var(--tx3)"> · Chưa có giá trong kho</span>'}</div>
     </div>`).join('');
   list.dataset.matches=JSON.stringify(matches);
   list.style.display='block';
@@ -2195,16 +2199,17 @@ function selectTTSupplyAC(i, idx){
   const d=matches[idx]; if(!d) return;
   ttTempSupplies[i].name=d.name;
   ttTempSupplies[i].unit=d.unit||'cái';
-  if(d.price>0) ttTempSupplies[i].price=d.price;
+  ttTempSupplies[i].price=d.price||0; // Luôn điền giá (kể cả 0)
   renderTTSupplyRows();
   list.style.display='none';
 }
 
 function autoFillTTSupplyPrice(i, name){
-  const k=kho.find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.itemtype==='supply');
+  // Tìm trong kho — cả thuốc lẫn vật tư
+  const k=kho.find(x=>x.name.toLowerCase()===name.toLowerCase());
   if(!k) return;
   const gv=Math.round(getGiaVon(k));
-  if(gv>0 && (!ttTempSupplies[i].price||ttTempSupplies[i].price===0)){
+  if(gv>0){
     ttTempSupplies[i].price=gv;
     ttTempSupplies[i].unit=k.unit||'cái';
     renderTTSupplyRows();
