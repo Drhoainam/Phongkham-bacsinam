@@ -694,10 +694,27 @@ function renderKham(p){
     </div>
     <div class="fr">
       <div class="fg"><label>Phí thủ thuật (đ)</label><input type="number" id="v_f3" value="${cv.f3||''}" placeholder="0" oninput="calcFee()"></div>
-      <div class="fg"><label>Tổng thu</label>
-        <div id="v_tot" style="font-size:1.2rem;font-weight:700;color:var(--ac);padding:6px 0">${cv.ftot?cv.ftot.toLocaleString('vi-VN')+'đ':'—'}</div>
+      <div class="fg"><label>Tổng cộng (trước giảm)</label>
+        <div id="v_subtot" style="font-size:1rem;font-weight:600;color:var(--tx2);padding:6px 0">—</div>
       </div>
     </div>
+    <div class="fr" style="padding-top:10px;border-top:1px solid var(--bo);margin-top:4px">
+      <div class="fg">
+        <label>Giảm giá</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="number" id="v_disc_pct" value="${cv.disc_pct||''}" placeholder="%" min="0" max="100" style="width:70px" oninput="calcFeeDiscount('pct')" title="Giảm theo %">
+          <span style="color:var(--tx3);font-size:.8rem">%</span>
+          <span style="color:var(--tx3);font-size:.8rem">hoặc</span>
+          <input type="number" id="v_disc_amt" value="${cv.disc_amt||''}" placeholder="Số tiền" min="0" step="10000" oninput="calcFeeDiscount('amt')" title="Giảm số tiền cố định">
+          <span style="color:var(--tx3);font-size:.8rem">đ</span>
+        </div>
+      </div>
+      <div class="fg">
+        <label style="color:var(--ac)">Thực thu (sau giảm)</label>
+        <div id="v_tot" style="font-size:1.3rem;font-weight:700;color:var(--ac);padding:6px 0">${cv.ftot?cv.ftot.toLocaleString('vi-VN')+'đ':'—'}</div>
+      </div>
+    </div>
+    ${cv.disc_pct||cv.disc_amt?`<div style="font-size:.76rem;color:var(--ac3);margin-top:4px">✂️ Đã giảm: ${cv.disc_pct?cv.disc_pct+'%':''}${cv.disc_amt?' ('+cv.disc_amt.toLocaleString('vi-VN')+'đ)':''}</div>`:''}
   </div>
 
   <div class="card">
@@ -720,9 +737,31 @@ function calcFee(){
   const f1=parseFloat(document.getElementById('v_f1')?.value)||0;
   const f2=parseFloat(document.getElementById('v_f2')?.value)||0;
   const f3=parseFloat(document.getElementById('v_f3')?.value)||0;
-  const tot=f1+f2+f3;
+  const subtot=f1+f2+f3;
+  // Hiện tổng trước giảm
+  const subEl=document.getElementById('v_subtot');
+  if(subEl) subEl.textContent=subtot>0?subtot.toLocaleString('vi-VN')+'đ':'—';
+  // Tính giảm
+  const discPct=parseFloat(document.getElementById('v_disc_pct')?.value)||0;
+  const discAmt=parseFloat(document.getElementById('v_disc_amt')?.value)||0;
+  let disc=0;
+  if(discPct>0) disc=Math.round(subtot*discPct/100);
+  else if(discAmt>0) disc=discAmt;
+  const tot=Math.max(0,subtot-disc);
   const el=document.getElementById('v_tot');
   if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
+}
+
+function calcFeeDiscount(type){
+  // Xóa field kia khi nhập 1 trong 2
+  if(type==='pct'){
+    const pct=parseFloat(document.getElementById('v_disc_pct')?.value)||0;
+    if(pct>0){ const amtEl=document.getElementById('v_disc_amt'); if(amtEl) amtEl.value=''; }
+  } else {
+    const amt=parseFloat(document.getElementById('v_disc_amt')?.value)||0;
+    if(amt>0){ const pctEl=document.getElementById('v_disc_pct'); if(pctEl) pctEl.value=''; }
+  }
+  calcFee();
 }
 
 function calcMedTotal(){
@@ -1053,7 +1092,11 @@ function saveVisit(){
     pulse:g('v_pulse'), bp:g('v_bp'), reason:g('v_reason'), diag:g('v_diag'),
     meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
     proc:g('v_proc'), supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
-    f1,f2,f3,ftot:f1+f2+f3,
+    f1,f2,f3,
+    disc_pct:parseFloat(g('v_disc_pct'))||0,
+    disc_amt:parseFloat(g('v_disc_amt'))||0,
+    ftot:Math.max(0,(f1+f2+f3)-(parseFloat(g('v_disc_pct'))>0?Math.round((f1+f2+f3)*parseFloat(g('v_disc_pct'))/100):(parseFloat(g('v_disc_amt'))||0))),
+    ftot_before_disc:f1+f2+f3,
     nextVisit:g('v_next'), nextVisitTime:g('v_nt'), note:g('v_note'),
   };
   if(!p.visits) p.visits=[];
@@ -1215,11 +1258,12 @@ function renderLS(p){
             ).join('<br>')}
           </div>`:''}
         ${supTable}
-        ${v.ftot?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        ${(v.ftot||v.f1||v.f2||v.f3)?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${v.f1?`<span class="fp fp-k">Khám: ${v.f1.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f2?`<span class="fp fp-t">Thuốc: ${v.f2.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f3?`<span class="fp fp-p">TT: ${v.f3.toLocaleString('vi-VN')}đ</span>`:''}
-          <span class="fp fp-tot">💰 ${v.ftot.toLocaleString('vi-VN')}đ</span>
+          ${v.disc_pct||v.disc_amt?`<span style="background:rgba(240,136,62,.15);color:var(--ac3);padding:2px 8px;border-radius:20px;font-size:.69rem;font-weight:700">✂️ -${v.disc_pct?v.disc_pct+'%':v.disc_amt.toLocaleString('vi-VN')+'đ'}</span>`:''}
+          <span class="fp fp-tot">💰 ${(v.ftot||0).toLocaleString('vi-VN')}đ</span>
         </div>`:''}
         ${v.note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:7px;padding:5px 10px;background:rgba(88,166,255,.07);border-radius:6px">📝 ${v.note}</div>`:''}
         ${v.nextVisit?`<div style="font-size:.77rem;color:var(--ac3);margin-top:6px">📅 Tái khám: <b>${v.nextVisit}</b>${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
@@ -1655,82 +1699,285 @@ function renderStats(){
 // ===== MONTHLY REPORT =====
 function showReport(){
   const mo=document.createElement('div'); mo.className='mo show'; mo.id='moReport';
-  const now=new Date();
-  mo.innerHTML=`<div class="md" style="max-width:700px;width:95%;max-height:88vh">
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth()+1;
+  mo.innerHTML=`<div class="md" style="max-width:900px;width:97%;max-height:92vh">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <h3 style="margin:0">📈 Báo cáo tháng/năm</h3>
+      <h3 style="margin:0">📈 Báo cáo Hạch toán Lãi/Lỗ</h3>
       <button class="btn btn-g" onclick="document.getElementById('moReport').remove()">✕</button>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <div class="fg" style="flex:1;min-width:120px"><label>Năm</label><input type="number" id="rpYear" value="${now.getFullYear()}" min="2020" max="2030" onchange="renderReport()"></div>
-      <div class="fg" style="flex:1;min-width:120px"><label>Tháng (0 = cả năm)</label><input type="number" id="rpMonth" value="${now.getMonth()+1}" min="0" max="12" onchange="renderReport()"></div>
+
+    <!-- Bộ lọc thời gian -->
+    <div style="background:var(--su2);border:1px solid var(--bo);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select id="rpPeriod" onchange="onRpPeriodChange()" style="width:auto;font-size:.82rem">
+        <option value="day">📅 Theo ngày</option>
+        <option value="range">📅 Khoảng ngày</option>
+        <option value="week">📆 Tuần này</option>
+        <option value="month" selected>🗓️ Tháng này</option>
+        <option value="quarter">🗓️ Quý này</option>
+        <option value="year">📊 Năm này</option>
+        <option value="custom_month">🗓️ Chọn tháng</option>
+        <option value="custom_year">📊 Chọn năm</option>
+      </select>
+      <div id="rpDateInputs" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="rpFrom" style="width:auto;font-size:.82rem" onchange="renderReport()">
+        <span id="rpRangeSep" style="color:var(--tx2);display:none">→</span>
+        <input type="date" id="rpTo" style="width:auto;font-size:.82rem;display:none" onchange="renderReport()">
+        <input type="number" id="rpMonth" min="1" max="12" style="width:70px;font-size:.82rem;display:none" onchange="renderReport()">
+        <input type="number" id="rpYear" min="2020" max="2030" style="width:80px;font-size:.82rem;display:none" onchange="renderReport()">
+      </div>
     </div>
-    <div id="rpBody" style="overflow-y:auto;max-height:calc(88vh - 140px)"></div>
+
+    <div id="rpBody" style="overflow-y:auto;max-height:calc(92vh - 180px)"></div>
   </div>`;
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
+  initRpDates();
   renderReport();
 }
 
-function renderReport(){
-  const year=parseInt(document.getElementById('rpYear')?.value)||2026;
-  const month=parseInt(document.getElementById('rpMonth')?.value)||0;
-  const el=document.getElementById('rpBody'); if(!el) return;
+function initRpDates(){
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth()+1;
+  const firstDay=new Date(y,m-1,1).toISOString().split('T')[0];
+  const today=now.toISOString().split('T')[0];
+  document.getElementById('rpFrom').value=firstDay;
+  document.getElementById('rpTo').value=today;
+  document.getElementById('rpMonth').value=m;
+  document.getElementById('rpYear').value=y;
+}
 
-  // Collect visits
+function onRpPeriodChange(){
+  const period=document.getElementById('rpPeriod').value;
+  const fromEl=document.getElementById('rpFrom');
+  const toEl=document.getElementById('rpTo');
+  const sepEl=document.getElementById('rpRangeSep');
+  const monthEl=document.getElementById('rpMonth');
+  const yearEl=document.getElementById('rpYear');
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth(); const d=now.getDate();
+  [fromEl,toEl,monthEl,yearEl].forEach(el=>el.style.display='none');
+  sepEl.style.display='none';
+  if(period==='day'){ fromEl.style.display=''; fromEl.value=now.toISOString().split('T')[0]; }
+  else if(period==='range'){ fromEl.style.display=''; toEl.style.display=''; sepEl.style.display=''; }
+  else if(period==='week'){
+    const day=now.getDay(); const diff=day===0?-6:1-day;
+    const mon=new Date(now); mon.setDate(d+diff);
+    fromEl.value=mon.toISOString().split('T')[0]; toEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
+  } else if(period==='custom_month'){ monthEl.style.display=''; yearEl.style.display=''; }
+  else if(period==='custom_year'){ yearEl.style.display=''; }
+  renderReport();
+}
+
+function getRpDateRange(){
+  const period=document.getElementById('rpPeriod')?.value||'month';
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
+  if(period==='day'){
+    const d=document.getElementById('rpFrom')?.value||now.toISOString().split('T')[0];
+    return {from:d,to:d,label:'Ngày '+d};
+  } else if(period==='range'||period==='week'){
+    const from=document.getElementById('rpFrom')?.value||'';
+    const to=document.getElementById('rpTo')?.value||now.toISOString().split('T')[0];
+    return {from,to,label:from+' → '+to};
+  } else if(period==='month'){
+    return {from:new Date(y,m,1).toISOString().split('T')[0],to:now.toISOString().split('T')[0],label:`Tháng ${m+1}/${y}`};
+  } else if(period==='quarter'){
+    const q=Math.floor(m/3); const qm=q*3;
+    return {from:new Date(y,qm,1).toISOString().split('T')[0],to:now.toISOString().split('T')[0],label:`Quý ${q+1}/${y}`};
+  } else if(period==='year'){
+    return {from:`${y}-01-01`,to:now.toISOString().split('T')[0],label:`Năm ${y}`};
+  } else if(period==='custom_month'){
+    const cm=parseInt(document.getElementById('rpMonth')?.value)||m+1;
+    const cy=parseInt(document.getElementById('rpYear')?.value)||y;
+    const lastDay=new Date(cy,cm,0).getDate();
+    return {from:`${cy}-${String(cm).padStart(2,'0')}-01`,to:`${cy}-${String(cm).padStart(2,'0')}-${lastDay}`,label:`Tháng ${cm}/${cy}`};
+  } else if(period==='custom_year'){
+    const cy=parseInt(document.getElementById('rpYear')?.value)||y;
+    return {from:`${cy}-01-01`,to:`${cy}-12-31`,label:`Năm ${cy}`};
+  }
+  return {from:'',to:now.toISOString().split('T')[0],label:'Tất cả'};
+}
+
+function renderReport(){
+  const el=document.getElementById('rpBody'); if(!el) return;
+  const {from,to,label}=getRpDateRange();
+
   const allVisits=[];
   pts.forEach(p=>(p.visits||[]).forEach(v=>{
-    const d=new Date(v.date);
-    if(d.getFullYear()===year && (month===0||d.getMonth()+1===month))
-      allVisits.push({...v,ptName:p.name});
+    if(v.date>=from&&v.date<=to) allVisits.push({...v,ptName:p.name});
   }));
 
-  if(!allVisits.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có dữ liệu cho kỳ này.</div>`; return; }
+  if(!allVisits.length){ el.innerHTML=`<div style="text-align:center;padding:48px;color:var(--tx3)">Không có dữ liệu trong kỳ: ${label}</div>`; return; }
 
-  const tot=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
-  const totK=allVisits.reduce((s,v)=>s+(v.f1||0),0);
-  const totT=allVisits.reduce((s,v)=>s+(v.f2||0),0);
-  const totP=allVisits.reduce((s,v)=>s+(v.f3||0),0);
+  const dtKham=allVisits.reduce((s,v)=>s+(v.f1||0),0);
+  const dtThuoc=allVisits.reduce((s,v)=>s+(v.f2||0),0);
+  const dtTT=allVisits.reduce((s,v)=>s+(v.f3||0),0);
+  const tongDT=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
 
-  // Group by month or day
+  // Giá vốn thuốc
+  const giaVonMap={}, giaBanMap={};
+  kho.forEach(k=>{ const key=k.name+'|'+(k.dose||''); giaVonMap[key]=getGiaVon(k); if(k.sellPrice>0) giaBanMap[key]=k.sellPrice; });
+
+  let tongVonThuoc=0, dtThuocGB=0;
+  const chiTietThuoc={};
+  allVisits.forEach(v=>(v.meds||[]).forEach(m=>{
+    const key=m.name+'|'+(m.dose||'');
+    const gv=giaVonMap[key]||0, gb=m.sellPrice||giaBanMap[key]||0;
+    const sl=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+    tongVonThuoc+=gv*sl; dtThuocGB+=gb*sl;
+    if(!chiTietThuoc[key]) chiTietThuoc[key]={name:m.name,dose:m.dose||'',sl:0,von:0,ban:0,gv,gb};
+    chiTietThuoc[key].sl+=sl; chiTietThuoc[key].von+=gv*sl; chiTietThuoc[key].ban+=gb*sl;
+  }));
+  const dtThuocFinal=dtThuocGB>0?dtThuocGB:dtThuoc;
+  const laiThuoc=dtThuocFinal-tongVonThuoc;
+
+  // Giá vốn vật tư thủ thuật
+  let tongVonVT=0;
+  const chiTietTT={};
+  allVisits.forEach(v=>{
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0}]:[]);
+    procs.forEach(pr=>{
+      if(!pr.name) return;
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0):0;
+      tongVonVT+=vonVT;
+      if(!chiTietTT[pr.name]) chiTietTT[pr.name]={count:0,thu:0,von:0};
+      chiTietTT[pr.name].count++; chiTietTT[pr.name].thu+=(pr.price||0); chiTietTT[pr.name].von+=vonVT;
+    });
+  });
+  const laiTT=dtTT-tongVonVT;
+
+  const tongGiaVon=tongVonThuoc+tongVonVT;
+  const tongDTFinal=dtKham+dtThuocFinal+dtTT;
+  const laiGop=tongDTFinal-tongGiaVon;
+  const tyLe=tongDTFinal>0?Math.round(laiGop/tongDTFinal*100):0;
+
+  // Group theo thời gian cho biểu đồ
+  const isPeriodLong=(new Date(to)-new Date(from))>31*24*3600*1000;
   const groups={};
   allVisits.forEach(v=>{
-    const key=month===0?v.date.substring(0,7):v.date; // YYYY-MM or YYYY-MM-DD
-    if(!groups[key]) groups[key]={visits:[],tot:0,f1:0,f2:0,f3:0};
-    groups[key].visits.push(v);
-    groups[key].tot+=(v.ftot||0);
-    groups[key].f1+=(v.f1||0); groups[key].f2+=(v.f2||0); groups[key].f3+=(v.f3||0);
+    const key=isPeriodLong?v.date.substring(0,7):v.date;
+    if(!groups[key]) groups[key]={count:0,dt:0};
+    groups[key].count++; groups[key].dt+=(v.ftot||0);
   });
-
-  const maxTot=Math.max(...Object.values(groups).map(g=>g.tot));
-  const sortedKeys=Object.keys(groups).sort();
+  const maxDt=Math.max(...Object.values(groups).map(g=>g.dt),1);
 
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:16px">
-      <div class="sc"><div class="sv" style="color:var(--ac2)">${allVisits.length}</div><div class="sl">Lượt khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac);font-size:1rem">${tot.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng thu</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac2);font-size:1rem">${totT.toLocaleString('vi-VN')}đ</div><div class="sl">Tiền thuốc</div></div>
-      <div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${totP.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật</div></div>
+    <div style="background:linear-gradient(135deg,rgba(46,160,67,.1),rgba(46,160,67,.04));border:1px solid rgba(46,160,67,.3);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--ac);margin-bottom:12px">KỲ: ${label} · ${allVisits.length} lượt khám</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
+        <div><div style="font-size:1.2rem;font-weight:700;color:var(--ac)">${tongDTFinal.toLocaleString('vi-VN')}đ</div><div style="font-size:.7rem;color:var(--tx2);margin-top:3px">Tổng doanh thu</div></div>
+        <div><div style="font-size:1.2rem;font-weight:700;color:var(--da)">${tongGiaVon.toLocaleString('vi-VN')}đ</div><div style="font-size:.7rem;color:var(--tx2);margin-top:3px">Tổng giá vốn</div></div>
+        <div><div style="font-size:1.2rem;font-weight:700;color:${laiGop>=0?'var(--ac)':'var(--da)'}">${laiGop.toLocaleString('vi-VN')}đ</div><div style="font-size:.7rem;color:var(--tx2);margin-top:3px">Lãi gộp (${tyLe}%)</div></div>
+        <div><div style="font-size:1.2rem;font-weight:700;color:var(--ac2)">${allVisits.length}</div><div style="font-size:.7rem;color:var(--tx2);margin-top:3px">Lượt khám</div></div>
+      </div>
     </div>
 
-    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:8px">${month===0?'Doanh thu theo tháng':'Doanh thu theo ngày'}</div>
-    ${sortedKeys.map(k=>{
-      const g=groups[k]; const pct=maxTot>0?Math.round(g.tot/maxTot*100):0;
-      return `<div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px">
-          <span style="color:var(--tx2)">${k} <span style="color:var(--tx3)">(${g.visits.length} lượt)</span></span>
-          <span style="font-weight:700;color:var(--ac)">${g.tot.toLocaleString('vi-VN')}đ</span>
-        </div>
-        <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
-      </div>`;
-    }).join('')}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Tiền khám</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--ac)">${dtKham.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">Giá vốn: 0đ</div>
+        <div style="font-size:.76rem;font-weight:700;color:var(--ac);margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Lãi: ${dtKham.toLocaleString('vi-VN')}đ</div>
+      </div>
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Tiền thuốc</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--ac2)">${dtThuocFinal.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.7rem;color:var(--da);margin-top:3px">Giá vốn: ${tongVonThuoc.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.76rem;font-weight:700;color:${laiThuoc>=0?'var(--ac)':'var(--da)'};margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Lãi: ${laiThuoc.toLocaleString('vi-VN')}đ</div>
+      </div>
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Thủ thuật</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--da)">${dtTT.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.7rem;color:var(--da);margin-top:3px">Vật tư: ${tongVonVT.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.76rem;font-weight:700;color:${laiTT>=0?'var(--ac)':'var(--da)'};margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Lãi: ${laiTT.toLocaleString('vi-VN')}đ</div>
+      </div>
+    </div>
 
-    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-g" style="font-size:.77rem" onclick="exportExcelReport(${year},${month})">📥 Xuất Excel</button>
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Phân tích lợi nhuận</div>
+      ${[
+        {label:'Doanh thu',val:tongDTFinal,color:'var(--ac)',pct:100},
+        {label:'Giá vốn thuốc',val:tongVonThuoc,color:'rgba(248,81,73,.6)',pct:tongDTFinal>0?Math.round(tongVonThuoc/tongDTFinal*100):0},
+        {label:'Vật tư thủ thuật',val:tongVonVT,color:'var(--da)',pct:tongDTFinal>0?Math.round(tongVonVT/tongDTFinal*100):0},
+        {label:'Lãi gộp',val:laiGop,color:laiGop>=0?'var(--ac)':'var(--da)',pct:Math.abs(tyLe)},
+      ].map(r=>`<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:.79rem;margin-bottom:3px">
+          <span style="color:var(--tx2)">${r.label}</span>
+          <span style="font-weight:700;color:${r.color}">${r.val.toLocaleString('vi-VN')}đ (${r.pct}%)</span>
+        </div>
+        <div class="chart-bar"><div class="chart-bar-fill" style="width:${r.pct}%;background:${r.color}"></div></div>
+      </div>`).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Doanh thu theo ${isPeriodLong?'tháng':'ngày'}</div>
+      ${Object.keys(groups).sort().map(k=>{
+        const g=groups[k]; const pct=Math.round(g.dt/maxDt*100);
+        return `<div style="margin-bottom:7px">
+          <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:2px">
+            <span style="color:var(--tx2)">${k} <span style="color:var(--tx3)">(${g.count} lượt)</span></span>
+            <span style="font-weight:700;color:var(--ac)">${g.dt.toLocaleString('vi-VN')}đ</span>
+          </div>
+          <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    ${Object.keys(chiTietThuoc).length?`
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Chi tiết giá vốn thuốc</div>
+      <div style="overflow-x:auto"><table class="tbl" style="font-size:.76rem">
+        <thead><tr>
+          <th>Thuốc</th><th>HL</th><th style="text-align:right">SL</th>
+          <th style="text-align:right">Vốn/đv</th><th style="text-align:right">Bán/đv</th>
+          <th style="text-align:right">Tổng vốn</th><th style="text-align:right">Tổng bán</th><th style="text-align:right">Lãi</th>
+        </tr></thead>
+        <tbody>${Object.values(chiTietThuoc).sort((a,b)=>b.von-a.von).map(t=>`<tr>
+          <td><strong>${t.name}</strong></td><td>${t.dose||'—'}</td><td style="text-align:right">${t.sl}</td>
+          <td style="text-align:right;color:var(--tx2)">${t.gv>0?t.gv.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--ac2)">${t.gb>0?t.gb.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--da)">${t.von>0?t.von.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--ac2)">${t.ban>0?t.ban.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;font-weight:600;color:${(t.ban-t.von)>=0?'var(--ac)':'var(--da)'}">${t.ban>0?(t.ban-t.von).toLocaleString('vi-VN')+'đ':'—'}</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="5" style="font-weight:700;text-align:right;padding:6px">TỔNG</td>
+          <td style="font-weight:700;color:var(--da);text-align:right;padding:6px">${tongVonThuoc.toLocaleString('vi-VN')}đ</td>
+          <td style="font-weight:700;color:var(--ac2);text-align:right;padding:6px">${dtThuocFinal.toLocaleString('vi-VN')}đ</td>
+          <td style="font-weight:700;color:${laiThuoc>=0?'var(--ac)':'var(--da)'};text-align:right;padding:6px">${laiThuoc.toLocaleString('vi-VN')}đ</td>
+        </tr></tfoot>
+      </table></div>
+    </div>`:''}
+
+    ${Object.keys(chiTietTT).length?`
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Chi tiết lãi/lỗ thủ thuật</div>
+      <div style="overflow-x:auto"><table class="tbl" style="font-size:.76rem">
+        <thead><tr><th>Thủ thuật</th><th style="text-align:center">Ca</th>
+          <th style="text-align:right">Tổng thu</th><th style="text-align:right">VT/ca</th>
+          <th style="text-align:right">Tổng VT</th><th style="text-align:right">Lãi TT</th>
+        </tr></thead>
+        <tbody>${Object.entries(chiTietTT).sort((a,b)=>b[1].thu-a[1].thu).map(([name,g])=>`<tr>
+          <td><strong>${name}</strong></td><td style="text-align:center">${g.count}</td>
+          <td style="text-align:right;color:var(--ac)">${g.thu.toLocaleString('vi-VN')}đ</td>
+          <td style="text-align:right;color:var(--tx2)">${g.count>0?Math.round(g.von/g.count).toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--da)">${g.von>0?g.von.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;font-weight:600;color:${(g.thu-g.von)>=0?'var(--ac)':'var(--da)'}">${(g.thu-g.von).toLocaleString('vi-VN')}đ</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="2" style="font-weight:700;padding:6px">TỔNG</td>
+          <td style="font-weight:700;color:var(--ac);text-align:right;padding:6px">${dtTT.toLocaleString('vi-VN')}đ</td>
+          <td></td>
+          <td style="font-weight:700;color:var(--da);text-align:right;padding:6px">${tongVonVT.toLocaleString('vi-VN')}đ</td>
+          <td style="font-weight:700;color:${laiTT>=0?'var(--ac)':'var(--da)'};text-align:right;padding:6px">${laiTT.toLocaleString('vi-VN')}đ</td>
+        </tr></tfoot>
+      </table></div>
+    </div>`:''}
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-g" style="font-size:.77rem" onclick="printReport()">🖨️ In báo cáo</button>
+      <button class="btn btn-g" style="font-size:.77rem" onclick="exportReportExcel()">📥 Xuất Excel</button>
     </div>`;
 }
 
-// ===== EXPORT EXCEL =====
+
 function exportExcel(date){
   const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
   const data=[['#','Bệnh nhân','SĐT','Loại khám','Chẩn đoán','Thủ thuật','T.Khám','T.Thuốc','T.Thuật','Tổng thu']];
@@ -1951,6 +2198,36 @@ function exportStatsExcel(){
   XLSX.writeFile(wb,'ThongKe_'+label.replace(/[/\s]/g,'_')+'.xlsx');
 }
 
+function printReport(){
+  const {label}=getRpDateRange();
+  const allVisits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    const {from,to}=getRpDateRange();
+    if(v.date>=from&&v.date<=to) allVisits.push({...v,ptName:p.name});
+  }));
+  const tot=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Báo cáo ${label}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th{background:#2d6a4f;color:white;padding:5px 8px;border:1px solid #ccc}td{padding:5px 8px;border:1px solid #ddd}tfoot tr{background:#e8f5e9;font-weight:700}</style></head>
+  <body><h2>BÁO CÁO LÃI LỖ - ${label}</h2><p>PK BS. Nguyễn Hoài Nam · ${new Date().toLocaleString('vi-VN')}</p>
+  <table><thead><tr><th>#</th><th>Ngày</th><th>Bệnh nhân</th><th>Chẩn đoán</th><th>Khám</th><th>Thuốc</th><th>TT</th><th>Giảm</th><th>Thực thu</th></tr></thead>
+  <tbody>${allVisits.map((v,i)=>`<tr><td>${i+1}</td><td>${v.date}</td><td>${v.ptName}</td><td>${v.diag||'—'}</td><td style="text-align:right">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right;color:red">${v.disc_pct?'-'+v.disc_pct+'%':v.disc_amt?'-'+v.disc_amt.toLocaleString('vi-VN')+'đ':'—'}</td><td style="text-align:right;font-weight:700">${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="8" style="text-align:right">TỔNG</td><td style="text-align:right">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
+  </table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),400);
+}
+
+function exportReportExcel(){
+  const {label,from,to}=getRpDateRange();
+  const allVisits=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date>=from&&v.date<=to) allVisits.push({...v,ptName:p.name,ptPhone:p.phone}); }));
+  const data=[['Ngày','Bệnh nhân','SĐT','Chẩn đoán','T.Khám','T.Thuốc','T.TT','Giảm%','Giảm tiền','Thực thu']];
+  allVisits.forEach(v=>data.push([v.date,v.ptName,v.ptPhone||'',v.diag||'',v.f1||0,v.f2||0,v.f3||0,v.disc_pct||0,v.disc_amt||0,v.ftot||0]));
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,label.replace(/[/\s]/g,'_').substring(0,30));
+  XLSX.writeFile(wb,'BaoCao_LaiLo_'+label.replace(/[/ ]/g,'_')+'.xlsx');
+}
+
 function printStats(date){
   const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
   const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
@@ -2137,7 +2414,8 @@ function renderTonKho(){
           </td>
           <td style="text-align:right;color:var(--ac)">${ton>0&&gv>0?(ton*gv).toLocaleString('vi-VN')+'đ':'—'}</td>
           <td style="text-align:center;font-size:.76rem">${warning||'✅ Đủ hàng'}</td>
-          <td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-g" style="padding:2px 7px;font-size:.7rem;margin-right:3px" onclick="editKhoItem('${k.id}')">✏️</button>
             <button class="btn-rm" onclick="delKhoItem('${k.id}')" title="Xóa">✕</button>
           </td>
         </tr>`).join('')}
@@ -2309,6 +2587,37 @@ function suggestSellPrice(){
   }
 }
 
+function saveNhapKhoOrUpdate(){
+  const btn=document.getElementById('kh_save_btn');
+  const editId=btn?.dataset?.editId;
+  if(editId){
+    // Chỉ cập nhật thông tin chung (không thêm lô mới nếu qty trống)
+    const k=kho.find(x=>x.id===editId); if(!k) return;
+    k.name=document.getElementById('kh_name')?.value.trim()||k.name;
+    k.dose=document.getElementById('kh_dose')?.value.trim()||k.dose;
+    k.unit=document.getElementById('kh_unit')?.value||k.unit;
+    k.minStock=parseInt(document.getElementById('kh_min')?.value)||k.minStock;
+    k.sellPrice=parseFloat(document.getElementById('kh_sell')?.value)||k.sellPrice;
+    k.itemtype=document.getElementById('kh_itemtype')?.value||k.itemtype;
+    const qty=parseInt(document.getElementById('kh_qty')?.value)||0;
+    if(qty>0){
+      // Có nhập thêm lô mới
+      const price=parseFloat(document.getElementById('kh_price')?.value)||0;
+      const date=document.getElementById('kh_date')?.value||new Date().toISOString().split('T')[0];
+      const supplier=document.getElementById('kh_sup')?.value||'';
+      const note=document.getElementById('kh_note')?.value||'';
+      k.batches.push({id:'b_'+Date.now(),date,qty,price,supplier,note});
+    }
+    svKho(k);
+    delete btn.dataset.editId;
+    btn.textContent='📥 Lưu nhập kho';
+    showToast('✓ Đã cập nhật: '+k.name,'success');
+    renderKhoTab();
+    return;
+  }
+  saveNhapKho();
+}
+
 function saveNhapKho(){
   const name=document.getElementById('kh_name').value.trim();
   const dose=document.getElementById('kh_dose').value.trim();
@@ -2351,6 +2660,58 @@ function updateKhoSellPrice(id, val){
   svKho(k);
   // Re-render để cập nhật lãi/đv
   setTimeout(()=>renderKhoTab(), 300);
+}
+
+function editKhoItem(id){
+  const k=kho.find(x=>x.id===id); if(!k) return;
+  // Chuyển sang tab nhập kho và điền thông tin
+  khoTab='nhap';
+  document.querySelectorAll('#moKho .kho-tab').forEach((t,i)=>{t.classList.toggle('active',i===1)});
+  renderKhoTab();
+  setTimeout(()=>{
+    // Điền tên, hàm lượng, ĐVT, min
+    const nameEl=document.getElementById('kh_name');
+    const doseEl=document.getElementById('kh_dose');
+    const unitEl=document.getElementById('kh_unit');
+    const minEl=document.getElementById('kh_min');
+    const sellEl=document.getElementById('kh_sell');
+    if(nameEl) nameEl.value=k.name;
+    if(doseEl) doseEl.value=k.dose||'';
+    if(unitEl) unitEl.value=k.unit||'viên';
+    if(minEl) minEl.value=k.minStock||10;
+    if(sellEl) sellEl.value=k.sellPrice||'';
+    // Set loại
+    setKhoType(k.itemtype==='supply'?'supply':'drug');
+    setTimeout(()=>{
+      if(nameEl) nameEl.value=k.name;
+      if(doseEl) doseEl.value=k.dose||'';
+      if(sellEl) sellEl.value=k.sellPrice||'';
+    },50);
+    // Hiện lịch sử lô nhập cho item này
+    const histEl=document.getElementById('khoEditHist');
+    if(histEl){
+      histEl.innerHTML=`<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:9px;padding:12px;margin-bottom:14px">
+        <div style="font-size:.76rem;font-weight:700;color:var(--ac2);margin-bottom:8px">Các lô đã nhập: <strong>${k.name}</strong> ${k.dose||''}</div>
+        ${(k.batches||[]).filter(b=>b.qty>0).map((b,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:.78rem">
+            <span style="color:var(--tx2)">${b.date} · ${b.qty} ${k.unit||''} · ${b.price?b.price.toLocaleString('vi-VN')+'đ/đv':''} · ${b.supplier||'—'}</span>
+            <button class="btn-rm" onclick="delKhoBatch('${k.id}',${i})" style="opacity:.6">✕</button>
+          </div>`).join('')}
+      </div>`;
+    }
+    // Cập nhật nút lưu
+    const saveBtn=document.getElementById('kh_save_btn');
+    if(saveBtn){ saveBtn.textContent='💾 Cập nhật thông tin'; saveBtn.dataset.editId=id; }
+    nameEl&&nameEl.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast('Đang sửa: '+k.name,'info');
+  },100);
+}
+
+function delKhoBatch(khoId, batchIdx){
+  const k=kho.find(x=>x.id===khoId); if(!k) return;
+  if(!confirm('Xóa lô nhập này?')) return;
+  k.batches.splice(batchIdx,1);
+  svKho(k); editKhoItem(khoId);
 }
 
 function delKhoItem(id){
