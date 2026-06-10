@@ -618,6 +618,7 @@ function renderTab(){
     renderMeds();
     if(!p.cv.procs) p.cv.procs=p.cv.proc?[{name:p.cv.proc,price:p.cv.f3||0}]:[];
     renderProcRows();
+    setTimeout(calcMedTotal,100);
   } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
   } else {
@@ -661,6 +662,12 @@ function renderKham(p){
       </tr></thead>
       <tbody id="medRows"></tbody>
     </table>
+    <tfoot>
+      <tr>
+        <td colspan="8" style="text-align:right;font-size:.75rem;font-weight:700;color:var(--tx2);padding:6px 8px">Tổng tiền thuốc:</td>
+        <td colspan="2" style="font-weight:700;color:var(--ac);padding:6px 8px;font-size:.88rem" id="medTotalRow">—</td>
+      </tr>
+    </tfoot>
     <button class="btn-add-row" onclick="addMed()">＋ Thêm thuốc</button>
   </div>
 
@@ -722,27 +729,29 @@ function calcFee(){
 }
 
 function calcMedTotal(){
-  // Tính tổng tiền thuốc = SUM(giá bán × SL/lần × lần/ngày × số ngày)
   const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
   let total=0;
-  (p.cv.meds||[]).forEach(m=>{
+  (p.cv.meds||[]).forEach((m,i)=>{
     const sell=parseFloat(m.sellPrice)||0;
     const qty=parseFloat(m.qty)||1;
     const times=parseFloat(m.times)||0;
     const days=parseFloat(m.days)||0;
-    if(sell>0&&times>0&&days>0) total+=sell*qty*times*days;
+    const tt=sell>0&&times>0&&days>0?sell*qty*times*days:0;
+    total+=tt;
+    // Cập nhật cột thành tiền từng dòng
+    const ttEl=document.getElementById('med_tt_'+i);
+    if(ttEl) ttEl.textContent=tt>0?tt.toLocaleString('vi-VN')+'đ':'—';
   });
-  const f2El=document.getElementById('v_f2');
+  // Cập nhật tfoot tổng
+  const totRow=document.getElementById('medTotalRow');
+  if(totRow) totRow.textContent=total>0?total.toLocaleString('vi-VN')+'đ':'—';
+  // Cập nhật label gợi ý
   const f2SumEl=document.getElementById('v_f2_sum');
-  if(total>0){
-    if(f2El&&(!f2El.value||parseFloat(f2El.value)===0)){
-      f2El.value=total;
-    }
-    if(f2SumEl) f2SumEl.textContent='Tổng tự tính: '+total.toLocaleString('vi-VN')+'đ';
-  } else {
-    if(f2SumEl) f2SumEl.textContent='';
-  }
-  calcFee();
+  if(f2SumEl) f2SumEl.textContent=total>0?'Tổng: '+total.toLocaleString('vi-VN')+'đ':'';
+  // Tự điền vào tiền thuốc (luôn cập nhật)
+  const f2El=document.getElementById('v_f2');
+  if(f2El&&total>0){ f2El.value=total; calcFee(); }
+  else calcFee();
 }
 
 // ===== DRUG AUTOCOMPLETE =====
@@ -763,7 +772,10 @@ function renderMeds(){
     <td><input type="number" id="med_days_${i}" value="${m.days||''}" onchange="updM(${i},'days',this.value);calcMedTotal()" placeholder="7"></td>
     <td><input id="med_note_${i}" value="${m.note||''}" onchange="updM(${i},'note',this.value)" placeholder="8-14-20"></td>
     <td><input id="med_remark_${i}" value="${m.remark||''}" onchange="updM(${i},'remark',this.value)" placeholder="Uống sau ăn"></td>
-    <td><input type="number" id="med_sell_${i}" value="${m.sellPrice||''}" onchange="updM(${i},'sellPrice',parseFloat(this.value)||0);calcMedTotal()" placeholder="Từ kho" style="color:var(--ac2)" title="Giá bán/đơn vị - tự điền từ kho"></td>
+    <td><input type="number" id="med_sell_${i}" value="${m.sellPrice||''}" onchange="updM(${i},'sellPrice',parseFloat(this.value)||0);calcMedTotal()" placeholder="Từ kho" style="color:var(--ac2)" title="Giá bán/đơn vị"></td>
+    <td style="font-weight:600;color:var(--ac);font-size:.8rem;white-space:nowrap" id="med_tt_${i}">
+      ${(m.sellPrice&&m.times&&m.days)?((m.sellPrice||0)*(m.qty||1)*(m.times||0)*(m.days||0)).toLocaleString('vi-VN')+'đ':'—'}
+    </td>
     <td><button class="btn-rm" onclick="rmM(${i})">✕</button></td>
   </tr>`).join('');
 }
@@ -791,8 +803,8 @@ function selectDrug(medIdx, _){
 function addMed(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   if(!p.cv) p.cv={meds:[],supplies:[]};
-  p.cv.meds.push({name:'',dose:'',unit:'viên',qty:1,times:'',days:'',note:'',remark:''});
-  svLocal(); renderMeds();
+  p.cv.meds.push({name:'',dose:'',unit:'viên',qty:1,times:'',days:'',note:'',remark:'',sellPrice:0});
+  svLocal(); renderMeds(); setTimeout(calcMedTotal,50);
 }
 function updM(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.meds[i]){p.cv.meds[i][k]=v; svLocal();} }
 
@@ -802,7 +814,7 @@ function getMedGiaVon(name, dose){
   const k=kho.find(x=>x.name.toLowerCase()===name.toLowerCase()&&(x.dose||'')===(dose||'')&&x.itemtype!=='supply');
   return k?Math.round(getGiaVon(k)):0;
 }
-function rmM(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); svLocal(); renderMeds();} }
+function rmM(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv){p.cv.meds.splice(i,1); svLocal(); renderMeds(); setTimeout(calcMedTotal,50);} }
 
 // Hide autocomplete on outside click
 document.addEventListener('click', e=>{
