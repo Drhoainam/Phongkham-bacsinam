@@ -2136,7 +2136,10 @@ function renderThuThuat(){
               <td style="font-size:.75rem;color:var(--tx2)">
                 ${(t.supplies||[]).map(s=>`${s.name}×${s.qty||1}${s.unit||''}`).join(' · ')||'—'}
               </td>
-              <td><button class="btn-rm" onclick="delThuThuat('${t.id}')">✕</button></td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-g" style="padding:2px 8px;font-size:.72rem;margin-right:4px" onclick="editThuThuat('${t.id}')">✏️</button>
+                <button class="btn-rm" onclick="delThuThuat('${t.id}')">✕</button>
+              </td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -2234,29 +2237,63 @@ function calcTTProfit(){
   } else if(infoEl) infoEl.innerHTML='';
 }
 
-function saveThuThuat(){
+function editThuThuat(id){
+  const t=thuThuat.find(x=>x.id===id); if(!t) return;
+  // Điền dữ liệu vào form
+  document.getElementById('tt_name').value=t.name;
+  document.getElementById('tt_price').value=t.price||0;
+  // Load vật tư
+  ttTempSupplies=JSON.parse(JSON.stringify(t.supplies||[]));
+  renderTTSupplyRows();
+  // Đổi nút lưu thành "Cập nhật"
+  const saveBtn=document.querySelector('[onclick="saveThuThuat()"]');
+  if(saveBtn){
+    saveBtn.textContent='💾 Cập nhật thủ thuật';
+    saveBtn.dataset.editId=id;
+    saveBtn.setAttribute('onclick',`saveThuThuat('${id}')`);
+  }
+  // Scroll lên form
+  document.getElementById('tt_name').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('tt_name').focus();
+  showToast('Đang sửa: '+t.name,'info');
+}
+
+function saveThuThuat(editId){
   const name=document.getElementById('tt_name')?.value.trim();
   const price=parseFloat(document.getElementById('tt_price')?.value)||0;
   if(!name){ showToast('Vui lòng nhập tên thủ thuật','error'); return; }
   if(!price){ showToast('Vui lòng nhập giá thu','error'); return; }
 
-  // Kiểm tra đã tồn tại chưa
-  const existing=thuThuat.find(t=>t.name.toLowerCase()===name.toLowerCase());
-  if(existing){
-    existing.price=price;
-    existing.supplies=JSON.parse(JSON.stringify(ttTempSupplies));
-    svTT(existing);
-    showToast('✓ Đã cập nhật thủ thuật!','success');
+  if(editId){
+    // Cập nhật thủ thuật đang sửa
+    const t=thuThuat.find(x=>x.id===editId);
+    if(t){
+      t.name=name; t.price=price;
+      t.supplies=JSON.parse(JSON.stringify(ttTempSupplies));
+      svTT(t);
+      showToast('✓ Đã cập nhật: '+name,'success');
+    }
   } else {
-    const t={id:'tt_'+Date.now(),name,price,supplies:JSON.parse(JSON.stringify(ttTempSupplies))};
-    thuThuat.push(t); svTT(t);
-    showToast('✓ Đã thêm thủ thuật!','success');
+    // Thêm mới hoặc ghi đè nếu trùng tên
+    const existing=thuThuat.find(t=>t.name.toLowerCase()===name.toLowerCase());
+    if(existing){
+      existing.price=price;
+      existing.supplies=JSON.parse(JSON.stringify(ttTempSupplies));
+      svTT(existing);
+      showToast('✓ Đã cập nhật thủ thuật!','success');
+    } else {
+      const t={id:'tt_'+Date.now(),name,price,supplies:JSON.parse(JSON.stringify(ttTempSupplies))};
+      thuThuat.push(t); svTT(t);
+      showToast('✓ Đã thêm thủ thuật!','success');
+    }
   }
 
-  // Reset form
+  // Reset form + nút về trạng thái ban đầu
   document.getElementById('tt_name').value='';
   document.getElementById('tt_price').value='';
   ttTempSupplies=[];
+  const saveBtn=document.querySelector('[onclick*="saveThuThuat"]');
+  if(saveBtn){ saveBtn.textContent='💾 Lưu thủ thuật'; saveBtn.setAttribute('onclick','saveThuThuat()'); }
   renderKhoTab();
 }
 
