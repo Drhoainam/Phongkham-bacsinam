@@ -1439,36 +1439,177 @@ function openZalo(){
 function showStats(){
   const today=new Date().toISOString().split('T')[0];
   const mo=document.createElement('div'); mo.className='mo show'; mo.id='moSt';
-  mo.innerHTML=`<div class="md" style="max-width:680px;width:95%;max-height:88vh">
+  mo.innerHTML=`<div class="md" style="max-width:900px;width:97%;max-height:92vh">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <h3 style="margin:0">📊 Thống kê theo ngày</h3>
+      <h3 style="margin:0">📊 Thống kê</h3>
       <button class="btn btn-g" onclick="document.getElementById('moSt').remove()">✕</button>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <label style="font-size:.8rem;color:var(--tx2)">Ngày:</label>
-      <input type="date" id="stDate" value="${today}" onchange="renderStats()" style="width:auto">
+
+    <!-- Tabs thống kê -->
+    <div class="kho-tabs" style="margin-bottom:14px">
+      <div class="kho-tab active" onclick="switchStTab('thoigian',this)">📅 Theo thời gian</div>
+      <div class="kho-tab" onclick="switchStTab('diaban',this)">📍 Theo địa bàn</div>
+      <div class="kho-tab" onclick="switchStTab('mabelnh',this)">🏥 Theo mặt bệnh</div>
+      <div class="kho-tab" onclick="switchStTab('thuthuat',this)">🔪 Theo thủ thuật</div>
     </div>
-    <div id="stBody" style="overflow-y:auto;max-height:calc(88vh - 120px)"></div>
+
+    <!-- Bộ lọc thời gian -->
+    <div style="background:var(--su2);border:1px solid var(--bo);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select id="stPeriod" onchange="onStPeriodChange()" style="width:auto;font-size:.82rem">
+        <option value="day">📅 Theo ngày</option>
+        <option value="range">📅 Khoảng ngày</option>
+        <option value="week">📆 Tuần này</option>
+        <option value="month" selected>🗓️ Tháng này</option>
+        <option value="quarter">🗓️ Quý này</option>
+        <option value="year">📊 Năm này</option>
+        <option value="custom_month">🗓️ Chọn tháng</option>
+        <option value="custom_year">📊 Chọn năm</option>
+      </select>
+      <div id="stDateInputs" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="stFrom" style="width:auto;font-size:.82rem" onchange="renderStats()">
+        <span id="stRangeSep" style="color:var(--tx2);display:none">→</span>
+        <input type="date" id="stTo" style="width:auto;font-size:.82rem;display:none" onchange="renderStats()">
+        <input type="number" id="stMonth" min="1" max="12" style="width:70px;font-size:.82rem;display:none" onchange="renderStats()">
+        <input type="number" id="stYear" min="2020" max="2030" style="width:80px;font-size:.82rem;display:none" onchange="renderStats()">
+      </div>
+    </div>
+
+    <div id="stBody" style="overflow-y:auto;max-height:calc(92vh - 220px)"></div>
   </div>`;
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
+  // Set default dates
+  initStDates();
   renderStats();
 }
 
+let stTab='thoigian';
+function switchStTab(tab,el){
+  stTab=tab;
+  document.querySelectorAll('#moSt .kho-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderStats();
+}
+
+function initStDates(){
+  const now=new Date();
+  const y=now.getFullYear(), m=now.getMonth()+1;
+  const firstDay=new Date(y,m-1,1).toISOString().split('T')[0];
+  const today=now.toISOString().split('T')[0];
+  document.getElementById('stFrom').value=firstDay;
+  document.getElementById('stTo').value=today;
+  document.getElementById('stMonth').value=m;
+  document.getElementById('stYear').value=y;
+}
+
+function onStPeriodChange(){
+  const period=document.getElementById('stPeriod').value;
+  const fromEl=document.getElementById('stFrom');
+  const toEl=document.getElementById('stTo');
+  const sepEl=document.getElementById('stRangeSep');
+  const monthEl=document.getElementById('stMonth');
+  const yearEl=document.getElementById('stYear');
+  const now=new Date();
+  const y=now.getFullYear(), m=now.getMonth(), d=now.getDate();
+
+  // Reset visibility
+  [fromEl,toEl,monthEl,yearEl].forEach(el=>el.style.display='none');
+  sepEl.style.display='none';
+
+  if(period==='day'){
+    fromEl.style.display=''; fromEl.value=now.toISOString().split('T')[0];
+  } else if(period==='range'){
+    fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
+  } else if(period==='week'){
+    const day=now.getDay(); const diff=day===0?-6:1-day;
+    const mon=new Date(now); mon.setDate(d+diff);
+    fromEl.value=mon.toISOString().split('T')[0];
+    toEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
+  } else if(period==='month'){
+    fromEl.value=new Date(y,m,1).toISOString().split('T')[0];
+    toEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display='none'; toEl.style.display='none';
+  } else if(period==='quarter'){
+    const q=Math.floor(m/3); const qm=q*3;
+    fromEl.value=new Date(y,qm,1).toISOString().split('T')[0];
+    toEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display='none'; toEl.style.display='none';
+  } else if(period==='year'){
+    fromEl.value=new Date(y,0,1).toISOString().split('T')[0];
+    toEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display='none'; toEl.style.display='none';
+  } else if(period==='custom_month'){
+    monthEl.style.display=''; yearEl.style.display='';
+  } else if(period==='custom_year'){
+    yearEl.style.display='';
+  }
+  renderStats();
+}
+
+function getStDateRange(){
+  const period=document.getElementById('stPeriod')?.value||'month';
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
+  if(period==='day'){
+    const d=document.getElementById('stFrom')?.value||now.toISOString().split('T')[0];
+    return {from:d, to:d, label:d};
+  } else if(period==='range'||period==='week'){
+    const from=document.getElementById('stFrom')?.value||'';
+    const to=document.getElementById('stTo')?.value||now.toISOString().split('T')[0];
+    return {from,to,label:from+' → '+to};
+  } else if(period==='month'){
+    const from=new Date(y,m,1).toISOString().split('T')[0];
+    const to=now.toISOString().split('T')[0];
+    return {from,to,label:`Tháng ${m+1}/${y}`};
+  } else if(period==='quarter'){
+    const q=Math.floor(m/3); const qm=q*3;
+    const from=new Date(y,qm,1).toISOString().split('T')[0];
+    const to=now.toISOString().split('T')[0];
+    return {from,to,label:`Quý ${q+1}/${y}`};
+  } else if(period==='year'){
+    return {from:`${y}-01-01`,to:now.toISOString().split('T')[0],label:`Năm ${y}`};
+  } else if(period==='custom_month'){
+    const cm=parseInt(document.getElementById('stMonth')?.value)||m+1;
+    const cy=parseInt(document.getElementById('stYear')?.value)||y;
+    const from=new Date(cy,cm-1,1).toISOString().split('T')[0];
+    const lastDay=new Date(cy,cm,0).getDate();
+    const to=`${cy}-${String(cm).padStart(2,'0')}-${lastDay}`;
+    return {from,to,label:`Tháng ${cm}/${cy}`};
+  } else if(period==='custom_year'){
+    const cy=parseInt(document.getElementById('stYear')?.value)||y;
+    return {from:`${cy}-01-01`,to:`${cy}-12-31`,label:`Năm ${cy}`};
+  }
+  return {from:'',to:now.toISOString().split('T')[0],label:'Tất cả'};
+}
+
+function getVisitsInRange(){
+  const {from,to}=getStDateRange();
+  const rows=[];
+  pts.forEach(p=>(p.visits||[]).forEach(v=>{
+    if(v.date>=from&&v.date<=to) rows.push({...v,ptName:p.name,ptAddr:p.addr||'',ptPhone:p.phone});
+  }));
+  return rows;
+}
+
 function renderStats(){
-  const d=document.getElementById('stDate'); if(!d) return;
-  const date=d.value;
-  const rows=[]; pts.forEach(p=>(p.visits||[]).forEach(v=>{ if(v.date===date) rows.push({...v,ptName:p.name,ptPhone:p.phone}); }));
   const el=document.getElementById('stBody'); if(!el) return;
-  if(!rows.length){ el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--tx3)">Không có lượt khám nào ngày ${date}</div>`; return; }
+  const rows=getVisitsInRange();
+  const {label}=getStDateRange();
+  if(!rows.length){ el.innerHTML=`<div style="text-align:center;padding:48px;color:var(--tx3)">Không có dữ liệu trong kỳ: ${label}</div>`; return; }
+
+  if(stTab==='diaban'){ el.innerHTML=renderStatsDiaBan(rows,label); return; }
+  if(stTab==='mabelnh'){ el.innerHTML=renderStatsMaBenh(rows,label); return; }
+  if(stTab==='thuthuat'){ el.innerHTML=renderStatsThuThuat(rows,label); return; }
+
+  // Tab thời gian (mặc định)
   const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
   const totK=rows.reduce((s,v)=>s+(v.f1||0),0);
   const totT=rows.reduce((s,v)=>s+(v.f2||0),0);
   const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
-  const nProc=rows.filter(v=>v.proc).length;
+  const nProc=rows.filter(v=>v.proc||(v.procs&&v.procs.length)).length;
   el.innerHTML=`
     <div style="background:rgba(46,160,67,.08);border:1px solid rgba(46,160,67,.25);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-size:.82rem;color:var(--tx2)">Ngày <strong style="color:var(--tx)">${date}</strong> · <strong style="color:var(--ac2)">${rows.length} lượt</strong>${nProc?' · <strong style="color:var(--da)">'+nProc+' ca TT</strong>':''}</div>
+      <div style="font-size:.82rem;color:var(--tx2)">Kỳ: <strong style="color:var(--tx)">${label}</strong> · <strong style="color:var(--ac2)">${rows.length} lượt</strong>${nProc?' · <strong style="color:var(--da)">'+nProc+' ca TT</strong>':''}</div>
       <div style="font-size:1.1rem;font-weight:700;color:var(--ac)">💰 ${tot.toLocaleString('vi-VN')}đ</div>
     </div>
     <div style="overflow-x:auto">
@@ -1506,8 +1647,8 @@ function renderStats(){
       </tr></tfoot>
     </table></div>
     <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-g" style="font-size:.77rem" onclick="printStats('${date}')">🖨️ In báo cáo</button>
-      <button class="btn btn-g" style="font-size:.77rem" onclick="exportExcel('${date}')">📥 Xuất Excel</button>
+      <button class="btn btn-g" style="font-size:.77rem" onclick="printStatsRange()">🖨️ In báo cáo</button>
+      <button class="btn btn-g" style="font-size:.77rem" onclick="exportStatsExcel()">📥 Xuất Excel</button>
     </div>`;
 }
 
@@ -1612,6 +1753,202 @@ function exportExcelReport(year,month){
   const ws=XLSX.utils.aoa_to_sheet(data);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,`T${month||'all'}-${year}`);
   XLSX.writeFile(wb,`BaoCao_${year}_T${month||'all'}.xlsx`);
+}
+
+// ===== THỐNG KÊ ĐỊA BÀN =====
+function renderStatsDiaBan(rows, label){
+  // Phân tích địa chỉ - lấy phần cuối (xã/phường/thị trấn)
+  const diaBan={};
+  rows.forEach(v=>{
+    const addr=(v.ptAddr||'Không rõ').trim();
+    // Lấy đơn vị hành chính đầu tiên (trước dấu phẩy)
+    const parts=addr.split(',').map(s=>s.trim()).filter(Boolean);
+    const key=parts[0]||'Không rõ địa chỉ';
+    if(!diaBan[key]) diaBan[key]={count:0,revenue:0,pts:new Set()};
+    diaBan[key].count++;
+    diaBan[key].revenue+=(v.ftot||0);
+    diaBan[key].pts.add(v.ptName);
+  });
+  const sorted=Object.entries(diaBan).sort((a,b)=>b[1].count-a[1].count);
+  const maxCount=sorted[0]?.[1].count||1;
+
+  return `
+    <div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:9px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:.82rem;color:var(--tx2)">📍 <strong style="color:var(--tx)">${label}</strong> · ${sorted.length} địa bàn · ${rows.length} lượt khám</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th style="width:5%">#</th>
+        <th>Địa bàn</th>
+        <th style="text-align:center;width:12%">Số lượt</th>
+        <th style="text-align:center;width:12%">BN riêng</th>
+        <th style="text-align:right;width:14%">Doanh thu</th>
+        <th style="width:30%">Tỷ lệ</th>
+      </tr></thead>
+      <tbody>
+        ${sorted.map(([key,g],i)=>`<tr>
+          <td style="text-align:center;color:var(--tx3)">${i+1}</td>
+          <td><strong>${key}</strong></td>
+          <td style="text-align:center"><span style="background:rgba(88,166,255,.15);color:var(--ac2);padding:2px 10px;border-radius:20px;font-weight:700">${g.count}</span></td>
+          <td style="text-align:center;color:var(--tx2)">${g.pts.size}</td>
+          <td style="text-align:right;color:var(--ac)">${g.revenue>0?g.revenue.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:8px;background:rgba(88,166,255,.1);border-radius:4px;overflow:hidden">
+                <div style="height:100%;background:var(--ac2);border-radius:4px;width:${Math.round(g.count/maxCount*100)}%"></div>
+              </div>
+              <span style="font-size:.72rem;color:var(--tx3);min-width:32px">${Math.round(g.count/rows.length*100)}%</span>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="2" style="font-weight:700;padding:7px">TỔNG</td>
+        <td style="text-align:center;font-weight:700;padding:7px">${rows.length}</td>
+        <td style="text-align:center;padding:7px;color:var(--tx2)">${new Set(rows.map(v=>v.ptName)).size}</td>
+        <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">${rows.reduce((s,v)=>s+(v.ftot||0),0).toLocaleString('vi-VN')}đ</td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>`;
+}
+
+// ===== THỐNG KÊ MẶT BỆNH =====
+function renderStatsMaBenh(rows, label){
+  const maBenh={};
+  rows.forEach(v=>{
+    const diag=(v.diag||'Chưa ghi chẩn đoán').trim();
+    if(!maBenh[diag]) maBenh[diag]={count:0,revenue:0};
+    maBenh[diag].count++;
+    maBenh[diag].revenue+=(v.ftot||0);
+  });
+  const sorted=Object.entries(maBenh).sort((a,b)=>b[1].count-a[1].count);
+  const maxCount=sorted[0]?.[1].count||1;
+
+  return `
+    <div style="background:rgba(46,160,67,.08);border:1px solid rgba(46,160,67,.2);border-radius:9px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between">
+      <span style="font-size:.82rem;color:var(--tx2)">🏥 <strong style="color:var(--tx)">${label}</strong> · ${sorted.length} chẩn đoán · ${rows.length} lượt</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th style="width:5%">#</th>
+        <th>Chẩn đoán / Mặt bệnh</th>
+        <th style="text-align:center;width:12%">Số ca</th>
+        <th style="text-align:right;width:14%">Doanh thu</th>
+        <th style="width:30%">Tỷ lệ</th>
+      </tr></thead>
+      <tbody>
+        ${sorted.map(([diag,g],i)=>`<tr>
+          <td style="text-align:center;color:var(--tx3)">${i+1}</td>
+          <td>${diag}</td>
+          <td style="text-align:center"><span style="background:rgba(46,160,67,.15);color:var(--ac);padding:2px 10px;border-radius:20px;font-weight:700">${g.count}</span></td>
+          <td style="text-align:right;color:var(--ac)">${g.revenue>0?g.revenue.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:8px;background:rgba(46,160,67,.1);border-radius:4px;overflow:hidden">
+                <div style="height:100%;background:var(--ac);border-radius:4px;width:${Math.round(g.count/maxCount*100)}%"></div>
+              </div>
+              <span style="font-size:.72rem;color:var(--tx3);min-width:32px">${Math.round(g.count/rows.length*100)}%</span>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="2" style="font-weight:700;padding:7px">TỔNG</td>
+        <td style="text-align:center;font-weight:700;padding:7px">${rows.length}</td>
+        <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">${rows.reduce((s,v)=>s+(v.ftot||0),0).toLocaleString('vi-VN')}đ</td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>`;
+}
+
+// ===== THỐNG KÊ THỦ THUẬT =====
+function renderStatsThuThuat(rows, label){
+  const ttMap={};
+  rows.forEach(v=>{
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0}]:[]);
+    procs.forEach(pr=>{
+      if(!pr.name) return;
+      if(!ttMap[pr.name]) ttMap[pr.name]={count:0,revenue:0};
+      ttMap[pr.name].count++;
+      ttMap[pr.name].revenue+=(pr.price||0);
+    });
+  });
+  const sorted=Object.entries(ttMap).sort((a,b)=>b[1].count-a[1].count);
+  const maxCount=sorted[0]?.[1].count||1;
+  const totalProc=sorted.reduce((s,[,g])=>s+g.count,0);
+
+  if(!sorted.length) return `<div style="text-align:center;padding:48px;color:var(--tx3)">Không có thủ thuật nào trong kỳ này.</div>`;
+
+  return `
+    <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:9px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between">
+      <span style="font-size:.82rem;color:var(--tx2)">🔪 <strong style="color:var(--tx)">${label}</strong> · ${sorted.length} loại TT · ${totalProc} ca</span>
+      <span style="font-weight:700;color:var(--ac)">${sorted.reduce((s,[,g])=>s+g.revenue,0).toLocaleString('vi-VN')}đ</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th style="width:5%">#</th>
+        <th>Tên thủ thuật</th>
+        <th style="text-align:center;width:12%">Số ca</th>
+        <th style="text-align:right;width:16%">Doanh thu</th>
+        <th style="text-align:right;width:14%">TB/ca</th>
+        <th style="width:28%">Tỷ lệ</th>
+      </tr></thead>
+      <tbody>
+        ${sorted.map(([name,g],i)=>`<tr>
+          <td style="text-align:center;color:var(--tx3)">${i+1}</td>
+          <td><strong>${name}</strong></td>
+          <td style="text-align:center"><span style="background:rgba(248,81,73,.15);color:var(--da);padding:2px 10px;border-radius:20px;font-weight:700">${g.count}</span></td>
+          <td style="text-align:right;color:var(--ac)">${g.revenue>0?g.revenue.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;color:var(--tx2)">${g.count>0?Math.round(g.revenue/g.count).toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:8px;background:rgba(248,81,73,.1);border-radius:4px;overflow:hidden">
+                <div style="height:100%;background:var(--da);border-radius:4px;width:${Math.round(g.count/maxCount*100)}%"></div>
+              </div>
+              <span style="font-size:.72rem;color:var(--tx3);min-width:32px">${Math.round(g.count/totalProc*100)}%</span>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="2" style="font-weight:700;padding:7px">TỔNG</td>
+        <td style="text-align:center;font-weight:700;padding:7px">${totalProc}</td>
+        <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">${sorted.reduce((s,[,g])=>s+g.revenue,0).toLocaleString('vi-VN')}đ</td>
+        <td colspan="2"></td>
+      </tr></tfoot>
+    </table></div>`;
+}
+
+// Export + print range
+function printStatsRange(){
+  const rows=getVisitsInRange();
+  const {label}=getStDateRange();
+  const tot=rows.reduce((s,v)=>s+(v.ftot||0),0);
+  const totK=rows.reduce((s,v)=>s+(v.f1||0),0);
+  const totT=rows.reduce((s,v)=>s+(v.f2||0),0);
+  const totP=rows.reduce((s,v)=>s+(v.f3||0),0);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BC ${label}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}h2{margin-bottom:4px}table{width:100%;border-collapse:collapse}th{background:#2d6a4f;color:white;padding:5px 8px;text-align:left;border:1px solid #ccc}th.r{text-align:right}td{padding:5px 8px;border:1px solid #ddd}td.r{text-align:right}tr:nth-child(even){background:#f9f9f9}tfoot tr{background:#e8f5e9;font-weight:700}</style></head>
+  <body><h2>BÁO CÁO ${label.toUpperCase()}</h2><p style="color:#666;font-size:11px">PK BS. Nguyễn Hoài Nam · In: ${new Date().toLocaleString('vi-VN')}</p>
+  <table><thead><tr><th>#</th><th>Ngày</th><th>Bệnh nhân</th><th>Chẩn đoán</th><th class="r">Khám</th><th class="r">Thuốc</th><th class="r">TT</th><th class="r">Tổng</th></tr></thead>
+  <tbody>${rows.map((v,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${v.date}</td><td>${v.ptName}</td><td>${v.diag||'—'}</td><td class="r">${v.f1?v.f1.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f2?v.f2.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r">${v.f3?v.f3.toLocaleString('vi-VN')+'đ':'—'}</td><td class="r"><strong>${v.ftot?v.ftot.toLocaleString('vi-VN')+'đ':'Chưa thu'}</strong></td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="4" style="text-align:right">TỔNG (${rows.length} lượt)</td><td class="r">${totK.toLocaleString('vi-VN')}đ</td><td class="r">${totT.toLocaleString('vi-VN')}đ</td><td class="r">${totP.toLocaleString('vi-VN')}đ</td><td class="r">${tot.toLocaleString('vi-VN')}đ</td></tr></tfoot>
+  </table></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),400);
+}
+
+function exportStatsExcel(){
+  const rows=getVisitsInRange();
+  const {label}=getStDateRange();
+  const data=[['Ngày','Bệnh nhân','SĐT','Địa chỉ','Chẩn đoán','T.Khám','T.Thuốc','T.TT','Tổng']];
+  rows.forEach(v=>data.push([v.date,v.ptName,v.ptPhone||'',v.ptAddr||'',v.diag||'',v.f1||0,v.f2||0,v.f3||0,v.ftot||0]));
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,label.replace(/[/\?*[\]]/g,'_'));
+  XLSX.writeFile(wb,'ThongKe_'+label.replace(/[/\s]/g,'_')+'.xlsx');
 }
 
 function printStats(date){
