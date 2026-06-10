@@ -432,6 +432,7 @@ const VATTU_DB = [
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
+let thuThuat=[]; // [{id,name,price,supplies:[{name,unit,qty,price}]}] - danh mục thủ thuật
 const ALLOWED_EMAIL = 'bsnam115@gmail.com'; // Email được phép truy cập
 
 // ===== AUTH =====
@@ -504,6 +505,7 @@ async function loadData(){
   // Load local data ngay lập tức
   try{ pts=JSON.parse(localStorage.getItem('pk3')||'[]'); }catch(e){ pts=[]; }
   try{ kho=JSON.parse(localStorage.getItem('pk3_kho')||'[]'); }catch(e){ kho=[]; }
+  try{ thuThuat=JSON.parse(localStorage.getItem('pk3_tt')||'[]'); }catch(e){ thuThuat=[]; }
   renderPtList();
 
   // Hàm sync Firebase — retry nếu chưa sẵn sàng
@@ -529,11 +531,13 @@ async function loadData(){
       // Load kho
       const khoSnap=await window.__getDocs(window.__col('kho'));
       const fbKho=[]; khoSnap.forEach(d=>fbKho.push(d.data()));
-      if(fbKho.length>0){
-        kho=fbKho; svKhoLocal();
-      } else if(kho.length>0){
-        for(const k of kho) await fbSaveKho(k);
-      }
+      if(fbKho.length>0){ kho=fbKho; svKhoLocal(); }
+      else if(kho.length>0){ for(const k of kho) await fbSaveKho(k); }
+      // Load danh mục thủ thuật
+      const ttSnap=await window.__getDocs(window.__col('thuthuat'));
+      const fbTT=[]; ttSnap.forEach(d=>fbTT.push(d.data()));
+      if(fbTT.length>0){ thuThuat=fbTT; svTTLocal(); }
+      else if(thuThuat.length>0){ for(const t of thuThuat) await fbSaveTT(t); }
       setSd('ok');
     }catch(e){
       console.error('Firebase sync error:', e);
@@ -611,7 +615,7 @@ function renderTab(){
     if(!p.cv.meds) p.cv.meds=[];
     if(!p.cv.supplies) p.cv.supplies=[];
     ta.innerHTML=renderKham(p);
-    renderMeds(); renderSupplies();
+    renderMeds();
   } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
   } else {
@@ -660,24 +664,17 @@ function renderKham(p){
 
   <div class="card">
     <div class="ct">🔪 Thủ thuật / Tiêm</div>
-    <div class="fr"><div class="fg full"><label>Mô tả kỹ thuật</label>
-      <textarea id="v_proc" placeholder="VD: Tiêm Depo-Medrol 40mg khớp gối phải, phong bế TK ngoài màng cứng L4-L5..." style="min-height:55px">${cv.proc||''}</textarea>
-    </div></div>
-    <label style="font-size:.74rem;color:var(--tx2);font-weight:500;display:block;margin-bottom:7px">Vật tư tiêu hao</label>
-    <table class="tbl">
-      <thead><tr>
-        <th style="width:36%">Tên vật tư</th><th style="width:12%">ĐVT</th>
-        <th style="width:12%">Số lượng</th><th style="width:18%">Đơn giá (đ)</th>
-        <th style="width:16%">Thành tiền</th><th style="width:5%"></th>
-      </tr></thead>
-      <tbody id="supplyRows"></tbody>
-      <tfoot><tr>
-        <td colspan="4" style="text-align:right;font-size:.75rem;font-weight:700;color:var(--tx2);padding:7px 8px">Tổng vật tư:</td>
-        <td style="font-weight:700;color:var(--ac3);padding:7px 8px" id="supplyTotal">—</td>
-        <td></td>
-      </tr></tfoot>
-    </table>
-    <button class="btn-add-row" onclick="addSupply()">＋ Thêm vật tư</button>
+    <div class="fr">
+      <div class="fg full">
+        <label>Chọn thủ thuật <span style="font-weight:400;color:var(--ac3);font-size:.72rem">(từ danh mục kho — vật tư tự trừ báo cáo)</span></label>
+        <div class="autocomplete-wrap">
+          <input id="v_proc" value="${cv.proc||''}" placeholder="Gõ tên thủ thuật hoặc mô tả tự do..."
+            oninput="showProcAC(this.value)" onchange="updCvField('proc',this.value)" autocomplete="off">
+          <div class="ac-list" id="proc_ac" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+    <div id="proc_info" style="margin-top:8px">${cv.proc&&thuThuat.find(t=>t.name===cv.proc)?renderProcInfo(thuThuat.find(t=>t.name===cv.proc)):''}</div>
   </div>
 
   <div class="card">
@@ -809,8 +806,7 @@ function calcSupTotal(){
   const tot=(p.cv&&p.cv.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
   const el=document.getElementById('supplyTotal');
   if(el) el.textContent=tot>0?tot.toLocaleString('vi-VN')+'đ':'—';
-  const f3=document.getElementById('v_f3');
-  if(f3&&tot>0&&!f3.value){ f3.value=tot; calcFee(); }
+  // f3 (phí thủ thuật) được tự điền khi chọn thủ thuật từ danh mục
 }
 
 function addSupply(){
@@ -871,6 +867,69 @@ function autoFillSupplyPrice(rowIdx, name){
 function updS(i,k,v){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies&&p.cv.supplies[i]){p.cv.supplies[i][k]=v; svLocal();} }
 function rmS(i){ const p=pts.find(x=>x.id===curId); if(p&&p.cv&&p.cv.supplies){p.cv.supplies.splice(i,1); svLocal(); renderSupplies();} }
 
+// ===== PROC AUTOCOMPLETE =====
+function showProcAC(val){
+  const list=document.getElementById('proc_ac'); if(!list) return;
+  if(!val||val.length<1){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const matches=thuThuat.filter(t=>t.name.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map((t,i)=>{
+    const vonVT=(t.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+    const lai=(t.price||0)-vonVT;
+    return `<div class="ac-item" onclick="selectProc('${t.id}')">
+      <div class="ac-name">${t.name}</div>
+      <div class="ac-sub">Giá thu: <strong style="color:var(--ac)">${(t.price||0).toLocaleString('vi-VN')}đ</strong>
+        · VT: <span style="color:var(--da)">${vonVT>0?vonVT.toLocaleString('vi-VN')+'đ':'—'}</span>
+        · Lãi: <span style="color:${lai>=0?'var(--ac)':'var(--da)'}">${lai.toLocaleString('vi-VN')}đ</span>
+      </div>
+    </div>`;
+  }).join('');
+  list.style.display='block';
+}
+
+function selectProc(ttId){
+  const t=thuThuat.find(x=>x.id===ttId); if(!t) return;
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  // Cập nhật tên thủ thuật
+  p.cv.proc=t.name;
+  // Tự điền giá thu vào phí thủ thuật
+  const f3El=document.getElementById('v_f3');
+  if(f3El&&(!f3El.value||f3El.value==='0')) {
+    f3El.value=t.price||0;
+    p.cv.f3=t.price||0;
+    calcFee();
+  }
+  svLocal();
+  // Cập nhật input
+  const inp=document.getElementById('v_proc');
+  if(inp) inp.value=t.name;
+  document.getElementById('proc_ac').style.display='none';
+  // Hiện thông tin vật tư
+  const infoEl=document.getElementById('proc_info');
+  if(infoEl) infoEl.innerHTML=renderProcInfo(t);
+}
+
+function renderProcInfo(t){
+  if(!t||!(t.supplies&&t.supplies.length)) return '';
+  const vonVT=(t.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+  return `<div style="background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);border-radius:8px;padding:8px 12px;font-size:.77rem">
+    <div style="color:var(--da);font-weight:600;margin-bottom:4px">📦 Vật tư tự động trừ kho khi lưu:</div>
+    <div style="color:var(--tx2)">${t.supplies.map(s=>`${s.name} ×${s.qty||1} ${s.unit||''} <span style="color:var(--da)">(${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ)</span>`).join(' · ')}</div>
+    <div style="margin-top:4px;color:var(--tx3)">Tổng vật tư: ${vonVT.toLocaleString('vi-VN')}đ · Lãi thủ thuật: <strong style="color:var(--ac)">${((t.price||0)-vonVT).toLocaleString('vi-VN')}đ</strong></div>
+  </div>`;
+}
+
+function updCvField(field, val){
+  const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
+  p.cv[field]=val; svLocal();
+  // Nếu xóa tên TT, xóa proc_info
+  if(field==='proc'&&!val){
+    const infoEl=document.getElementById('proc_info');
+    if(infoEl) infoEl.innerHTML='';
+  }
+}
+
 // ===== SAVE VISIT =====
 function saveVisit(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
@@ -891,7 +950,29 @@ function saveVisit(){
   p.nextVisit=visit.nextVisit; p.nextVisitTime=visit.nextVisitTime;
   p.cv={meds:[],supplies:[]};
   svLocal(); fbSave(p);
-  showToast('✓ Đã lưu lần khám!','success');
+
+  // Tự động trừ tồn kho vật tư của thủ thuật
+  const ttItem=thuThuat.find(t=>t.name===visit.proc);
+  if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
+    let changed=false;
+    ttItem.supplies.forEach(s=>{
+      const khoItem=kho.find(k=>k.itemtype==='supply'&&k.name.toLowerCase()===s.name.toLowerCase());
+      if(khoItem){
+        // Thêm batch âm để trừ tồn
+        if(!khoItem.batches) khoItem.batches=[];
+        khoItem.batches.push({
+          id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+          date:visit.date, qty:-(s.qty||1), price:s.price||0,
+          supplier:'Xuất TT: '+visit.proc, note:'Tự động xuất kho'
+        });
+        changed=true; svKho(khoItem);
+      }
+    });
+    if(changed) showToast('✓ Đã lưu & trừ vật tư khỏi kho!','success');
+    else showToast('✓ Đã lưu lần khám!','success');
+  } else {
+    showToast('✓ Đã lưu lần khám!','success');
+  }
   curTab='ls'; renderDetail();
 }
 
@@ -1450,6 +1531,20 @@ async function fbDelKho(id){
   try{ await window.__deleteDoc(window.__doc('kho', id)); }catch(e){}
 }
 
+// ===== THU THUAT FIREBASE =====
+function svTTLocal(){ localStorage.setItem('pk3_tt', JSON.stringify(thuThuat)); }
+async function fbSaveTT(t){
+  if(!fbOk||!curUser) return;
+  try{
+    await window.__setDoc(window.__doc('thuthuat',t.id), JSON.parse(JSON.stringify(t)));
+  }catch(e){}
+}
+async function fbDelTT(id){
+  if(!fbOk||!curUser) return;
+  try{ await window.__deleteDoc(window.__doc('thuthuat',id)); }catch(e){}
+}
+function svTT(t){ svTTLocal(); if(t) fbSaveTT(t); }
+
 function svKho(k){ svKhoLocal(); if(k) fbSaveKho(k); }
 
 // Tính tồn kho
@@ -1502,6 +1597,7 @@ function showKho(){
     <div class="kho-tabs">
       <div class="kho-tab active" onclick="switchKhoTab('ton',this)">📋 Tồn kho</div>
       <div class="kho-tab" onclick="switchKhoTab('nhap',this)">📥 Nhập kho</div>
+      <div class="kho-tab" onclick="switchKhoTab('tt',this)">🔪 Thủ thuật</div>
       <div class="kho-tab" onclick="switchKhoTab('lai',this)">💹 Lãi/Lỗ</div>
     </div>
     <div id="khoBody" style="overflow-y:auto;max-height:calc(92vh - 140px)"></div>
@@ -1523,6 +1619,7 @@ function renderKhoTab(){
   const el=document.getElementById('khoBody'); if(!el) return;
   if(khoTab==='ton') el.innerHTML=renderTonKho();
   else if(khoTab==='nhap') el.innerHTML=renderNhapKho();
+  else if(khoTab==='tt') el.innerHTML=renderThuThuat();
   else { el.innerHTML=renderLaiLo(); setTimeout(renderLaiLoData, 50); }
 }
 
@@ -1858,6 +1955,18 @@ function renderLaiLoData(){
   let dtThuocTuGiaBan=0; // DT thuốc tính từ giá bán × số lượng
   const chiTietThuoc={};
 
+  // Tính lãi từ thủ thuật
+  let tongVonTT=0;
+  let dtTTFromProc=0;
+  visits.forEach(v=>{
+    const ttItem=thuThuat.find(t=>t.name===v.proc);
+    if(ttItem){
+      const vonVT=(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+      tongVonTT+=vonVT;
+      dtTTFromProc+=(v.f3||ttItem.price||0);
+    }
+  });
+
   visits.forEach(v=>(v.meds||[]).forEach(m=>{
     const key=m.name+'|'+(m.dose||'');
     const gv=giaVonMap[key]||0;
@@ -1876,15 +1985,21 @@ function renderLaiLoData(){
   // Nếu có giá bán trong kho thì dùng, không thì dùng tiền thuốc thu được
   const dtThuocFinal = dtThuocTuGiaBan>0 ? dtThuocTuGiaBan : dtThuoc;
   const laiThuoc=dtThuocFinal-tongGiaVon;
+  const laiTT=dtTT-tongVonTT;
   const doanhThuFinal = dtKham + dtThuocFinal + dtTT;
-  const laiGop=doanhThuFinal-tongGiaVon;
+  const tongGiaVonAll = tongGiaVon + tongVonTT;
+  const laiGop=doanhThuFinal-tongGiaVonAll;
   const tyLeLoiNhuan=doanhThuFinal>0?Math.round(laiGop/doanhThuFinal*100):0;
 
   el.innerHTML=`
     <!-- Tổng quan -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
       <div class="sc"><div class="sv" style="color:var(--ac)">${doanhThuFinal.toLocaleString('vi-VN')}đ</div><div class="sl">Tổng doanh thu</div></div>
-      <div class="sc"><div class="sv" style="color:var(--da)">${tongGiaVon.toLocaleString('vi-VN')}đ</div><div class="sl">Giá vốn thuốc</div></div>
+      <div class="sc">
+        <div class="sv" style="color:var(--da)">${tongGiaVonAll.toLocaleString('vi-VN')}đ</div>
+        <div class="sl">Tổng giá vốn</div>
+        ${tongVonTT>0?`<div style="font-size:.72rem;color:var(--tx3);margin-top:2px">VT thủ thuật: ${tongVonTT.toLocaleString('vi-VN')}đ</div>`:''}
+      </div>
       <div class="sc"><div class="sv" style="color:${laiGop>=0?'var(--ac)':'var(--da)'}">${laiGop.toLocaleString('vi-VN')}đ</div><div class="sl">Lãi gộp (${tyLeLoiNhuan}%)</div></div>
     </div>
 
@@ -1896,7 +2011,11 @@ function renderLaiLoData(){
         <div class="sl">DT thuốc ${dtThuocTuGiaBan>0?'(theo giá bán)':'(theo phiếu thu)'}</div>
         <div style="font-size:.72rem;margin-top:3px;color:${laiThuoc>=0?'var(--ac)':'var(--da)'}">Lãi thuốc: ${laiThuoc.toLocaleString('vi-VN')}đ</div>
       </div>
-      <div class="sc"><div class="sv" style="color:var(--da);font-size:1rem">${dtTT.toLocaleString('vi-VN')}đ</div><div class="sl">Thủ thuật</div></div>
+      <div class="sc">
+        <div class="sv" style="color:var(--da);font-size:1rem">${dtTT.toLocaleString('vi-VN')}đ</div>
+        <div class="sl">Thủ thuật</div>
+        ${tongVonTT>0?`<div style="font-size:.72rem;margin-top:3px;color:${laiTT>=0?'var(--ac)':'var(--da)'}">Lãi TT: ${laiTT.toLocaleString('vi-VN')}đ</div>`:''}
+      </div>
     </div>
 
     <!-- Biểu đồ lãi -->
@@ -1904,7 +2023,7 @@ function renderLaiLoData(){
       <div class="ct">Phân tích lợi nhuận</div>
       ${[
         {label:'Doanh thu',val:doanhThu,color:'var(--ac)',pct:100},
-        {label:'Giá vốn thuốc',val:tongGiaVon,color:'var(--da)',pct:doanhThu>0?Math.round(tongGiaVon/doanhThu*100):0},
+        {label:'Tổng giá vốn',val:tongGiaVonAll,color:'var(--da)',pct:doanhThuFinal>0?Math.round(tongGiaVonAll/doanhThuFinal*100):0},
         {label:'Lãi gộp',val:laiGop,color:laiGop>=0?'var(--ac)':'var(--da)',pct:Math.abs(tyLeLoiNhuan)},
       ].map(r=>`<div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px">
@@ -1950,6 +2069,196 @@ function renderLaiLoData(){
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
       <button class="btn btn-g" style="font-size:.77rem" onclick="exportLaiLoExcel(${year},${month})">📥 Xuất Excel</button>
     </div>`;
+}
+
+// ===== DANH MỤC THỦ THUẬT =====
+function renderThuThuat(){
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Thêm thủ thuật mới</div>
+      <div class="fr">
+        <div class="fg"><label>Tên thủ thuật *</label>
+          <input id="tt_name" placeholder="VD: Tiêm Depo-Medrol khớp, Phong bế TK tọa, Chích áp xe...">
+        </div>
+        <div class="fg"><label>Giá thu (đ) *</label>
+          <input type="number" id="tt_price" placeholder="300000" min="0" step="10000" oninput="calcTTProfit()">
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:.74rem;color:var(--tx2);font-weight:500;display:block;margin-bottom:7px">Vật tư tiêu hao đi kèm</label>
+        <table class="tbl" id="ttSupplyTable">
+          <thead><tr>
+            <th style="width:38%">Tên vật tư</th>
+            <th style="width:13%">ĐVT</th>
+            <th style="width:12%">Số lượng</th>
+            <th style="width:16%">Đơn giá (đ)</th>
+            <th style="width:15%">Thành tiền</th>
+            <th style="width:5%"></th>
+          </tr></thead>
+          <tbody id="ttSupplyRows"></tbody>
+          <tfoot><tr>
+            <td colspan="4" style="text-align:right;font-size:.75rem;font-weight:700;color:var(--tx2);padding:6px 8px">Tổng vật tư:</td>
+            <td style="font-weight:700;color:var(--da);padding:6px 8px" id="ttSupplyTotal">—</td>
+            <td></td>
+          </tr></tfoot>
+        </table>
+        <button class="btn-add-row" onclick="addTTSupplyRow()">＋ Thêm vật tư</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--bo)">
+        <div id="tt_profit_info" style="font-size:.82rem"></div>
+        <button class="btn" style="background:var(--da);color:white;opacity:.9" onclick="saveThuThuat()">💾 Lưu thủ thuật</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Danh mục thủ thuật (${thuThuat.length})</div>
+      ${!thuThuat.length?'<div style="text-align:center;padding:30px;color:var(--tx3);font-size:.8rem">Chưa có thủ thuật nào. Thêm ở trên.</div>':
+      `<table class="tbl">
+        <thead><tr>
+          <th>Tên thủ thuật</th>
+          <th style="text-align:right">Giá thu</th>
+          <th style="text-align:right">Chi phí VT</th>
+          <th style="text-align:right">Lãi TT</th>
+          <th>Vật tư kèm theo</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          ${thuThuat.map(t=>{
+            const vonVT=(t.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+            const lai=(t.price||0)-vonVT;
+            return `<tr>
+              <td><strong>${t.name}</strong></td>
+              <td style="text-align:right;color:var(--ac);font-weight:600">${(t.price||0).toLocaleString('vi-VN')}đ</td>
+              <td style="text-align:right;color:var(--da)">${vonVT>0?vonVT.toLocaleString('vi-VN')+'đ':'—'}</td>
+              <td style="text-align:right;font-weight:700;color:${lai>=0?'var(--ac)':'var(--da)'}">
+                ${lai.toLocaleString('vi-VN')}đ
+              </td>
+              <td style="font-size:.75rem;color:var(--tx2)">
+                ${(t.supplies||[]).map(s=>`${s.name}×${s.qty||1}${s.unit||''}`).join(' · ')||'—'}
+              </td>
+              <td><button class="btn-rm" onclick="delThuThuat('${t.id}')">✕</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+    </div>`;
+}
+
+// Temp supplies cho form thủ thuật mới
+let ttTempSupplies = [];
+
+function addTTSupplyRow(){
+  ttTempSupplies.push({name:'',unit:'cái',qty:1,price:0});
+  renderTTSupplyRows();
+}
+
+function renderTTSupplyRows(){
+  const tb=document.getElementById('ttSupplyRows'); if(!tb) return;
+  tb.innerHTML=ttTempSupplies.map((s,i)=>`<tr>
+    <td>
+      <div class="autocomplete-wrap">
+        <input value="${s.name||''}" onchange="updTTSupply(${i},'name',this.value);autoFillTTSupplyPrice(${i},this.value)"
+          oninput="showTTSupplyAC(${i},this.value)" placeholder="Kim 22G, Găng tay..." autocomplete="off">
+        <div class="ac-list" id="tt_ac_${i}" style="display:none"></div>
+      </div>
+    </td>
+    <td><select onchange="updTTSupply(${i},'unit',this.value)">${['cái','ống','lọ','gói','ml','hộp','đôi','cuộn','miếng','sợi'].map(u=>`<option ${(s.unit||'cái')===u?'selected':''}>${u}</option>`).join('')}</select></td>
+    <td><input type="number" value="${s.qty||1}" min="1" onchange="updTTSupply(${i},'qty',parseFloat(this.value)||1);calcTTProfit()"></td>
+    <td><input type="number" value="${s.price||''}" placeholder="0" min="0" step="500"
+      onchange="updTTSupply(${i},'price',parseFloat(this.value)||0);calcTTProfit()"></td>
+    <td style="font-weight:600;color:var(--da);font-size:.8rem">${((s.qty||1)*(s.price||0)).toLocaleString('vi-VN')}đ</td>
+    <td><button class="btn-rm" onclick="rmTTSupply(${i})">✕</button></td>
+  </tr>`).join('');
+  calcTTProfit();
+}
+
+function showTTSupplyAC(i, val){
+  const listId='tt_ac_'+i; const list=document.getElementById(listId); if(!list) return;
+  if(!val||val.length<1){ list.style.display='none'; return; }
+  const q=val.toLowerCase();
+  const khoVT=kho.filter(k=>k.itemtype==='supply'&&k.name.toLowerCase().includes(q));
+  const vtDB=VATTU_DB.filter(d=>d.name.toLowerCase().includes(q)&&!khoVT.find(k=>k.name===d.name));
+  const matches=[...khoVT.map(k=>({name:k.name,unit:k.unit,price:Math.round(getGiaVon(k)),inKho:true})),...vtDB.map(d=>({name:d.name,unit:d.unit,price:0,inKho:false}))].slice(0,8);
+  if(!matches.length){ list.style.display='none'; return; }
+  list.innerHTML=matches.map((d,idx)=>`
+    <div class="ac-item" onclick="selectTTSupplyAC(${i},${idx})">
+      <div class="ac-name">${d.name} ${d.inKho?'<span style="font-size:.68rem;color:var(--ac3)">📦</span>':''}</div>
+      <div class="ac-sub">${d.unit}${d.price>0?' · '+d.price.toLocaleString('vi-VN')+'đ':''}</div>
+    </div>`).join('');
+  list.dataset.matches=JSON.stringify(matches);
+  list.style.display='block';
+}
+
+function selectTTSupplyAC(i, idx){
+  const list=document.getElementById('tt_ac_'+i); if(!list) return;
+  const matches=JSON.parse(list.dataset.matches||'[]');
+  const d=matches[idx]; if(!d) return;
+  ttTempSupplies[i].name=d.name;
+  ttTempSupplies[i].unit=d.unit||'cái';
+  if(d.price>0) ttTempSupplies[i].price=d.price;
+  renderTTSupplyRows();
+  list.style.display='none';
+}
+
+function autoFillTTSupplyPrice(i, name){
+  const k=kho.find(x=>x.name.toLowerCase()===name.toLowerCase()&&x.itemtype==='supply');
+  if(!k) return;
+  const gv=Math.round(getGiaVon(k));
+  if(gv>0 && (!ttTempSupplies[i].price||ttTempSupplies[i].price===0)){
+    ttTempSupplies[i].price=gv;
+    ttTempSupplies[i].unit=k.unit||'cái';
+    renderTTSupplyRows();
+  }
+}
+
+function updTTSupply(i,k,v){ if(ttTempSupplies[i]) ttTempSupplies[i][k]=v; }
+function rmTTSupply(i){ ttTempSupplies.splice(i,1); renderTTSupplyRows(); }
+
+function calcTTProfit(){
+  const price=parseFloat(document.getElementById('tt_price')?.value)||0;
+  const vonVT=ttTempSupplies.reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+  const el=document.getElementById('ttSupplyTotal');
+  if(el) el.textContent=vonVT>0?vonVT.toLocaleString('vi-VN')+'đ':'—';
+  const infoEl=document.getElementById('tt_profit_info');
+  if(infoEl && price>0){
+    const lai=price-vonVT;
+    const pct=price>0?Math.round(lai/price*100):0;
+    infoEl.innerHTML=`<span style="color:var(--tx2)">Giá thu: <strong style="color:var(--ac)">${price.toLocaleString('vi-VN')}đ</strong></span>
+      &nbsp;−&nbsp; <span style="color:var(--tx2)">VT: <strong style="color:var(--da)">${vonVT.toLocaleString('vi-VN')}đ</strong></span>
+      &nbsp;=&nbsp; <strong style="color:${lai>=0?'var(--ac)':'var(--da)'};font-size:.9rem">Lãi: ${lai.toLocaleString('vi-VN')}đ (${pct}%)</strong>`;
+  } else if(infoEl) infoEl.innerHTML='';
+}
+
+function saveThuThuat(){
+  const name=document.getElementById('tt_name')?.value.trim();
+  const price=parseFloat(document.getElementById('tt_price')?.value)||0;
+  if(!name){ showToast('Vui lòng nhập tên thủ thuật','error'); return; }
+  if(!price){ showToast('Vui lòng nhập giá thu','error'); return; }
+
+  // Kiểm tra đã tồn tại chưa
+  const existing=thuThuat.find(t=>t.name.toLowerCase()===name.toLowerCase());
+  if(existing){
+    existing.price=price;
+    existing.supplies=JSON.parse(JSON.stringify(ttTempSupplies));
+    svTT(existing);
+    showToast('✓ Đã cập nhật thủ thuật!','success');
+  } else {
+    const t={id:'tt_'+Date.now(),name,price,supplies:JSON.parse(JSON.stringify(ttTempSupplies))};
+    thuThuat.push(t); svTT(t);
+    showToast('✓ Đã thêm thủ thuật!','success');
+  }
+
+  // Reset form
+  document.getElementById('tt_name').value='';
+  document.getElementById('tt_price').value='';
+  ttTempSupplies=[];
+  renderKhoTab();
+}
+
+function delThuThuat(id){
+  if(!confirm('Xóa thủ thuật này?')) return;
+  thuThuat=thuThuat.filter(t=>t.id!==id);
+  fbDelTT(id); svTTLocal(); renderKhoTab();
 }
 
 function exportKhoExcel(){
