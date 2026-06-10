@@ -3,29 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#2d6a4f">
 <title>Đơn thuốc điện tử</title>
-<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Lora:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const cfg = {
-  apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
-  authDomain:"phongkham-bacsinam.firebaseapp.com",
-  projectId:"phongkham-bacsinam",
-  storageBucket:"phongkham-bacsinam.firebasestorage.app",
-  messagingSenderId:"187579047275",
-  appId:"1:187579047275:web:c0e30e60a91cbdda82402e"
-};
-const app = initializeApp(cfg);
-const db = getFirestore(app);
-window.__db = db;
-window.__doc = (c,id) => doc(db, c, id);
-window.__getDoc = getDoc;
+const cfg={apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",authDomain:"phongkham-bacsinam.firebaseapp.com",projectId:"phongkham-bacsinam",storageBucket:"phongkham-bacsinam.firebasestorage.app",messagingSenderId:"187579047275",appId:"1:187579047275:web:c0e30e60a91cbdda82402e"};
+const app=initializeApp(cfg);
+const db=getFirestore(app);
+window.__db=db;
+window.__doc=(c,id)=>doc(db,c,id);
+window.__getDoc=getDoc;
 window.dispatchEvent(new Event('firebase-ready'));
 </script>
 
@@ -33,6 +24,7 @@ window.dispatchEvent(new Event('firebase-ready'));
 :root{--green:#2d6a4f;--gl:#52b788;--gp:#d8f3dc;--gb:#f0f7f2;--amber:#e76f51;--al:#fdf0ec;--blue:#457b9d;--bl:#eaf2f8;--tx:#1b2d24;--tx2:#4a6355;--tx3:#8aa898;--bo:#cde8d6;--r:16px;--sh:0 4px 16px rgba(45,106,79,.1)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Nunito',sans-serif;background:var(--gb);color:var(--tx);min-height:100vh;padding-bottom:90px}
+#capture{background:var(--gb)}
 .hero{background:linear-gradient(135deg,var(--green) 0%,#1b4332 100%);padding:48px 24px 32px;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:rgba(255,255,255,.05);border-radius:50%}
 .hclinic{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gl);margin-bottom:8px;position:relative;z-index:1}
@@ -64,45 +56,48 @@ body{font-family:'Nunito',sans-serif;background:var(--gb);color:var(--tx);min-he
 .td{background:var(--bl);color:var(--blue)}
 .tt{background:var(--gp);color:var(--green)}
 .tn2{background:#fef9ec;color:#b5651d;border:1px solid #f5d99a}
-.rc{background:linear-gradient(135deg,#fff8f0,#fff3e8);border:2px solid #f5c6a0;border-radius:var(--r);padding:20px;display:flex;gap:16px;align-items:center;box-shadow:0 4px 16px rgba(231,111,81,.12);animation:su .3s ease both}
+.rc{background:linear-gradient(135deg,#fff8f0,#fff3e8);border:2px solid #f5c6a0;border-radius:var(--r);padding:20px;display:flex;gap:16px;align-items:center;box-shadow:0 4px 16px rgba(231,111,81,.12)}
 .ri{font-size:2.2rem;flex-shrink:0}
 .rlbl{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--amber);margin-bottom:4px}
 .rdate{font-family:'Lora',serif;font-size:1.3rem;font-weight:600;color:var(--tx)}
 .rtime{font-size:.85rem;color:var(--tx2);margin-top:2px}
 .rcount{margin-top:8px;font-size:.78rem;font-weight:700;color:var(--amber);background:var(--al);display:inline-block;padding:3px 10px;border-radius:20px}
-.nc{background:var(--bl);border:1.5px solid #b8d4e8;border-radius:var(--r);padding:16px;font-size:.85rem;color:#2c4a5e;line-height:1.7;animation:su .3s ease both}
+.nc{background:var(--bl);border:1.5px solid #b8d4e8;border-radius:var(--r);padding:16px;font-size:.85rem;color:#2c4a5e;line-height:1.7}
 .nc strong{display:block;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--blue);margin-bottom:8px}
 .vrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .vc{background:white;border:1.5px solid var(--bo);border-radius:14px;padding:14px;text-align:center;box-shadow:var(--sh)}
 .vv{font-family:'Lora',serif;font-size:1.4rem;font-weight:600;color:var(--green)}
 .vl{font-size:.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+/* BOTTOM BAR */
 .bb{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1.5px solid var(--bo);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 -4px 20px rgba(0,0,0,.08);z-index:100}
 .bt{font-size:.75rem;color:var(--tx2);font-weight:600}
 .bs{font-size:.68rem;color:var(--tx3)}
-.bi{background:var(--green);color:white;border:none;border-radius:12px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer}
+.btn-save{background:var(--green);color:white;border:none;border-radius:12px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s}
+.btn-save:active{transform:scale(.96)}
+.btn-save.loading{opacity:.7;cursor:not-allowed}
+/* LOADING */
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px}
 .spinner{width:40px;height:40px;border:3px solid var(--gp);border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .err{background:white;border:2px solid #fca5a5;border-radius:var(--r);padding:24px;text-align:center;margin:24px 16px}
+/* TOAST */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#2d6a4f;color:white;padding:12px 20px;border-radius:12px;font-size:.85rem;font-weight:700;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.2);white-space:nowrap;animation:su .3s ease}
 </style>
 </head>
 <body>
 <div id="app">
-  <div class="loading">
-    <div class="spinner"></div>
-    <div style="color:var(--tx2);font-size:.9rem;font-weight:600">Đang tải đơn thuốc...</div>
-  </div>
+  <div class="loading"><div class="spinner"></div><div style="color:var(--tx2);font-size:.9rem;font-weight:600">Đang tải đơn thuốc...</div></div>
 </div>
 
 <script>
 function parseSchedule(meds){
   const s={morning:[],noon:[],evening:[]};
   (meds||[]).forEach(m=>{
-    const parts=(m.note||'').split('-');
-    if(parts.length>=3){
-      if(parts[0]&&parts[0]!=='0') s.morning.push(m);
-      if(parts[1]&&parts[1]!=='0') s.noon.push(m);
-      if(parts[2]&&parts[2]!=='0') s.evening.push(m);
+    const p=(m.note||'').split('-');
+    if(p.length>=3){
+      if(p[0]&&p[0]!=='0') s.morning.push(m);
+      if(p[1]&&p[1]!=='0') s.noon.push(m);
+      if(p[2]&&p[2]!=='0') s.evening.push(m);
     } else {
       const t=parseInt(m.times)||1;
       if(t>=1) s.morning.push(m);
@@ -112,134 +107,138 @@ function parseSchedule(meds){
   });
   return s;
 }
-
-function getCurrentSlot(){
-  const h=new Date().getHours();
-  if(h>=5&&h<11) return 'morning';
-  if(h>=11&&h<15) return 'noon';
-  if(h>=15&&h<22) return 'evening';
-  return null;
-}
-
-function daysUntil(d){
-  if(!d) return null;
-  const t=new Date(d),today=new Date();
-  today.setHours(0,0,0,0); t.setHours(0,0,0,0);
-  return Math.round((t-today)/(1000*60*60*24));
-}
-
-function fmt(d){
-  if(!d) return '';
-  return new Date(d).toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-}
+function nowSlot(){const h=new Date().getHours();if(h>=5&&h<11)return'morning';if(h>=11&&h<15)return'noon';if(h>=15&&h<22)return'evening';return null;}
+function daysUntil(d){if(!d)return null;const t=new Date(d),n=new Date();n.setHours(0,0,0,0);t.setHours(0,0,0,0);return Math.round((t-n)/(864e5));}
+function fmt(d){if(!d)return'';return new Date(d).toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});}
 
 function render(data){
   const age=data.year?(new Date().getFullYear()-data.year)+' tuổi':'';
   const sch=parseSchedule(data.meds||[]);
-  const nowSlot=getCurrentSlot();
+  const ns=nowSlot();
   const days=daysUntil(data.nextVisit);
   let cdown='';
   if(days!==null){
-    if(days<0) cdown=`Đã qua ${Math.abs(days)} ngày — liên hệ phòng khám`;
-    else if(days===0) cdown='🔔 Hôm nay là ngày tái khám!';
-    else if(days===1) cdown='⏰ Ngày mai rồi!';
+    if(days<0)cdown=`Đã qua ${Math.abs(days)} ngày`;
+    else if(days===0)cdown='🔔 Hôm nay là ngày tái khám!';
+    else if(days===1)cdown='⏰ Ngày mai rồi!';
     else cdown=`Còn ${days} ngày nữa`;
   }
-
-  const slots=[
-    {key:'morning',icon:'🌅',name:'Sáng',hour:'7:00 - 8:00'},
-    {key:'noon',icon:'☀️',name:'Trưa',hour:'11:30 - 12:00'},
-    {key:'evening',icon:'🌙',name:'Tối',hour:'19:00 - 20:00'},
-  ];
+  const slots=[{key:'morning',icon:'🌅',name:'Sáng',hour:'7:00 - 8:00'},{key:'noon',icon:'☀️',name:'Trưa',hour:'11:30 - 12:00'},{key:'evening',icon:'🌙',name:'Tối',hour:'19:00 - 20:00'}];
 
   document.getElementById('app').innerHTML=`
-    <div class="hero">
-      <div class="hclinic">🏥 ${data.clinic||'PK CK Thần kinh - CXK - Da liễu'}</div>
-      <div class="hname">${data.name||'Bệnh nhân'}</div>
-      <div class="hmeta">
-        <span>👤 ${data.gender||''} · ${age}</span>
-        <span>📅 ${fmt(data.date)}</span>
+    <div id="capture">
+      <div class="hero">
+        <div class="hclinic">🏥 ${data.clinic||'PK CK Thần kinh - CXK - Da liễu'}</div>
+        <div class="hname">${data.name||'Bệnh nhân'}</div>
+        <div class="hmeta"><span>👤 ${data.gender||''} · ${age}</span><span>📅 ${fmt(data.date)}</span></div>
+        ${data.diag?`<div class="hdiag"><div class="hdiag-lbl">Chẩn đoán</div><div class="hdiag-txt">${data.diag}</div></div>`:''}
       </div>
-      ${data.diag?`<div class="hdiag"><div class="hdiag-lbl">Chẩn đoán</div><div class="hdiag-txt">${data.diag}</div></div>`:''}
-    </div>
+      <div class="content">
+        ${(data.bp||data.pulse)?`
+          <div class="slbl">Sinh hiệu lúc khám</div>
+          <div class="vrow">
+            ${data.bp?`<div class="vc"><div class="vv">${data.bp}</div><div class="vl">Huyết áp (mmHg)</div></div>`:''}
+            ${data.pulse?`<div class="vc"><div class="vv">${data.pulse}</div><div class="vl">Mạch (l/ph)</div></div>`:''}
+          </div>`:''}
 
-    <div class="content">
-      ${(data.bp||data.pulse)?`
-        <div class="slbl">Sinh hiệu lúc khám</div>
-        <div class="vrow">
-          ${data.bp?`<div class="vc"><div class="vv">${data.bp}</div><div class="vl">Huyết áp (mmHg)</div></div>`:''}
-          ${data.pulse?`<div class="vc"><div class="vv">${data.pulse}</div><div class="vl">Mạch (l/ph)</div></div>`:''}
-        </div>`:''}
-
-      ${data.meds&&data.meds.length?`
-        <div class="slbl">Lịch uống thuốc trong ngày</div>
-        <div class="sgrid">
-          ${slots.map(s=>`
-            <div class="tc ${nowSlot===s.key?'now':''}">
-              <div class="ti">${s.icon}</div>
-              <div class="tn">${s.name}</div>
-              <div class="th">${s.hour}</div>
-              <div>
-                ${sch[s.key].length>0
-                  ?sch[s.key].map(m=>`<span class="pill">${m.name}</span>`).join('')
-                  :`<div class="tempty">Không uống</div>`}
-              </div>
-              ${nowSlot===s.key?`<div style="margin-top:5px;font-size:.63rem;font-weight:800;color:var(--green);text-transform:uppercase">▶ Bây giờ</div>`:''}
-            </div>`).join('')}
-        </div>
-
-        <div class="slbl">Chi tiết đơn thuốc (${data.meds.length} loại)</div>
-        ${data.meds.map((m,i)=>`
-          <div class="mc" style="animation-delay:${i*.05}s">
-            <div class="mn">${i+1}</div>
-            <div class="mb">
-              <div class="mname">💊 ${m.name}</div>
-              <div class="mdose">${m.dose||''}</div>
-              <div class="mtags">
-                ${m.days?`<span class="tag td">📆 ${m.days} ngày</span>`:''}
-                ${m.times?`<span class="tag tt">🔄 ${m.times} lần/ngày</span>`:''}
-                ${m.qty?`<span class="tag tt">· ${m.qty} ${m.unit||'viên'}/lần</span>`:''}
-                ${m.note?`<span class="tag tn2">⏰ ${m.note}</span>`:''}
-                ${m.remark?`<span class="tag tn2">${m.remark}</span>`:''}
-              </div>
-            </div>
-          </div>`).join('')}
-      `:'<div style="text-align:center;padding:24px;color:var(--tx3)">Không có thuốc trong đơn này.</div>'}
-
-      ${data.nextVisit?`
-        <div class="slbl">Lịch tái khám</div>
-        <div class="rc">
-          <div class="ri">📅</div>
-          <div>
-            <div class="rlbl">Ngày hẹn tái khám</div>
-            <div class="rdate">${fmt(data.nextVisit)}</div>
-            ${data.nextVisitTime?`<div class="rtime">🕐 ${data.nextVisitTime}</div>`:''}
-            ${cdown?`<div class="rcount">${cdown}</div>`:''}
+        ${data.meds&&data.meds.length?`
+          <div class="slbl">Lịch uống thuốc trong ngày</div>
+          <div class="sgrid">
+            ${slots.map(s=>`
+              <div class="tc ${ns===s.key?'now':''}">
+                <div class="ti">${s.icon}</div>
+                <div class="tn">${s.name}</div>
+                <div class="th">${s.hour}</div>
+                <div>${sch[s.key].length>0?sch[s.key].map(m=>`<span class="pill">${m.name}</span>`).join(''):`<div class="tempty">Không uống</div>`}</div>
+                ${ns===s.key?`<div style="margin-top:5px;font-size:.63rem;font-weight:800;color:var(--green);text-transform:uppercase">▶ Bây giờ</div>`:''}
+              </div>`).join('')}
           </div>
-        </div>`:''}
+          <div class="slbl">Chi tiết đơn thuốc (${data.meds.length} loại)</div>
+          ${data.meds.map((m,i)=>`
+            <div class="mc" style="animation-delay:${i*.05}s">
+              <div class="mn">${i+1}</div>
+              <div class="mb">
+                <div class="mname">💊 ${m.name}</div>
+                <div class="mdose">${m.dose||''}</div>
+                <div class="mtags">
+                  ${m.days?`<span class="tag td">📆 ${m.days} ngày</span>`:''}
+                  ${m.times?`<span class="tag tt">🔄 ${m.times} lần/ngày</span>`:''}
+                  ${m.qty?`<span class="tag tt">· ${m.qty} ${m.unit||'viên'}/lần</span>`:''}
+                  ${m.note?`<span class="tag tn2">⏰ ${m.note}</span>`:''}
+                  ${m.remark?`<span class="tag tn2">${m.remark}</span>`:''}
+                </div>
+              </div>
+            </div>`).join('')}
+        `:'<div style="text-align:center;padding:24px;color:var(--tx3)">Không có thuốc trong đơn này.</div>'}
 
-      ${data.note?`
-        <div class="slbl">Lời dặn của bác sĩ</div>
-        <div class="nc"><strong>📋 Lưu ý quan trọng</strong>${data.note}</div>`:''}
+        ${data.nextVisit?`
+          <div class="slbl">Lịch tái khám</div>
+          <div class="rc">
+            <div class="ri">📅</div>
+            <div>
+              <div class="rlbl">Ngày hẹn tái khám</div>
+              <div class="rdate">${fmt(data.nextVisit)}</div>
+              ${data.nextVisitTime?`<div class="rtime">🕐 ${data.nextVisitTime}</div>`:''}
+              ${cdown?`<div class="rcount">${cdown}</div>`:''}
+            </div>
+          </div>`:''}
 
-      <div style="text-align:center;margin-top:28px;font-size:.72rem;color:var(--tx3);line-height:2">
-        Phòng khám CK Thần kinh, Cơ xương khớp, Da liễu<br>
-        ThS.BSCK1 Nguyễn Hoài Nam &nbsp;·&nbsp; 📱 0912839115
+        ${data.note?`
+          <div class="slbl">Lời dặn của bác sĩ</div>
+          <div class="nc"><strong>📋 Lưu ý quan trọng</strong>${data.note}</div>`:''}
+
+        <div style="text-align:center;margin-top:28px;margin-bottom:8px;font-size:.72rem;color:var(--tx3);line-height:2">
+          Phòng khám CK Thần kinh, Cơ xương khớp, Da liễu<br>
+          ThS.BSCK1 Nguyễn Hoài Nam &nbsp;·&nbsp; 📱 0912839115
+        </div>
       </div>
     </div>
 
     <div class="bb">
       <div>
-        <div class="bt">📲 Lưu đơn thuốc</div>
-        <div class="bs">Thêm vào màn hình chính để xem nhanh</div>
+        <div class="bt">📋 Đơn thuốc điện tử</div>
+        <div class="bs">${data.name||''} · ${data.date||''}</div>
       </div>
-      <button class="bi" onclick="installApp()">+ Thêm vào máy</button>
+      <button class="btn-save" id="btnSave" onclick="saveImage()">
+        📥 Lưu ảnh đơn thuốc
+      </button>
     </div>`;
+}
+
+async function saveImage(){
+  const btn=document.getElementById('btnSave');
+  btn.classList.add('loading');
+  btn.textContent='⏳ Đang tạo ảnh...';
+  try{
+    const el=document.getElementById('capture');
+    const canvas=await html2canvas(el,{
+      scale:2,
+      useCORS:true,
+      allowTaint:true,
+      backgroundColor:'#f0f7f2',
+      logging:false
+    });
+    const link=document.createElement('a');
+    link.download='don-thuoc-'+Date.now()+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ Đã lưu ảnh đơn thuốc!');
+  } catch(e){
+    // Fallback: share URL
+    if(navigator.share){
+      navigator.share({title:'Đơn thuốc điện tử',url:window.location.href});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('✅ Đã copy link đơn thuốc!');
+    }
+  }
+  btn.classList.remove('loading');
+  btn.innerHTML='📥 Lưu ảnh đơn thuốc';
 }
 
 function showError(msg){
   document.getElementById('app').innerHTML=`
-    <div class="content">
+    <div class="content" style="padding-top:60px">
       <div class="err">
         <div style="font-size:2.5rem;margin-bottom:12px">😕</div>
         <div style="font-weight:800;font-size:1rem;margin-bottom:8px">Không tìm thấy đơn thuốc</div>
@@ -252,51 +251,28 @@ function showError(msg){
     </div>`;
 }
 
-// Load từ Firebase theo ?id=
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
 async function loadFromFirebase(id){
-  const tryLoad = async () => {
-    if(!window.__getDoc || !window.__doc){
-      await new Promise(r=>setTimeout(r,300));
-      return tryLoad();
-    }
+  const tryLoad=async()=>{
+    if(!window.__getDoc||!window.__doc){await new Promise(r=>setTimeout(r,300));return tryLoad();}
     try{
-      const snap = await window.__getDoc(window.__doc('prescriptions', id));
-      if(snap.exists()){
-        render(snap.data());
-      } else {
-        showError(`Mã đơn thuốc "${id}" không tồn tại hoặc đã hết hạn.`);
-      }
-    } catch(e){
-      showError('Lỗi kết nối: ' + e.message);
-    }
+      const snap=await window.__getDoc(window.__doc('prescriptions',id));
+      if(snap.exists()){render(snap.data());}
+      else{showError(`Mã đơn thuốc không tồn tại hoặc đã hết hạn.`);}
+    }catch(e){showError('Lỗi kết nối: '+e.message);}
   };
   await tryLoad();
 }
 
-// PWA install
-let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; });
-function installApp(){
-  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; }
-  else alert('📱 Thêm vào màn hình:\niOS (Safari): nút Chia sẻ → "Thêm vào MH chính"\nAndroid (Chrome): menu ⋮ → "Thêm vào MH chính"');
-}
-
-// INIT
 (async function(){
-  const params=new URLSearchParams(window.location.search);
-  const id=params.get('id');
-
-  if(!id){
-    showError('Không có mã đơn thuốc trong đường dẫn. Vui lòng quét lại mã QR.');
-    return;
-  }
-
-  // Chờ Firebase sẵn sàng rồi load
-  if(window.__getDoc){
-    await loadFromFirebase(id);
-  } else {
-    window.addEventListener('firebase-ready', ()=>loadFromFirebase(id), {once:true});
-  }
+  const id=new URLSearchParams(window.location.search).get('id');
+  if(!id){showError('Không có mã đơn thuốc. Vui lòng quét lại mã QR.');return;}
+  if(window.__getDoc) await loadFromFirebase(id);
+  else window.addEventListener('firebase-ready',()=>loadFromFirebase(id),{once:true});
 })();
 </script>
 </body>
