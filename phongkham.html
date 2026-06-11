@@ -2024,7 +2024,13 @@ function renderReport(){
 
   const dtKham=allVisits.reduce((s,v)=>s+(v.f1||0),0);
   const dtThuoc=allVisits.reduce((s,v)=>s+(v.f2||0),0);
-  const dtTT=allVisits.reduce((s,v)=>s+(v.f3||0),0);
+  // dtTT: ưu tiên tổng từ procs[].price × qty, fallback về f3
+  const dtTT=allVisits.reduce((s,v)=>{
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+    const sumProcs=procs.reduce((a,pr)=>(a+(pr.price||0)*(pr.qty||1)),0);
+    return s+(sumProcs||v.f3||0);
+  },0);
+  // Doanh thu thực = sum(ftot) — đã tính giảm giá
   const tongDT=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
 
   // Giá vốn thuốc
@@ -2045,23 +2051,40 @@ function renderReport(){
   const laiThuoc=dtThuocFinal-tongVonThuoc;
 
   // Giá vốn vật tư thủ thuật
+  // Nguồn 1: catalog thuThuat (nếu thủ thuật có định nghĩa vật tư)
+  // Nguồn 2: v.supplies nhập trực tiếp trong phiếu khám
   let tongVonVT=0;
   const chiTietTT={};
   allVisits.forEach(v=>{
-    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0}]:[]);
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+    // Vốn từ catalog thủ thuật
     procs.forEach(pr=>{
       if(!pr.name) return;
+      const qty=pr.qty||1;
       const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
-      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0):0;
+      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
       tongVonVT+=vonVT;
+      const thu=(pr.price||0)*qty;
       if(!chiTietTT[pr.name]) chiTietTT[pr.name]={count:0,thu:0,von:0};
-      chiTietTT[pr.name].count++; chiTietTT[pr.name].thu+=(pr.price||0); chiTietTT[pr.name].von+=vonVT;
+      chiTietTT[pr.name].count+=qty; chiTietTT[pr.name].thu+=thu; chiTietTT[pr.name].von+=vonVT;
     });
+    // Vốn từ v.supplies nhập trực tiếp (cộng thêm nếu chưa tính qua catalog)
+    const hasProcsFromCatalog=procs.some(pr=>thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId));
+    if(!hasProcsFromCatalog){
+      (v.supplies||[]).forEach(s=>{
+        const von=(s.price||0)*(s.qty||1);
+        tongVonVT+=von;
+        const key='__supply__'+s.name;
+        if(!chiTietTT[key]) chiTietTT[key]={count:0,thu:0,von:0,label:s.name+' (VT trực tiếp)'};
+        chiTietTT[key].von+=von;
+      });
+    }
   });
   const laiTT=dtTT-tongVonVT;
 
   const tongGiaVon=tongVonThuoc+tongVonVT;
-  const tongDTFinal=dtKham+dtThuocFinal+dtTT;
+  // Doanh thu tổng: dùng ftot (thực thu sau giảm giá)
+  const tongDTFinal=tongDT;
   const laiGop=tongDTFinal-tongGiaVon;
   const tyLe=tongDTFinal>0?Math.round(laiGop/tongDTFinal*100):0;
 
@@ -2975,7 +2998,11 @@ function renderLaiLoData(){
   const doanhThu=visits.reduce((s,v)=>s+(v.ftot||0),0);
   const dtKham=visits.reduce((s,v)=>s+(v.f1||0),0);
   const dtThuoc=visits.reduce((s,v)=>s+(v.f2||0),0);
-  const dtTT=visits.reduce((s,v)=>s+(v.f3||0),0);
+  const dtTT=visits.reduce((s,v)=>{
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+    const sumProcs=procs.reduce((a,pr)=>(a+(pr.price||0)*(pr.qty||1)),0);
+    return s+(sumProcs||v.f3||0);
+  },0);
 
   // Giá vốn + giá bán thuốc (tính từ kho)
   const giaVonMap={};
@@ -2987,18 +3014,24 @@ function renderLaiLoData(){
   });
 
   let tongGiaVon=0;
-  let dtThuocTuGiaBan=0; // DT thuốc tính từ giá bán × số lượng
+  let dtThuocTuGiaBan=0;
   const chiTietThuoc={};
 
-  // Tính lãi từ thủ thuật
+  // Tính lãi từ thủ thuật — dùng v.procs[] (format mới) và v.proc (format cũ)
   let tongVonTT=0;
-  let dtTTFromProc=0;
   visits.forEach(v=>{
-    const ttItem=thuThuat.find(t=>t.name===v.proc);
-    if(ttItem){
-      const vonVT=(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0);
+    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+    procs.forEach(pr=>{
+      if(!pr.name) return;
+      const qty=pr.qty||1;
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
       tongVonTT+=vonVT;
-      dtTTFromProc+=(v.f3||ttItem.price||0);
+    });
+    // Vốn vật tư từ v.supplies nhập trực tiếp (nếu không có catalog)
+    const hasProcsFromCatalog=procs.some(pr=>thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId));
+    if(!hasProcsFromCatalog){
+      (v.supplies||[]).forEach(s=>{ tongVonTT+=(s.price||0)*(s.qty||1); });
     }
   });
 
@@ -3021,7 +3054,8 @@ function renderLaiLoData(){
   const dtThuocFinal = dtThuocTuGiaBan>0 ? dtThuocTuGiaBan : dtThuoc;
   const laiThuoc=dtThuocFinal-tongGiaVon;
   const laiTT=dtTT-tongVonTT;
-  const doanhThuFinal = dtKham + dtThuocFinal + dtTT;
+  // Tổng doanh thu thực = sum(ftot) — đã bao gồm giảm giá
+  const doanhThuFinal = doanhThu;
   const tongGiaVonAll = tongGiaVon + tongVonTT;
   const laiGop=doanhThuFinal-tongGiaVonAll;
   const tyLeLoiNhuan=doanhThuFinal>0?Math.round(laiGop/doanhThuFinal*100):0;
