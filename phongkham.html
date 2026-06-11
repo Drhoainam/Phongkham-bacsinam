@@ -606,10 +606,20 @@ function renderPtList(q=''){
   const list=pts.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())||(p.phone&&p.phone.includes(q)));
   if(!list.length){ el.innerHTML=`<div style="text-align:center;padding:28px;color:var(--tx3);font-size:.8rem">${q?'Không tìm thấy.':'Chưa có bệnh nhân.<br>Nhấn "Thêm bệnh nhân mới".'}</div>`; return; }
   el.innerHTML=list.map(p=>{
-    const isNew=!(p.visits&&p.visits.length);
+    const visits=p.visits||[];
+    const isNew=!visits.length;
+    const lastV=visits.length?visits[visits.length-1]:null;
+    const lastDate=lastV?lastV.date:'';
+    const lastDiag=lastV&&lastV.diag?lastV.diag:'';
+    // Rút gọn chẩn đoán nếu dài
+    const diagShort=lastDiag.length>38?lastDiag.substring(0,36)+'…':lastDiag;
     return `<div class="pt-item ${p.id===curId?'active':''}" onclick="selPt('${p.id}')">
       <div class="pt-name">${p.name}</div>
       <div class="pt-meta">${p.gender||''} · ${p.year?(2026-p.year)+' tuổi':''} · ${p.phone||''}</div>
+      ${lastDate?`<div style="font-size:.7rem;color:var(--ac);margin-top:3px;display:flex;align-items:center;gap:4px">
+        <span>📅 ${lastDate}</span>
+      </div>`:''}
+      ${diagShort?`<div style="font-size:.69rem;color:var(--tx3);margin-top:1px;line-height:1.4;font-style:italic">${diagShort}</div>`:''}
       <span class="badge ${isNew?'b-new':'b-re'}">${isNew?'Mới':'Tái khám'}</span>
     </div>`;
   }).join('');
@@ -1368,51 +1378,63 @@ function renderLS(p){
   const hb=p.history?`<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.3);border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:.79rem;color:var(--ac3)"><strong>⚠️ Tiền sử/Dị ứng:</strong> ${p.history}</div>`:'';
   if(!vs.length) return hb+'<div style="text-align:center;padding:48px;color:var(--tx3)">Chưa có lần khám nào.</div>';
   return hb+`<div class="vt">${vs.map(v=>{
-    const medLines=(v.meds||[]).map(m=>{
-      const parts=(m.note||'').split('-');
-      let gio='';
-      if(parts.length>=3){
-        const isTime=parts.some(x=>parseInt(x)>4);
-        const s=[];
-        if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
-        if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
-        if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
-        gio=s.length?' · Uống: '+s.join(', '):(m.note?' · '+m.note:'');
-      } else gio=m.note?' · '+m.note:'';
-      return `💊 <b>${m.name}</b> ${m.dose||''} — ${m.qty||1} ${m.unit||'viên'}/lần × ${m.times||'?'} lần/${m.days||'?'} ngày${gio}${m.remark?' <em style="color:var(--tx3)">('+m.remark+')</em>':''}`;
-    }).join('<br>');
-    // Vật tư: chỉ hiện tên+SL, ẩn giá (thông tin nội bộ, xem trong Báo cáo)
-    const supTable=(v.supplies&&v.supplies.length)?`
-      <div style="margin-top:7px;padding:5px 10px;background:rgba(240,136,62,.05);border:1px solid rgba(240,136,62,.15);border-radius:7px;font-size:.75rem;color:var(--tx2)">
-        📦 <span style="color:var(--ac3);font-weight:600">Vật tư:</span> ${(v.supplies||[]).map(s=>`${s.name||''} ×${s.qty||1} ${s.unit||''}`).join(' · ')}
-      </div>`:''
     return `<div class="vi">
       <div class="vi-d">${v.date} — ${v.type}
         <button class="btn btn-g" style="padding:2px 8px;font-size:.68rem;margin-left:8px" onclick="printVisit('${p.id}','${v.id}')">🖨️ In đơn</button>
         <button class="btn" style="padding:2px 8px;font-size:.68rem;margin-left:4px;background:#eff6ff;color:var(--ac);border:1px solid #bae6fd" onclick="editVisit('${p.id}','${v.id}')">✏️ Sửa</button>
       </div>
       <div class="vi-c">
-        <div style="font-weight:600;font-size:.9rem">🩺 ${v.diag||'Chưa ghi'}</div>
-        ${v.bp||v.pulse?`<div style="font-size:.77rem;color:var(--tx2);margin-top:5px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''} ${v.bp&&v.pulse?'·':''} ${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
-        ${v.reason?`<div style="font-size:.77rem;color:var(--tx3);margin-top:5px;font-style:italic">📋 ${v.reason}</div>`:''}
-        ${medLines?`<div style="font-size:.78rem;color:var(--tx2);margin-top:7px;line-height:2">${medLines}</div>`:''}
-        ${(v.procs&&v.procs.length?v.procs:v.proc?[{name:v.proc,price:v.f3||0}]:[]).length?
-          `<div style="margin-top:7px;padding:7px 10px;background:rgba(248,81,73,.07);border:1px solid rgba(248,81,73,.18);border-radius:7px;font-size:.78rem">
-            <b style="color:var(--da)">🔪 Thủ thuật:</b>
-            ${(v.procs&&v.procs.length?v.procs:[{name:v.proc,price:v.f3||0}]).map(pr=>
-              `<span style="display:inline-block;margin-top:3px">${pr.name}${pr.price?' — <span style=\"color:var(--ac)\">'+pr.price.toLocaleString('vi-VN')+'đ</span>':''}</span>`
-            ).join('<br>')}
-          </div>`:''}
-        ${supTable}
-        ${(v.ftot||v.f1||v.f2||v.f3)?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        <div style="font-weight:700;font-size:.92rem;color:var(--tx)">🩺 ${v.diag||'Chưa ghi chẩn đoán'}</div>
+        ${v.bp||v.pulse?`<div style="font-size:.76rem;color:var(--tx2);margin-top:4px">${v.bp?'🫀 HA: <b>'+v.bp+'</b>':''} ${v.bp&&v.pulse?'·':''} ${v.pulse?'💓 Mạch: <b>'+v.pulse+'</b> l/ph':''}</div>`:''}
+        ${v.reason?`<div style="font-size:.76rem;color:var(--tx3);margin-top:4px;font-style:italic">📋 ${v.reason}</div>`:''}
+
+        ${(v.meds&&v.meds.length)?`
+        <div style="margin-top:8px;padding:8px 11px;background:#f8fbff;border:1px solid #bae6fd;border-radius:7px">
+          <div style="font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ac);margin-bottom:5px">💊 Đơn thuốc (${v.meds.length} thuốc)</div>
+          ${v.meds.map(m=>{
+            const parts=(m.note||'').split('-');
+            let gio='';
+            if(parts.length>=3){
+              const isTime=parts.some(x=>parseInt(x)>4);
+              const s=[];
+              if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
+              if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
+              if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
+              gio=s.length?' · '+s.join(', '):(m.note?' · '+m.note:'');
+            } else gio=m.note?' · '+m.note:'';
+            const sl=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+            return `<div style="font-size:.77rem;color:var(--tx);padding:3px 0;border-bottom:1px solid #e0f2fe;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <span><b>${m.name}</b> ${m.dose||''} — ${m.qty||1}${m.unit||'v'}/lần × ${m.times||'?'}lần/${m.days||'?'}ng${gio}${m.remark?' <em style="color:var(--tx3);font-size:.7rem">('+m.remark+')</em>':''}</span>
+              <span style="white-space:nowrap;color:var(--tx3);font-size:.7rem">SL: ${sl}</span>
+            </div>`;
+          }).join('')}
+        </div>`:'<div style="margin-top:6px;font-size:.74rem;color:var(--tx3);font-style:italic">Không kê thuốc</div>'}
+
+        ${(v.procs&&v.procs.length)||(v.proc)?`
+        <div style="margin-top:7px;padding:8px 11px;background:#fff7ed;border:1px solid #fcd34d;border-radius:7px">
+          <div style="font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ac3);margin-bottom:5px">🔪 Thủ thuật / Tiêm</div>
+          ${(v.procs&&v.procs.length?v.procs:[{name:v.proc,price:v.f3||0,qty:1}]).map(pr=>`
+            <div style="font-size:.77rem;color:var(--tx);padding:3px 0;border-bottom:1px solid #fef3c7;display:flex;justify-content:space-between">
+              <span><b>${pr.name}</b>${(pr.qty&&pr.qty>1)?' × <b>'+pr.qty+'</b> lần':''}</span>
+              <span style="color:var(--ac3);font-weight:600">${((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')}đ</span>
+            </div>`).join('')}
+        </div>`:''}
+
+        ${(v.supplies&&v.supplies.length)?`
+        <div style="margin-top:7px;padding:7px 11px;background:#fff8f0;border:1px solid rgba(240,136,62,.25);border-radius:7px;font-size:.75rem;color:var(--tx2)">
+          <span style="color:var(--ac3);font-weight:700">📦 Vật tư:</span> ${v.supplies.map(s=>`${s.name||''} ×${s.qty||1}${s.unit?' '+s.unit:''}`).join(' · ')}
+        </div>`:''
+        }
+
+        ${(v.ftot||v.f1||v.f2||v.f3)?`<div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${v.f1?`<span class="fp fp-k">Khám: ${v.f1.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f2?`<span class="fp fp-t">Thuốc: ${v.f2.toLocaleString('vi-VN')}đ</span>`:''}
           ${v.f3?`<span class="fp fp-p">TT: ${v.f3.toLocaleString('vi-VN')}đ</span>`:''}
-          ${v.disc_pct||v.disc_amt?`<span style="background:rgba(240,136,62,.15);color:var(--ac3);padding:2px 8px;border-radius:20px;font-size:.69rem;font-weight:700">✂️ -${v.disc_pct?v.disc_pct+'%':v.disc_amt.toLocaleString('vi-VN')+'đ'}</span>`:''}
+          ${v.disc_pct||v.disc_amt?`<span style="background:#fff7ed;color:var(--ac3);padding:2px 8px;border-radius:20px;font-size:.69rem;font-weight:700;border:1px solid #fcd34d">✂️ -${v.disc_pct?v.disc_pct+'%':v.disc_amt.toLocaleString('vi-VN')+'đ'}</span>`:''}
           <span class="fp fp-tot">💰 ${(v.ftot||0).toLocaleString('vi-VN')}đ</span>
         </div>`:''}
-        ${v.note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:7px;padding:5px 10px;background:rgba(88,166,255,.07);border-radius:6px">📝 ${v.note}</div>`:''}
-        ${v.nextVisit?`<div style="font-size:.77rem;color:var(--ac3);margin-top:6px">📅 Tái khám: <b>${v.nextVisit}</b>${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
+        ${v.note?`<div style="font-size:.77rem;color:#4f46e5;margin-top:7px;padding:6px 10px;background:#f5f3ff;border-radius:6px;border:1px solid #e0e7ff">📝 ${v.note}</div>`:''}
+        ${v.nextVisit?`<div style="font-size:.76rem;color:var(--ac3);margin-top:6px;font-weight:600">📅 Tái khám: ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
       </div>
     </div>`;
   }).join('')}</div>`;
