@@ -517,6 +517,14 @@ const VATTU_DB = [
 ];
 
 // ===== DATE PICKERS (dd/mm/yyyy) =====
+// Lấy ngày LOCAL (tránh lệch UTC+7)
+function localDateISO(d){
+  const dt=d||new Date();
+  const y=dt.getFullYear();
+  const m=String(dt.getMonth()+1).padStart(2,'0');
+  const day=String(dt.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function initDatePickers(){
   if(typeof flatpickr==='undefined') return;
   const cfg={dateFormat:'d/m/Y',locale:'vn',allowInput:true,disableMobile:false};
@@ -525,7 +533,7 @@ function initDatePickers(){
     const isoVal=el.value;
     const fp=flatpickr(el,{...cfg, defaultDate:isoVal||undefined,
       onChange(dates){
-        el.setAttribute('data-iso', dates[0]?dates[0].toISOString().split('T')[0]:'');
+        el.setAttribute('data-iso', dates[0]?localDateISO(dates[0]):'');
       }
     });
     if(isoVal) el.setAttribute('data-iso',isoVal);
@@ -746,7 +754,7 @@ function renderTab(){
 // ===== EXAM FORM =====
 function renderKham(p){
   const cv=p.cv||{};
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateISO();
   const editBanner=editingVisitId?`
   <div style="background:#fff7ed;border:1.5px solid #fcd34d;border-radius:var(--r);padding:10px 16px;margin-bottom:14px;font-size:.82rem;display:flex;align-items:center;gap:10px">
     <span style="font-size:1.1rem">✏️</span>
@@ -1415,7 +1423,7 @@ function openPrintModal(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   const g=id=>{ const el=document.getElementById(id); if(!el) return ''; return el._fp?(el.getAttribute('data-iso')||''):el.value; };
   const meds=p.cv&&p.cv.meds||[];
-  const date=g('v_date')||new Date().toISOString().split('T')[0];
+  const date=g('v_date')||localDateISO();
   const diag=g('v_diag')||'';
   const note=g('v_note')||'';
   const next=g('v_next')||'';
@@ -1868,7 +1876,7 @@ function openZalo(){
 
 // ===== DAILY STATS =====
 function showStats(){
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateISO();
   const mo=document.createElement('div'); mo.className='mo show'; mo.id='moSt';
   mo.innerHTML=`<div class="md" style="max-width:900px;width:97%;max-height:92vh">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -1926,8 +1934,8 @@ function switchStTab(tab,el){
 function initStDates(){
   const now=new Date();
   const y=now.getFullYear(), m=now.getMonth()+1;
-  const firstDay=new Date(y,m-1,1).toISOString().split('T')[0];
-  const today=now.toISOString().split('T')[0];
+  const firstDay=localDateISO(new Date(y,m-1,1));
+  const today=localDateISO(now);
   document.getElementById('stFrom').value=firstDay;
   document.getElementById('stTo').value=today;
   document.getElementById('stMonth').value=m;
@@ -1949,27 +1957,27 @@ function onStPeriodChange(){
   sepEl.style.display='none';
 
   if(period==='day'){
-    fromEl.style.display=''; fromEl.value=now.toISOString().split('T')[0];
+    fromEl.style.display=''; fromEl.value=localDateISO(now);
   } else if(period==='range'){
     fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
   } else if(period==='week'){
     const day=now.getDay(); const diff=day===0?-6:1-day;
     const mon=new Date(now); mon.setDate(d+diff);
-    fromEl.value=mon.toISOString().split('T')[0];
-    toEl.value=now.toISOString().split('T')[0];
+    fromEl.value=localDateISO(mon);
+    toEl.value=localDateISO(now);
     fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
   } else if(period==='month'){
-    fromEl.value=new Date(y,m,1).toISOString().split('T')[0];
-    toEl.value=now.toISOString().split('T')[0];
+    fromEl.value=localDateISO(new Date(y,m,1));
+    toEl.value=localDateISO(now);
     fromEl.style.display='none'; toEl.style.display='none';
   } else if(period==='quarter'){
     const q=Math.floor(m/3); const qm=q*3;
-    fromEl.value=new Date(y,qm,1).toISOString().split('T')[0];
-    toEl.value=now.toISOString().split('T')[0];
+    fromEl.value=localDateISO(new Date(y,qm,1));
+    toEl.value=localDateISO(now);
     fromEl.style.display='none'; toEl.style.display='none';
   } else if(period==='year'){
-    fromEl.value=new Date(y,0,1).toISOString().split('T')[0];
-    toEl.value=now.toISOString().split('T')[0];
+    fromEl.value=localDateISO(new Date(y,0,1));
+    toEl.value=localDateISO(now);
     fromEl.style.display='none'; toEl.style.display='none';
   } else if(period==='custom_month'){
     monthEl.style.display=''; yearEl.style.display='';
@@ -1983,27 +1991,27 @@ function getStDateRange(){
   const period=document.getElementById('stPeriod')?.value||'month';
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
   if(period==='day'){
-    const d=document.getElementById('stFrom')?.value||now.toISOString().split('T')[0];
+    const d=document.getElementById('stFrom')?.value||localDateISO(now);
     return {from:d, to:d, label:d};
   } else if(period==='range'||period==='week'){
     const from=document.getElementById('stFrom')?.value||'';
-    const to=document.getElementById('stTo')?.value||now.toISOString().split('T')[0];
+    const to=document.getElementById('stTo')?.value||localDateISO(now);
     return {from,to,label:from+' → '+to};
   } else if(period==='month'){
-    const from=new Date(y,m,1).toISOString().split('T')[0];
-    const to=now.toISOString().split('T')[0];
+    const from=localDateISO(new Date(y,m,1));
+    const to=localDateISO(now);
     return {from,to,label:`Tháng ${m+1}/${y}`};
   } else if(period==='quarter'){
     const q=Math.floor(m/3); const qm=q*3;
-    const from=new Date(y,qm,1).toISOString().split('T')[0];
-    const to=now.toISOString().split('T')[0];
+    const from=localDateISO(new Date(y,qm,1));
+    const to=localDateISO(now);
     return {from,to,label:`Quý ${q+1}/${y}`};
   } else if(period==='year'){
-    return {from:`${y}-01-01`,to:now.toISOString().split('T')[0],label:`Năm ${y}`};
+    return {from:`${y}-01-01`,to:localDateISO(now),label:`Năm ${y}`};
   } else if(period==='custom_month'){
     const cm=parseInt(document.getElementById('stMonth')?.value)||m+1;
     const cy=parseInt(document.getElementById('stYear')?.value)||y;
-    const from=new Date(cy,cm-1,1).toISOString().split('T')[0];
+    const from=localDateISO(new Date(cy,cm-1,1));
     const lastDay=new Date(cy,cm,0).getDate();
     const to=`${cy}-${String(cm).padStart(2,'0')}-${lastDay}`;
     return {from,to,label:`Tháng ${cm}/${cy}`};
@@ -2011,7 +2019,7 @@ function getStDateRange(){
     const cy=parseInt(document.getElementById('stYear')?.value)||y;
     return {from:`${cy}-01-01`,to:`${cy}-12-31`,label:`Năm ${cy}`};
   }
-  return {from:'',to:now.toISOString().split('T')[0],label:'Tất cả'};
+  return {from:'',to:localDateISO(now),label:'Tất cả'};
 }
 
 function getVisitsInRange(){
@@ -2126,8 +2134,8 @@ function showReport(){
 
 function initRpDates(){
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth()+1;
-  const firstDay=new Date(y,m-1,1).toISOString().split('T')[0];
-  const today=now.toISOString().split('T')[0];
+  const firstDay=localDateISO(new Date(y,m-1,1));
+  const today=localDateISO(now);
   const from=document.getElementById('rpFrom');
   const to=document.getElementById('rpTo');
   if(from){ from.value=firstDay; from.setAttribute('data-iso',firstDay); }
@@ -2146,12 +2154,12 @@ function onRpPeriodChange(){
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth(); const d=now.getDate();
   [fromEl,toEl,monthEl,yearEl].forEach(el=>el.style.display='none');
   sepEl.style.display='none';
-  if(period==='day'){ fromEl.style.display=''; fromEl.value=now.toISOString().split('T')[0]; }
+  if(period==='day'){ fromEl.style.display=''; fromEl.value=localDateISO(now); }
   else if(period==='range'){ fromEl.style.display=''; toEl.style.display=''; sepEl.style.display=''; }
   else if(period==='week'){
     const day=now.getDay(); const diff=day===0?-6:1-day;
     const mon=new Date(now); mon.setDate(d+diff);
-    fromEl.value=mon.toISOString().split('T')[0]; toEl.value=now.toISOString().split('T')[0];
+    fromEl.value=localDateISO(mon); toEl.value=localDateISO(now);
     fromEl.style.display=''; toEl.style.display=''; sepEl.style.display='';
   } else if(period==='custom_month'){ monthEl.style.display=''; yearEl.style.display=''; }
   else if(period==='custom_year'){ yearEl.style.display=''; }
@@ -2163,19 +2171,19 @@ function getRpDateRange(){
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
   const getIso=id=>{ const el=document.getElementById(id); if(!el) return ''; return el.getAttribute('data-iso')||el.value||''; };
   if(period==='day'){
-    const d=getIso('rpFrom')||now.toISOString().split('T')[0];
+    const d=getIso('rpFrom')||localDateISO(now);
     return {from:d,to:d,label:'Ngày '+d};
   } else if(period==='range'||period==='week'){
     const from=getIso('rpFrom')||'';
-    const to=getIso('rpTo')||now.toISOString().split('T')[0];
+    const to=getIso('rpTo')||localDateISO(now);
     return {from,to,label:from+' → '+to};
   } else if(period==='month'){
-    return {from:new Date(y,m,1).toISOString().split('T')[0],to:now.toISOString().split('T')[0],label:`Tháng ${m+1}/${y}`};
+    return {from:localDateISO(new Date(y,m,1)),to:localDateISO(now),label:`Tháng ${m+1}/${y}`};
   } else if(period==='quarter'){
     const q=Math.floor(m/3); const qm=q*3;
-    return {from:new Date(y,qm,1).toISOString().split('T')[0],to:now.toISOString().split('T')[0],label:`Quý ${q+1}/${y}`};
+    return {from:localDateISO(new Date(y,qm,1)),to:localDateISO(now),label:`Quý ${q+1}/${y}`};
   } else if(period==='year'){
-    return {from:`${y}-01-01`,to:now.toISOString().split('T')[0],label:`Năm ${y}`};
+    return {from:`${y}-01-01`,to:localDateISO(now),label:`Năm ${y}`};
   } else if(period==='custom_month'){
     const cm=parseInt(document.getElementById('rpMonth')?.value)||m+1;
     const cy=parseInt(document.getElementById('rpYear')?.value)||y;
@@ -2185,7 +2193,7 @@ function getRpDateRange(){
     const cy=parseInt(document.getElementById('rpYear')?.value)||y;
     return {from:`${cy}-01-01`,to:`${cy}-12-31`,label:`Năm ${cy}`};
   }
-  return {from:'',to:now.toISOString().split('T')[0],label:'Tất cả'};
+  return {from:'',to:localDateISO(now),label:'Tất cả'};
 }
 
 function renderReport(){
@@ -2955,7 +2963,7 @@ function renderNhapKho(){
           </div>
         </div>
         <div class="fr">
-          <div class="fg"><label>Ngày nhập</label><input type="date" id="kh_date" value="${new Date().toISOString().split('T')[0]}"></div>
+          <div class="fg"><label>Ngày nhập</label><input type="date" id="kh_date" value="${localDateISO()}"></div>
           <div class="fg"><label>Nhà cung cấp</label><input id="kh_sup" placeholder="Công ty dược ABC..."></div>
         </div>
         <div class="fg" style="margin-bottom:0"><label>Ghi chú</label><input id="kh_note" placeholder="Số lô, hạn sử dụng..."></div>
@@ -3091,7 +3099,7 @@ function saveNhapKhoOrUpdate(){
     if(qty>0){
       // Có nhập thêm lô mới
       const price=parseFloat(document.getElementById('kh_price')?.value)||0;
-      const date=document.getElementById('kh_date')?.value||new Date().toISOString().split('T')[0];
+      const date=document.getElementById('kh_date')?.value||localDateISO();
       const supplier=document.getElementById('kh_sup')?.value||'';
       const note=document.getElementById('kh_note')?.value||'';
       k.batches.push({id:'b_'+Date.now(),date,qty,price,supplier,note});
@@ -3708,7 +3716,7 @@ function exportKhoExcel(){
   });
   const ws=XLSX.utils.aoa_to_sheet(data);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Tồn kho');
-  XLSX.writeFile(wb,'TonKho_'+new Date().toISOString().split('T')[0]+'.xlsx');
+  XLSX.writeFile(wb,'TonKho_'+localDateISO()+'.xlsx');
 }
 
 function exportLaiLoExcel(year,month){
