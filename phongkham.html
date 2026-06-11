@@ -481,7 +481,7 @@ const VATTU_DB = [
 ];
 
 // ===== STATE =====
-let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null;
+let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null, editingVisitId=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
 let thuThuat=[]; // [{id,name,price,supplies:[{name,unit,qty,price}]}] - danh mục thủ thuật
 const ALLOWED_EMAIL = 'bsnam115@gmail.com'; // Email được phép truy cập
@@ -681,7 +681,13 @@ function renderTab(){
 function renderKham(p){
   const cv=p.cv||{};
   const today=new Date().toISOString().split('T')[0];
-  return `
+  const editBanner=editingVisitId?`
+  <div style="background:#fff7ed;border:1.5px solid #fcd34d;border-radius:var(--r);padding:10px 16px;margin-bottom:14px;font-size:.82rem;display:flex;align-items:center;gap:10px">
+    <span style="font-size:1.1rem">✏️</span>
+    <div><strong style="color:var(--ac3)">Đang sửa lần khám ${cv.date||''}</strong> — chỉnh xong nhấn <strong>Lưu & Đồng bộ</strong> để cập nhật.</div>
+    <button class="btn btn-g" style="margin-left:auto;padding:3px 10px;font-size:.75rem" onclick="cancelEdit()">✕ Hủy sửa</button>
+  </div>`:'';
+  return `${editBanner}
   <div class="card">
     <div class="ct">Thông tin khám hôm nay</div>
     <div class="fr">
@@ -1153,10 +1159,11 @@ function saveVisit(){
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
   const f1=parseFloat(g('v_f1'))||0, f2=parseFloat(g('v_f2'))||0, f3=parseFloat(g('v_f3'))||0;
   const visit={
-    id:Date.now(), date:g('v_date'), type:g('v_type'),
+    id:editingVisitId||Date.now(), date:g('v_date'), type:g('v_type'),
     pulse:g('v_pulse'), bp:g('v_bp'), reason:g('v_reason'), diag:g('v_diag'),
     meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
     proc:g('v_proc'), supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
+    procs:JSON.parse(JSON.stringify(p.cv&&p.cv.procs||[])),
     f1,f2,f3,
     disc_pct:parseFloat(g('v_disc_pct'))||0,
     disc_amt:parseFloat(g('v_disc_amt'))||0,
@@ -1165,39 +1172,105 @@ function saveVisit(){
     nextVisit:g('v_next'), nextVisitTime:g('v_nt'), note:g('v_note'),
   };
   if(!p.visits) p.visits=[];
-  p.visits.push(visit);
-  p.nextVisit=visit.nextVisit; p.nextVisitTime=visit.nextVisitTime;
-  p.cv={meds:[],supplies:[]};
-  svLocal(); fbSave(p);
-
-  // Tự động trừ tồn kho vật tư cho từng thủ thuật
-  let deducted=false;
-  (visit.procs||[]).forEach(pr=>{
-    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
-    if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
-      ttItem.supplies.forEach(s=>{
-        const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
-        if(khoItem){
-          if(!khoItem.batches) khoItem.batches=[];
-          khoItem.batches.push({
-            id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
-            date:visit.date, qty:-(s.qty||1), price:s.price||0,
-            supplier:'Xuất: '+pr.name, note:'Tự động xuất kho'
-          });
-          deducted=true; svKho(khoItem);
-        }
-      });
-    }
-  });
-  if(deducted) showToast('✓ Đã lưu & trừ vật tư khỏi kho!','success');
-  else showToast('✓ Đã lưu lần khám!','success');
-  curTab='ls'; renderDetail();
+  if(editingVisitId){
+    // Ghi đè visit cũ
+    const idx=p.visits.findIndex(x=>x.id==editingVisitId);
+    if(idx>=0) p.visits[idx]=visit;
+    else p.visits.push(visit);
+    editingVisitId=null;
+    p.nextVisit=visit.nextVisit; p.nextVisitTime=visit.nextVisitTime;
+    p.cv={meds:[],supplies:[],procs:[]};
+    svLocal(); fbSave(p);
+    // Trừ kho theo vật tư mới sau khi sửa
+    let deducted=false;
+    (visit.procs||[]).forEach(pr=>{
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
+        ttItem.supplies.forEach(s=>{
+          const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
+          if(khoItem){
+            if(!khoItem.batches) khoItem.batches=[];
+            khoItem.batches.push({
+              id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+              visitId:String(visit.id),
+              date:visit.date, qty:-(s.qty||1), price:s.price||0,
+              supplier:'Xuất: '+pr.name, note:'Tự động xuất kho'
+            });
+            deducted=true; svKho(khoItem);
+          }
+        });
+      }
+    });
+    showToast(deducted?'✓ Đã cập nhật & trừ vật tư kho!':'✓ Đã cập nhật lần khám!','success');
+    curTab='ls'; renderDetail();
+  } else {
+    p.visits.push(visit);
+    p.nextVisit=visit.nextVisit; p.nextVisitTime=visit.nextVisitTime;
+    p.cv={meds:[],supplies:[]};
+    svLocal(); fbSave(p);
+    // Tự động trừ tồn kho vật tư cho từng thủ thuật
+    let deducted=false;
+    (visit.procs||[]).forEach(pr=>{
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
+        ttItem.supplies.forEach(s=>{
+          const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
+          if(khoItem){
+            if(!khoItem.batches) khoItem.batches=[];
+            khoItem.batches.push({
+              id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+              visitId:String(visit.id),
+              date:visit.date, qty:-(s.qty||1), price:s.price||0,
+              supplier:'Xuất: '+pr.name, note:'Tự động xuất kho'
+            });
+            deducted=true; svKho(khoItem);
+          }
+        });
+      }
+    });
+    if(deducted) showToast('✓ Đã lưu & trừ vật tư khỏi kho!','success');
+    else showToast('✓ Đã lưu lần khám!','success');
+    curTab='ls'; renderDetail();
+  }
 }
 
 function clearForm(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   if(!confirm('Xóa toàn bộ thông tin đang nhập?')) return;
+  editingVisitId=null;
   p.cv={meds:[],supplies:[],procs:[]}; svLocal(); renderTab();
+}
+
+function cancelEdit(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  // Tìm visit gốc và trừ lại kho (vì đã hoàn kho khi bắt đầu sửa)
+  if(editingVisitId){
+    const v=p.visits&&p.visits.find(x=>x.id==editingVisitId);
+    if(v){
+      const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc}]:[]);
+      procs.forEach(pr=>{
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        if(!ttItem||!(ttItem.supplies&&ttItem.supplies.length)) return;
+        ttItem.supplies.forEach(s=>{
+          const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
+          if(khoItem){
+            if(!khoItem.batches) khoItem.batches=[];
+            khoItem.batches.push({
+              id:'out_'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+              visitId:String(v.id),
+              date:v.date, qty:-(s.qty||1), price:s.price||0,
+              supplier:'Xuất: '+pr.name, note:'Tự động xuất kho'
+            });
+            svKho(khoItem);
+          }
+        });
+      });
+    }
+  }
+  editingVisitId=null;
+  p.cv={meds:[],supplies:[],procs:[]}; svLocal();
+  curTab='ls'; renderDetail();
+  showToast('Đã hủy sửa — kho vật tư giữ nguyên','info');
 }
 
 // ===== PRINT PRESCRIPTION (MẪU BYT) =====
@@ -1308,6 +1381,7 @@ function renderLS(p){
     return `<div class="vi">
       <div class="vi-d">${v.date} — ${v.type}
         <button class="btn btn-g" style="padding:2px 8px;font-size:.68rem;margin-left:8px" onclick="printVisit('${p.id}','${v.id}')">🖨️ In đơn</button>
+        <button class="btn" style="padding:2px 8px;font-size:.68rem;margin-left:4px;background:#eff6ff;color:var(--ac);border:1px solid #bae6fd" onclick="editVisit('${p.id}','${v.id}')">✏️ Sửa</button>
       </div>
       <div class="vi-c">
         <div style="font-weight:600;font-size:.9rem">🩺 ${v.diag||'Chưa ghi'}</div>
@@ -1334,6 +1408,60 @@ function renderLS(p){
       </div>
     </div>`;
   }).join('')}</div>`;
+}
+
+// ===== HOÀN KHO KHI SỬA VISIT =====
+function revertKhoForVisit(visit){
+  // Xóa các batch xuất kho có tag visitId khớp (batch mới)
+  // Hoặc match theo ngày + note 'Tự động xuất kho' + tên thủ thuật (batch cũ)
+  const vid=String(visit.id);
+  let reverted=false;
+  const procs=visit.procs&&visit.procs.length?visit.procs:(visit.proc?[{name:visit.proc}]:[]);
+  procs.forEach(pr=>{
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    if(!ttItem||!(ttItem.supplies&&ttItem.supplies.length)) return;
+    ttItem.supplies.forEach(s=>{
+      const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
+      if(!khoItem||!khoItem.batches) return;
+      // Xóa batch có visitId khớp hoặc (ngày khớp + supplier khớp + note tự động)
+      const before=khoItem.batches.length;
+      khoItem.batches=khoItem.batches.filter(b=>{
+        if(b.visitId===vid) return false; // có tag -> xóa chính xác
+        if(b.note==='Tự động xuất kho' && b.supplier==='Xuất: '+pr.name && b.date===visit.date) return false;
+        return true;
+      });
+      if(khoItem.batches.length<before){ reverted=true; svKho(khoItem); }
+    });
+  });
+  return reverted;
+}
+
+// ===== EDIT VISIT =====
+function editVisit(ptId, visitId){
+  const p=pts.find(x=>x.id===ptId); if(!p) return;
+  const v=p.visits&&p.visits.find(x=>x.id==visitId); if(!v) return;
+  // Hoàn kho vật tư đã trừ từ visit này
+  const reverted=revertKhoForVisit(v);
+  // Load visit vào cv (form khám)
+  p.cv={
+    date:v.date, type:v.type,
+    pulse:v.pulse||'', bp:v.bp||'',
+    reason:v.reason||'', diag:v.diag||'',
+    meds:JSON.parse(JSON.stringify(v.meds||[])),
+    supplies:JSON.parse(JSON.stringify(v.supplies||[])),
+    procs:JSON.parse(JSON.stringify(v.procs||[])),
+    f1:v.f1||'', f2:v.f2||'', f3:v.f3||'',
+    disc_pct:v.disc_pct||'', disc_amt:v.disc_amt||'',
+    ftot:v.ftot||0, note:v.note||'',
+  };
+  p.nextVisit=v.nextVisit||'';
+  p.nextVisitTime=v.nextVisitTime||'';
+  editingVisitId=visitId; // đánh dấu đang sửa
+  svLocal();
+  curTab='kham';
+  renderDetail();
+  const msg=reverted?'Đang sửa '+v.date+' — đã hoàn kho vật tư, nhớ Lưu khi xong':'Đang sửa lần khám '+v.date+' — nhớ bấm Lưu khi xong';
+  showToast(msg,'info');
 }
 
 function printVisit(ptId, visitId){
