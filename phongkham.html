@@ -723,9 +723,11 @@ function renderKham(p){
     <div class="ct">🔪 Thủ thuật / Tiêm</div>
     <table class="tbl" style="margin-bottom:8px">
       <thead><tr>
-        <th style="width:55%">Tên thủ thuật</th>
-        <th style="width:35%">Giá thu (đ)</th>
-        <th style="width:8%"></th>
+        <th style="width:48%">Tên thủ thuật</th>
+        <th style="width:22%">Giá thu (đ)</th>
+        <th style="width:14%">Số lần</th>
+        <th style="width:11%">Thành tiền</th>
+        <th style="width:5%"></th>
       </tr></thead>
       <tbody id="procRows"></tbody>
     </table>
@@ -1011,6 +1013,11 @@ function renderProcRows(){
     </td>
     <td><input type="number" value="${pr.price||''}" placeholder="0" min="0" step="10000"
       onchange="updProc(${i},'price',parseFloat(this.value)||0);calcProcTotal()"></td>
+    <td><input type="number" value="${pr.qty||1}" min="1" step="1" style="width:64px;text-align:center"
+      onchange="updProc(${i},'qty',parseInt(this.value)||1);calcProcTotal()"></td>
+    <td style="font-weight:600;color:var(--ac3);white-space:nowrap;font-size:.8rem" id="proc_tt_${i}">
+      ${((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')}đ
+    </td>
     <td><button class="btn-rm" onclick="rmProc(${i})">✕</button></td>
   </tr>`).join('');
   calcProcTotal();
@@ -1036,6 +1043,7 @@ function selectProcRow(i, ttId){
   p.cv.procs[i].name=t.name;
   p.cv.procs[i].price=t.price||0;
   p.cv.procs[i].ttId=t.id;
+  if(!p.cv.procs[i].qty) p.cv.procs[i].qty=1;
   svLocal(); renderProcRows();
   document.getElementById('proc_ac_'+i).style.display='none';
 }
@@ -1044,7 +1052,7 @@ function addProcRow(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
   if(!p.cv) p.cv={meds:[],supplies:[],procs:[]};
   if(!p.cv.procs) p.cv.procs=[];
-  p.cv.procs.push({name:'',price:0});
+  p.cv.procs.push({name:'',price:0,qty:1});
   svLocal(); renderProcRows();
 }
 
@@ -1060,7 +1068,13 @@ function updProc(i,k,v){
 
 function calcProcTotal(){
   const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
-  const total=(p.cv.procs||[]).reduce((s,pr)=>s+(pr.price||0),0);
+  let total=0;
+  (p.cv.procs||[]).forEach((pr,i)=>{
+    const tt=(pr.price||0)*(pr.qty||1);
+    total+=tt;
+    const el=document.getElementById('proc_tt_'+i);
+    if(el) el.textContent=tt>0?tt.toLocaleString('vi-VN')+'đ':'—';
+  });
   const el=document.getElementById('procTotal');
   if(el) el.textContent=total>0?total.toLocaleString('vi-VN')+'đ':'—';
   // Tự điền vào phí thủ thuật
