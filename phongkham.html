@@ -769,7 +769,7 @@ function renderTab(){
     renderMeds();
     if(!p.cv.procs) p.cv.procs=p.cv.proc?[{name:p.cv.proc,price:p.cv.f3||0}]:[];
     renderProcRows();
-    setTimeout(()=>{ calcMedTotal(); initDatePickers(); },100);
+    setTimeout(()=>{ initDatePickers(); calcMedTotal(); },50);
   } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
   } else {
@@ -1943,10 +1943,9 @@ function showStats(){
   </div>`;
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
-  // Set default dates
   initStDates();
+  initDatePickers();
   renderStats();
-  setTimeout(initDatePickers,100);
 }
 
 let stTab='thoigian';
@@ -1962,8 +1961,10 @@ function initStDates(){
   const y=now.getFullYear(), m=now.getMonth()+1;
   const firstDay=localDateISO(new Date(y,m-1,1));
   const today=localDateISO(now);
-  document.getElementById('stFrom').value=firstDay;
-  document.getElementById('stTo').value=today;
+  const from=document.getElementById('stFrom');
+  const to=document.getElementById('stTo');
+  if(from){ from.value=firstDay; from.setAttribute('data-iso',firstDay); }
+  if(to){ to.value=today; to.setAttribute('data-iso',today); }
   document.getElementById('stMonth').value=m;
   document.getElementById('stYear').value=y;
 }
@@ -2154,8 +2155,8 @@ function showReport(){
   document.body.appendChild(mo);
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
   initRpDates();
+  initDatePickers();
   renderReport();
-  setTimeout(initDatePickers,100);
 }
 
 function initRpDates(){
