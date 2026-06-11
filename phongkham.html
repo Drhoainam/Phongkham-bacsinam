@@ -1109,7 +1109,16 @@ function rmProc(i){
 
 function updProc(i,k,v){
   const p=pts.find(x=>x.id===curId); if(!p||!p.cv||!p.cv.procs) return;
-  p.cv.procs[i][k]=v; svLocal();
+  p.cv.procs[i][k]=v;
+  // Khi đổi tên: tự match catalog để lấy ttId + price
+  if(k==='name'){
+    const ttItem=thuThuat.find(t=>t.name.toLowerCase()===v.toLowerCase()||t.name===v);
+    if(ttItem){
+      p.cv.procs[i].ttId=ttItem.id;
+      if(!p.cv.procs[i].price||p.cv.procs[i].price===0) p.cv.procs[i].price=ttItem.price||0;
+    }
+  }
+  svLocal();
 }
 
 function calcProcTotal(){
@@ -1119,7 +1128,7 @@ function calcProcTotal(){
     const tt=(pr.price||0)*(pr.qty||1);
     total+=tt;
     // Tính vốn VT từ catalog
-    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
     const vonMot=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0):0;
     vonVT+=vonMot*(pr.qty||1);
     const el=document.getElementById('proc_tt_'+i);
@@ -1220,7 +1229,7 @@ function saveVisit(){
   const suppliesSnap=JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[]));
   // Vốn từ catalog thủ thuật (nguồn chính)
   let vonVT=procsSnap.reduce((s,pr)=>{
-    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
     const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
     return s+vonMot*(pr.qty||1);
   },0);
@@ -1253,7 +1262,7 @@ function saveVisit(){
     // Trừ kho theo vật tư mới sau khi sửa
     let deducted=false;
     (visit.procs||[]).forEach(pr=>{
-      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
       if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
         ttItem.supplies.forEach(s=>{
           const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
@@ -1280,7 +1289,7 @@ function saveVisit(){
     // Tự động trừ tồn kho vật tư cho từng thủ thuật
     let deducted=false;
     (visit.procs||[]).forEach(pr=>{
-      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
       if(ttItem&&ttItem.supplies&&ttItem.supplies.length){
         ttItem.supplies.forEach(s=>{
           const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
@@ -1347,7 +1356,7 @@ function cancelEdit(){
     if(v){
       const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc}]:[]);
       procs.forEach(pr=>{
-        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
         if(!ttItem||!(ttItem.supplies&&ttItem.supplies.length)) return;
         ttItem.supplies.forEach(s=>{
           const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
@@ -1528,7 +1537,7 @@ function revertKhoForVisit(visit){
   let reverted=false;
   const procs=visit.procs&&visit.procs.length?visit.procs:(visit.proc?[{name:visit.proc}]:[]);
   procs.forEach(pr=>{
-    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
     if(!ttItem||!(ttItem.supplies&&ttItem.supplies.length)) return;
     ttItem.supplies.forEach(s=>{
       const khoItem=kho.find(k=>k.name.toLowerCase()===s.name.toLowerCase());
@@ -2194,7 +2203,7 @@ function renderReport(){
     if(!vonVT){
       const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
       vonVT=procs.reduce((s,pr)=>{
-        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
         const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
         return s+vonMot*(pr.qty||1);
       },0);
@@ -3171,7 +3180,7 @@ async function recalcAllVonVT(){
       // Tính vonVT từ catalog thuThuat
       const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
       let vonVT=procs.reduce((s,pr)=>{
-        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
         const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
         return s+vonMot*(pr.qty||1);
       },0);
@@ -3233,7 +3242,7 @@ function renderLaiLoData(){
     if(!vonVT){
       const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
       vonVT=procs.reduce((s,pr)=>{
-        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId||(pr.name&&t.name.toLowerCase()===pr.name.toLowerCase()));
         const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
         return s+vonMot*(pr.qty||1);
       },0);
