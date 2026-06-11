@@ -775,26 +775,11 @@ function renderKham(p){
     </table>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
       <button class="btn-add-row" onclick="addProcRow()">＋ Thêm thủ thuật</button>
-      <div style="font-size:.8rem;color:var(--tx2)">Tổng TT: <strong id="procTotal" style="color:var(--ac3)">—</strong></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="ct">📦 Vật tư tiêu hao <span style="font-weight:400;text-transform:none;font-size:.72rem;color:var(--tx3)">(nhập giá vốn để tính lãi/lỗ)</span></div>
-    <table class="tbl" style="margin-bottom:8px">
-      <thead><tr>
-        <th style="width:38%">Tên vật tư</th>
-        <th style="width:10%">ĐVT</th>
-        <th style="width:10%">SL</th>
-        <th style="width:20%">Giá vốn/đv (đ)</th>
-        <th style="width:17%">Thành tiền</th>
-        <th style="width:5%"></th>
-      </tr></thead>
-      <tbody id="supplyRows"></tbody>
-    </table>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
-      <button class="btn-add-row" onclick="addSupply()">＋ Thêm vật tư</button>
-      <div style="font-size:.8rem;color:var(--tx2)">Tổng vốn VT: <strong id="supplyTotal" style="color:var(--ac3)">—</strong></div>
+      <div style="font-size:.8rem;color:var(--tx2);display:flex;gap:14px">
+        <span>Tổng TT: <strong id="procTotal" style="color:var(--ac3)">—</strong></span>
+        <span>Vốn VT: <strong id="procVonVT" style="color:var(--da)">—</strong></span>
+        <span>Lãi TT: <strong id="procLai" style="color:var(--green)">—</strong></span>
+      </div>
     </div>
   </div>
 
@@ -1129,15 +1114,23 @@ function updProc(i,k,v){
 
 function calcProcTotal(){
   const p=pts.find(x=>x.id===curId); if(!p||!p.cv) return;
-  let total=0;
+  let total=0, vonVT=0;
   (p.cv.procs||[]).forEach((pr,i)=>{
     const tt=(pr.price||0)*(pr.qty||1);
     total+=tt;
+    // Tính vốn VT từ catalog
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    const vonMot=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0):0;
+    vonVT+=vonMot*(pr.qty||1);
     const el=document.getElementById('proc_tt_'+i);
     if(el) el.textContent=tt>0?tt.toLocaleString('vi-VN')+'đ':'—';
   });
   const el=document.getElementById('procTotal');
   if(el) el.textContent=total>0?total.toLocaleString('vi-VN')+'đ':'—';
+  const vonEl=document.getElementById('procVonVT');
+  if(vonEl) vonEl.textContent=vonVT>0?vonVT.toLocaleString('vi-VN')+'đ':'—';
+  const laiEl=document.getElementById('procLai');
+  if(laiEl) laiEl.textContent=total>0?(total-vonVT).toLocaleString('vi-VN')+'đ':'—';
   // Tự điền vào phí thủ thuật
   const f3El=document.getElementById('v_f3');
   if(f3El&&total>0) { f3El.value=total; calcFee(); }
@@ -1223,9 +1216,18 @@ function saveVisit(){
   const subtot=f1+f2+f3;
   const disc=discPct>0?Math.round(subtot*discPct/100):discAmt;
   const ftot=Math.max(0,subtot-disc);
-  // vonVT: tổng giá vốn vật tư tiêu hao từ supplies
+  // vonVT: tính từ catalog thuThuat (giống giá vốn thuốc từ kho)
   const suppliesSnap=JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[]));
-  const vonVT=suppliesSnap.reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+  // Vốn từ catalog thủ thuật (nguồn chính)
+  let vonVT=procsSnap.reduce((s,pr)=>{
+    const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+    const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
+    return s+vonMot*(pr.qty||1);
+  },0);
+  // Fallback: cộng thêm từ supplies nhập tay nếu có giá
+  if(!vonVT && suppliesSnap.length){
+    vonVT=suppliesSnap.reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+  }
 
   const visit={
     id:editingVisitId||Date.now(), date:g('v_date'), type:g('v_type'),
