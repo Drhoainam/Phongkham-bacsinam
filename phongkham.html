@@ -1015,7 +1015,18 @@ function renderKham(p){
     <div class="ct">Lịch hẹn & Dặn dò</div>
     <div class="fr">
       <div class="fg"><label>Ngày tái khám</label><input type="date" id="v_next" value="${p.nextVisit||''}"></div>
-      <div class="fg"><label>Giờ hẹn</label><input type="time" id="v_nt" value="${p.nextVisitTime||''}"></div>
+      <div class="fg"><label>Giờ hẹn</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="v_nt_h" style="flex:1">
+            ${Array.from({length:14},(_,i)=>i+7).map(h=>`<option value="${String(h).padStart(2,'0')}" ${(p.nextVisitTime||'').startsWith(String(h).padStart(2,'0'))?'selected':''}>${String(h).padStart(2,'0')}h</option>`).join('')}
+          </select>
+          <span style="font-weight:700;color:var(--tx2)">:</span>
+          <select id="v_nt_m" style="flex:1">
+            ${['00','15','30','45'].map(m=>`<option value="${m}" ${(p.nextVisitTime||'').endsWith(':'+m)?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <input type="hidden" id="v_nt" value="${p.nextVisitTime||'07:00'}">
+      </div>
     </div>
     <div class="fg"><label>Lời dặn dò</label><textarea id="v_note" placeholder="Nghỉ ngơi, hạn chế muối, tái khám đúng hẹn...">${cv.note||''}</textarea></div>
   </div>
@@ -1406,7 +1417,7 @@ function updCvField(field, val){
 // ===== SAVE VISIT =====
 function saveVisit(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; const iso=el.getAttribute('data-iso'); if(el._fp) return iso||el.value||''; return el.value; };
+  const g=id=>{ if(id==="v_nt"){const h=document.getElementById("v_nt_h"),m=document.getElementById("v_nt_m");return (h&&m)?h.value+":"+m.value:"";} const el=document.getElementById(id); if(!el) return ""; const iso=el.getAttribute("data-iso"); if(el._fp) return iso||el.value||""; return el.value; };
   if(!g('v_date')){ showToast('Vui lòng chọn ngày khám','error'); return; }
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
   const f1=parseFloat(g('v_f1'))||0;
@@ -1578,7 +1589,7 @@ function cancelEdit(){
 // ===== PRINT PRESCRIPTION (MẪU BYT) =====
 function openPrintModal(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; const iso=el.getAttribute('data-iso'); if(el._fp) return iso||el.value||''; return el.value; };
+  const g=id=>{ if(id==="v_nt"){const h=document.getElementById("v_nt_h"),m=document.getElementById("v_nt_m");return (h&&m)?h.value+":"+m.value:"";} const el=document.getElementById(id); if(!el) return ""; const iso=el.getAttribute("data-iso"); if(el._fp) return iso||el.value||""; return el.value; };
   const meds=p.cv&&p.cv.meds||[];
   const date=g('v_date')||localDateISO();
   const diag=g('v_diag')||'';
