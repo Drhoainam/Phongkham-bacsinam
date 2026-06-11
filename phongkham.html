@@ -7,6 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/vn.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc, query, where }
@@ -234,6 +237,16 @@ textarea{resize:vertical;min-height:68px}
 .chart-bar{height:8px;background:#e0f2fe;border-radius:4px;overflow:hidden;margin-top:4px}
 .chart-bar-fill{height:100%;background:var(--ac);border-radius:4px;transition:width .5s ease}
 
+/* ---- FLATPICKR OVERRIDE ---- */
+.flatpickr-calendar{font-family:'Be Vietnam Pro',sans-serif !important;border:1.5px solid var(--bo);border-radius:10px;box-shadow:var(--shadow-lg)}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--ac) !important;border-color:var(--ac) !important}
+.flatpickr-day:hover{background:var(--su2) !important}
+.flatpickr-months{background:var(--su);border-radius:8px 8px 0 0}
+.flatpickr-current-month,.flatpickr-weekday{color:var(--tx) !important}
+.flatpickr-day{color:var(--tx)}
+.flatpickr-day.today{border-color:var(--ac)}
+input.flatpickr-input{background:var(--su2);border:1.5px solid var(--bo);border-radius:7px;padding:7px 10px;color:var(--tx);font-family:inherit;font-size:.83rem;outline:none;width:100%;transition:all .18s}
+input.flatpickr-input:focus{border-color:var(--ac);background:#fff;box-shadow:0 0 0 3px rgba(14,165,233,.1)}
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -503,6 +516,23 @@ const VATTU_DB = [
   {name:'Tấm lót giấy',unit:'tờ',category:'Khác'},
 ];
 
+// ===== DATE PICKERS (dd/mm/yyyy) =====
+function initDatePickers(){
+  if(typeof flatpickr==='undefined') return;
+  const cfg={dateFormat:'d/m/Y',locale:'vn',allowInput:true,disableMobile:false};
+  ['v_date','v_next','stFrom','stTo','rpFrom','rpTo','kh_date','be_date'].forEach(id=>{
+    const el=document.getElementById(id); if(!el||el._fp) return;
+    const isoVal=el.value;
+    const fp=flatpickr(el,{...cfg, defaultDate:isoVal||undefined,
+      onChange(dates){
+        el.setAttribute('data-iso', dates[0]?dates[0].toISOString().split('T')[0]:'');
+      }
+    });
+    if(isoVal) el.setAttribute('data-iso',isoVal);
+    el._fp=fp;
+  });
+}
+
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null, editingVisitId=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
@@ -705,7 +735,7 @@ function renderTab(){
     renderMeds();
     if(!p.cv.procs) p.cv.procs=p.cv.proc?[{name:p.cv.proc,price:p.cv.f3||0}]:[];
     renderProcRows();
-    setTimeout(calcMedTotal,100);
+    setTimeout(()=>{ calcMedTotal(); initDatePickers(); },100);
   } else if(curTab==='ls'){
     ta.innerHTML=renderLS(p);
   } else {
@@ -775,10 +805,10 @@ function renderKham(p){
     </table>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
       <button class="btn-add-row" onclick="addProcRow()">＋ Thêm thủ thuật</button>
-      <div style="font-size:.8rem;color:var(--tx2);display:flex;gap:14px">
-        <span>Tổng TT: <strong id="procTotal" style="color:var(--ac3)">—</strong></span>
-        <span>Vốn VT: <strong id="procVonVT" style="color:var(--da)">—</strong></span>
-        <span>Lãi TT: <strong id="procLai" style="color:var(--green)">—</strong></span>
+      <div style="font-size:.8rem;color:var(--tx2)">
+        Tổng TT: <strong id="procTotal" style="color:var(--ac3)">—</strong>
+        <span id="procVonVT" style="display:none"></span>
+        <span id="procLai" style="display:none"></span>
       </div>
     </div>
   </div>
@@ -1211,7 +1241,7 @@ function updCvField(field, val){
 // ===== SAVE VISIT =====
 function saveVisit(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; return el._fp?(el.getAttribute('data-iso')||''):el.value; };
   if(!g('v_date')){ showToast('Vui lòng chọn ngày khám','error'); return; }
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
   const f1=parseFloat(g('v_f1'))||0;
@@ -1383,7 +1413,7 @@ function cancelEdit(){
 // ===== PRINT PRESCRIPTION (MẪU BYT) =====
 function openPrintModal(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; return el._fp?(el.getAttribute('data-iso')||''):el.value; };
   const meds=p.cv&&p.cv.meds||[];
   const date=g('v_date')||new Date().toISOString().split('T')[0];
   const diag=g('v_diag')||'';
@@ -1882,6 +1912,7 @@ function showStats(){
   // Set default dates
   initStDates();
   renderStats();
+  setTimeout(initDatePickers,100);
 }
 
 let stTab='thoigian';
@@ -2090,14 +2121,17 @@ function showReport(){
   mo.addEventListener('click',e=>{ if(e.target===mo) mo.remove(); });
   initRpDates();
   renderReport();
+  setTimeout(initDatePickers,100);
 }
 
 function initRpDates(){
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth()+1;
   const firstDay=new Date(y,m-1,1).toISOString().split('T')[0];
   const today=now.toISOString().split('T')[0];
-  document.getElementById('rpFrom').value=firstDay;
-  document.getElementById('rpTo').value=today;
+  const from=document.getElementById('rpFrom');
+  const to=document.getElementById('rpTo');
+  if(from){ from.value=firstDay; from.setAttribute('data-iso',firstDay); }
+  if(to){ to.value=today; to.setAttribute('data-iso',today); }
   document.getElementById('rpMonth').value=m;
   document.getElementById('rpYear').value=y;
 }
@@ -2127,12 +2161,13 @@ function onRpPeriodChange(){
 function getRpDateRange(){
   const period=document.getElementById('rpPeriod')?.value||'month';
   const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
+  const getIso=id=>{ const el=document.getElementById(id); if(!el) return ''; return el.getAttribute('data-iso')||el.value||''; };
   if(period==='day'){
-    const d=document.getElementById('rpFrom')?.value||now.toISOString().split('T')[0];
+    const d=getIso('rpFrom')||now.toISOString().split('T')[0];
     return {from:d,to:d,label:'Ngày '+d};
   } else if(period==='range'||period==='week'){
-    const from=document.getElementById('rpFrom')?.value||'';
-    const to=document.getElementById('rpTo')?.value||now.toISOString().split('T')[0];
+    const from=getIso('rpFrom')||'';
+    const to=getIso('rpTo')||now.toISOString().split('T')[0];
     return {from,to,label:from+' → '+to};
   } else if(period==='month'){
     return {from:new Date(y,m,1).toISOString().split('T')[0],to:now.toISOString().split('T')[0],label:`Tháng ${m+1}/${y}`};
