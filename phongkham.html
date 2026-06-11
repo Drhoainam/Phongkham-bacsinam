@@ -780,6 +780,25 @@ function renderKham(p){
   </div>
 
   <div class="card">
+    <div class="ct">📦 Vật tư tiêu hao <span style="font-weight:400;text-transform:none;font-size:.72rem;color:var(--tx3)">(nhập giá vốn để tính lãi/lỗ)</span></div>
+    <table class="tbl" style="margin-bottom:8px">
+      <thead><tr>
+        <th style="width:38%">Tên vật tư</th>
+        <th style="width:10%">ĐVT</th>
+        <th style="width:10%">SL</th>
+        <th style="width:20%">Giá vốn/đv (đ)</th>
+        <th style="width:17%">Thành tiền</th>
+        <th style="width:5%"></th>
+      </tr></thead>
+      <tbody id="supplyRows"></tbody>
+    </table>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+      <button class="btn-add-row" onclick="addSupply()">＋ Thêm vật tư</button>
+      <div style="font-size:.8rem;color:var(--tx2)">Tổng vốn VT: <strong id="supplyTotal" style="color:var(--ac3)">—</strong></div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="ct">💰 Thu phí</div>
     <div class="fr">
       <div class="fg"><label>Tiền khám (đ)</label><input type="number" id="v_f1" value="${cv.f1||''}" placeholder="0" oninput="calcFee()"></div>
@@ -1204,13 +1223,17 @@ function saveVisit(){
   const subtot=f1+f2+f3;
   const disc=discPct>0?Math.round(subtot*discPct/100):discAmt;
   const ftot=Math.max(0,subtot-disc);
+  // vonVT: tổng giá vốn vật tư tiêu hao từ supplies
+  const suppliesSnap=JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[]));
+  const vonVT=suppliesSnap.reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+
   const visit={
     id:editingVisitId||Date.now(), date:g('v_date'), type:g('v_type'),
     pulse:g('v_pulse'), bp:g('v_bp'), reason:g('v_reason'), diag:g('v_diag'),
     meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
-    proc:g('v_proc'), supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
+    proc:g('v_proc'), supplies:suppliesSnap,
     procs:procsSnap,
-    f1, f2, f3,
+    f1, f2, f3, vonVT,
     disc_pct:discPct, disc_amt:discAmt,
     ftot, ftot_before_disc:subtot,
     nextVisit:g('v_next'), nextVisitTime:g('v_nt'), note:g('v_note'),
@@ -2159,40 +2182,14 @@ function renderReport(){
   const dtThuocFinal=dtThuocGB>0?dtThuocGB:dtThuoc;
   const laiThuoc=dtThuocFinal-tongVonThuoc;
 
-  // Giá vốn vật tư: tính từ batch xuất kho (nguồn chính xác nhất)
-  // Mỗi batch xuất kho có qty âm, price là giá vốn/đv
+  // Giá vốn vật tư: đọc trực tiếp từ v.vonVT (lưu khi save visit)
+  // Fallback: tính lại từ v.supplies nếu vonVT chưa có (visit cũ)
   let tongVonVT=0;
   const chiTietTT={};
-
-  // Build map visitId → vonVT từ kho batches
-  const vonByVisit={};
-  kho.forEach(k=>{
-    (k.batches||[]).forEach(b=>{
-      if(b.qty<0 && b.note==='Tự động xuất kho'){
-        const von=Math.abs(b.qty)*(b.price||0);
-        const vid=b.visitId||('date:'+b.date+'|'+b.supplier);
-        if(!vonByVisit[vid]) vonByVisit[vid]=0;
-        vonByVisit[vid]+=von;
-      }
-    });
-  });
-
   allVisits.forEach(v=>{
-    const vid=String(v.id);
-    const dateKey='date:'+v.date;
-    // Tìm vonVT: ưu tiên visitId, sau đó date+supplier fallback
-    let vonVT=vonByVisit[vid]||0;
-    if(!vonVT){
-      // Fallback: cộng tất cả batch cùng ngày của visit này
-      kho.forEach(k=>{
-        (k.batches||[]).forEach(b=>{
-          if(b.qty<0 && b.note==='Tự động xuất kho' && b.date===v.date && !b.visitId){
-            vonVT+=Math.abs(b.qty)*(b.price||0);
-          }
-        });
-      });
-    }
-    // Fallback cuối: lấy từ v.supplies nếu có price
+    // Ưu tiên v.vonVT (lưu chính xác khi kê đơn)
+    let vonVT = v.vonVT||0;
+    // Fallback cho visit cũ chưa có vonVT: tính từ v.supplies
     if(!vonVT && v.supplies&&v.supplies.length){
       vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
     }
@@ -2204,7 +2201,6 @@ function renderReport(){
       if(!pr.name) return;
       const qty=pr.qty||1;
       const thu=(pr.price||0)*qty;
-      // Phân bổ vonVT đều theo số thủ thuật nếu có nhiều
       const vonPr=procs.length>0?vonVT/procs.length:0;
       if(!chiTietTT[pr.name]) chiTietTT[pr.name]={count:0,thu:0,von:0};
       chiTietTT[pr.name].count+=qty;
@@ -3188,22 +3184,15 @@ function renderLaiLoData(){
   let dtThuocTuGiaBan=0;
   const chiTietThuoc={};
 
-  // Tính lãi từ thủ thuật — dùng v.procs[] (format mới) và v.proc (format cũ)
+  // Tính giá vốn vật tư — đọc trực tiếp v.vonVT (lưu khi kê đơn)
   let tongVonTT=0;
   visits.forEach(v=>{
-    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
-    procs.forEach(pr=>{
-      if(!pr.name) return;
-      const qty=pr.qty||1;
-      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
-      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
-      tongVonTT+=vonVT;
-    });
-    // Vốn vật tư từ v.supplies nhập trực tiếp (nếu không có catalog)
-    const hasProcsFromCatalog=procs.some(pr=>thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId));
-    if(!hasProcsFromCatalog){
-      (v.supplies||[]).forEach(s=>{ tongVonTT+=(s.price||0)*(s.qty||1); });
+    let vonVT=v.vonVT||0;
+    // Fallback visit cũ: tính từ v.supplies
+    if(!vonVT && v.supplies&&v.supplies.length){
+      vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
     }
+    tongVonTT+=vonVT;
   });
 
   visits.forEach(v=>(v.meds||[]).forEach(m=>{
