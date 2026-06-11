@@ -2189,9 +2189,17 @@ function renderReport(){
   let tongVonVT=0;
   const chiTietTT={};
   allVisits.forEach(v=>{
-    // Ưu tiên v.vonVT (lưu chính xác khi kê đơn)
     let vonVT = v.vonVT||0;
-    // Fallback cho visit cũ chưa có vonVT: tính từ v.supplies
+    // Fallback 1: tính từ catalog thuThuat
+    if(!vonVT){
+      const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+      vonVT=procs.reduce((s,pr)=>{
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
+        return s+vonMot*(pr.qty||1);
+      },0);
+    }
+    // Fallback 2: từ v.supplies
     if(!vonVT && v.supplies&&v.supplies.length){
       vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
     }
@@ -3145,7 +3153,40 @@ function renderLaiLo(){
       <div class="fg" style="flex:1;min-width:120px"><label>Năm</label><input type="number" id="ll_year" value="${year}" min="2020" max="2030" onchange="renderLaiLoData()"></div>
       <div class="fg" style="flex:1;min-width:120px"><label>Tháng (0 = cả năm)</label><input type="number" id="ll_month" value="${month}" min="0" max="12" onchange="renderLaiLoData()"></div>
     </div>
-    <div id="llData"></div>`;
+    <div id="llData"></div>
+    <div style="margin-top:12px;padding:12px;background:#fff7ed;border:1px solid #fcd34d;border-radius:8px;font-size:.8rem;color:var(--tx2)">
+      💡 Nếu các ca cũ hiện <b>Vật tư: 0đ</b>, nhấn nút bên dưới để tính lại toàn bộ từ danh mục thủ thuật:<br>
+      <button class="btn" style="margin-top:8px;background:var(--ac);color:#fff" onclick="recalcAllVonVT()">🔄 Tính lại vonVT toàn bộ visits</button>
+      <span id="recalcStatus" style="margin-left:10px;font-size:.76rem"></span>
+    </div>`;
+}
+
+async function recalcAllVonVT(){
+  const statusEl=document.getElementById('recalcStatus');
+  if(statusEl) statusEl.textContent='Đang xử lý...';
+  let updated=0;
+  for(const p of pts){
+    let changed=false;
+    for(const v of (p.visits||[])){
+      // Tính vonVT từ catalog thuThuat
+      const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+      let vonVT=procs.reduce((s,pr)=>{
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
+        return s+vonMot*(pr.qty||1);
+      },0);
+      // Fallback từ supplies nếu catalog không có
+      if(!vonVT && v.supplies&&v.supplies.length){
+        vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+      }
+      if(vonVT!==v.vonVT){ v.vonVT=vonVT; changed=true; updated++; }
+    }
+    if(changed){ svLocal(); await fbSave(p); }
+  }
+  if(statusEl) statusEl.textContent=`✓ Đã cập nhật ${updated} visits!`;
+  showToast(`✓ Tính lại xong ${updated} visits`,'success');
+  setTimeout(()=>{ if(statusEl) statusEl.textContent=''; renderLaiLoData(); },3000);
+}
 }
 
 function renderLaiLoData(){
@@ -3190,7 +3231,14 @@ function renderLaiLoData(){
   let tongVonTT=0;
   visits.forEach(v=>{
     let vonVT=v.vonVT||0;
-    // Fallback visit cũ: tính từ v.supplies
+    if(!vonVT){
+      const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+      vonVT=procs.reduce((s,pr)=>{
+        const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
+        const vonMot=ttItem?(ttItem.supplies||[]).reduce((a,x)=>a+(x.qty||1)*(x.price||0),0):0;
+        return s+vonMot*(pr.qty||1);
+      },0);
+    }
     if(!vonVT && v.supplies&&v.supplies.length){
       vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
     }
