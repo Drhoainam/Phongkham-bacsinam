@@ -527,7 +527,34 @@ function localDateISO(d){
 }
 function initDatePickers(){
   if(typeof flatpickr==='undefined') return;
-  const cfg={dateFormat:'d/m/Y',locale:'vn',allowInput:true,disableMobile:false};
+  const cfg={
+    dateFormat:'d/m/Y',
+    locale:'vn',
+    allowInput:true,
+    disableMobile:false,
+    // Parse ISO string (yyyy-mm-dd) không qua UTC
+    parseDate:(dateStr, fmt)=>{
+      if(!dateStr) return null;
+      // Nếu là ISO yyyy-mm-dd
+      if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)){
+        const [y,m,d]=dateStr.split('-').map(Number);
+        return new Date(y, m-1, d); // local time, không UTC
+      }
+      // Nếu là dd/mm/yyyy
+      if(/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)){
+        const [d,m,y]=dateStr.split('/').map(Number);
+        return new Date(y, m-1, d);
+      }
+      return null;
+    },
+    // Format ra dd/mm/yyyy từ Date object (local)
+    formatDate:(date, fmt)=>{
+      const d=String(date.getDate()).padStart(2,'0');
+      const m=String(date.getMonth()+1).padStart(2,'0');
+      const y=date.getFullYear();
+      return `${d}/${m}/${y}`;
+    },
+  };
   ['v_date','v_next','stFrom','stTo','rpFrom','rpTo','kh_date','be_date'].forEach(id=>{
     const el=document.getElementById(id); if(!el||el._fp) return;
     const isoVal=el.value;
@@ -672,15 +699,14 @@ function renderPtList(q=''){
     const lastV=visits.length?visits[visits.length-1]:null;
     const lastDate=lastV?lastV.date:'';
     const lastDiag=lastV&&lastV.diag?lastV.diag:'';
-    // Rút gọn chẩn đoán nếu dài
     const diagShort=lastDiag.length>38?lastDiag.substring(0,36)+'…':lastDiag;
+    // Hiển thị ngày dạng dd/mm/yyyy
+    function fmtDate(iso){ if(!iso) return ''; const p=iso.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:iso; }
     return `<div class="pt-item ${p.id===curId?'active':''}" onclick="selPt('${p.id}')">
       <div class="pt-name">${p.name}</div>
       <div class="pt-meta">${p.gender||''} · ${p.year?(2026-p.year)+' tuổi':''} · ${p.phone||''}</div>
-      ${lastDate?`<div style="font-size:.7rem;color:var(--ac);margin-top:3px;display:flex;align-items:center;gap:4px">
-        <span>📅 ${lastDate}</span>
-      </div>`:''}
-      ${diagShort?`<div style="font-size:.69rem;color:var(--tx3);margin-top:1px;line-height:1.4;font-style:italic">${diagShort}</div>`:''}
+      ${lastDate?`<div style="font-size:.7rem;color:var(--ac);margin-top:3px">📅 ${fmtDate(lastDate)}</div>`:''}
+      ${diagShort?`<div style="font-size:.69rem;color:var(--tx3);margin-top:1px;font-style:italic">${diagShort}</div>`:''}
       <span class="badge ${isNew?'b-new':'b-re'}">${isNew?'Mới':'Tái khám'}</span>
     </div>`;
   }).join('');
@@ -717,8 +743,8 @@ function renderDetail(){
     </div>
     <div class="sr">
       <div class="sc"><div class="sv" style="color:var(--ac)">${vc}</div><div class="sl">Lần khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac);font-size:.9rem">${p.nextVisit||'—'}</div><div class="sl">Tái khám</div></div>
-      <div class="sc"><div class="sv" style="color:var(--ac3);font-size:.9rem">${vc>0?p.visits[vc-1].date:'—'}</div><div class="sl">Khám gần nhất</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac);font-size:.9rem">${(d=>{if(!d||d==='—')return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;})(p.nextVisit||'—')}</div><div class="sl">Tái khám</div></div>
+      <div class="sc"><div class="sv" style="color:var(--ac3);font-size:.9rem">${(d=>{if(!d||d==='—')return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;})(vc>0?p.visits[vc-1].date:'—')}</div><div class="sl">Khám gần nhất</div></div>
     </div>
     <div class="tabs">
       <div class="tab ${curTab==='kham'?'active':''}" onclick="swTab('kham',this)">📋 Khám mới & Kê đơn</div>
@@ -1506,7 +1532,7 @@ function renderLS(p){
   if(!vs.length) return hb+'<div style="text-align:center;padding:48px;color:var(--tx3)">Chưa có lần khám nào.</div>';
   return hb+`<div class="vt">${vs.map(v=>{
     return `<div class="vi">
-      <div class="vi-d">${v.date} — ${v.type}
+      <div class="vi-d">${(d=>{const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;})(v.date)} — ${v.type}
         <button class="btn btn-g" style="padding:2px 8px;font-size:.68rem;margin-left:8px" onclick="printVisit('${p.id}','${v.id}')">🖨️ In đơn</button>
         <button class="btn" style="padding:2px 8px;font-size:.68rem;margin-left:4px;background:#eff6ff;color:var(--ac);border:1px solid #bae6fd" onclick="editVisit('${p.id}','${v.id}')">✏️ Sửa</button>
       </div>
