@@ -327,6 +327,29 @@ textarea{resize:vertical;min-height:68px}
   </div>
 </div>
 
+<!-- Modal: Sửa thông tin BN -->
+<div class="mo" id="moEditPt">
+  <div class="md">
+    <h3>✏️ Sửa thông tin bệnh nhân</h3>
+    <div class="fr">
+      <div class="fg full"><label>Họ và tên *</label><input id="ep_n" placeholder="Nguyễn Văn A"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Năm sinh</label><input type="number" id="ep_y" placeholder="1985" min="1900" max="2025"></div>
+      <div class="fg"><label>Giới tính</label><select id="ep_g"><option>Nam</option><option>Nữ</option></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Số điện thoại</label><input id="ep_p" placeholder="0912 345 678"></div>
+      <div class="fg"><label>Địa chỉ</label><input id="ep_a" placeholder="Hà Nội..."></div>
+    </div>
+    <div class="fg" style="margin-bottom:16px"><label>Tiền sử / Dị ứng thuốc</label><textarea id="ep_h" placeholder="Tăng huyết áp, Dị ứng Penicillin..."></textarea></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <button class="btn btn-g" onclick="closeMo('moEditPt')">Hủy</button>
+      <button class="btn btn-p" onclick="saveEditPt()">✓ Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Zalo -->
 <div class="mo" id="moZalo">
   <div class="md">
@@ -637,7 +660,10 @@ function renderDetail(){
   <div style="max-width:900px">
     <div class="dh">
       <div>
-        <div class="dn">${p.name}</div>
+        <div class="dn" style="display:flex;align-items:center;gap:10px">
+          ${p.name}
+          <button class="btn btn-g" style="padding:3px 10px;font-size:.72rem;font-family:inherit" onclick="openEditPt('${p.id}')">✏️ Sửa thông tin</button>
+        </div>
         <div class="dm">
           <span>👤 ${p.gender||''} · ${age}</span>
           <span>📱 ${p.phone||'—'}</span>
@@ -1257,6 +1283,35 @@ function clearForm(){
   if(!confirm('Xóa toàn bộ thông tin đang nhập?')) return;
   editingVisitId=null;
   p.cv={meds:[],supplies:[],procs:[]}; svLocal(); renderTab();
+}
+
+// ===== SỬA THÔNG TIN BỆNH NHÂN =====
+function openEditPt(id){
+  const p=pts.find(x=>x.id===id); if(!p) return;
+  document.getElementById('ep_n').value=p.name||'';
+  document.getElementById('ep_y').value=p.year||'';
+  document.getElementById('ep_g').value=p.gender||'Nam';
+  document.getElementById('ep_p').value=p.phone||'';
+  document.getElementById('ep_a').value=p.addr||'';
+  document.getElementById('ep_h').value=p.history||'';
+  document.getElementById('moEditPt').classList.add('show');
+}
+
+function saveEditPt(){
+  const p=pts.find(x=>x.id===curId); if(!p) return;
+  const name=document.getElementById('ep_n').value.trim();
+  if(!name){ showToast('Vui lòng nhập họ tên','error'); return; }
+  p.name=name;
+  p.year=parseInt(document.getElementById('ep_y').value)||p.year;
+  p.gender=document.getElementById('ep_g').value;
+  p.phone=document.getElementById('ep_p').value.trim();
+  p.addr=document.getElementById('ep_a').value.trim();
+  p.history=document.getElementById('ep_h').value.trim();
+  sv(p);
+  closeMo('moEditPt');
+  renderPtList(document.getElementById('sq').value);
+  renderDetail();
+  showToast('✓ Đã cập nhật thông tin bệnh nhân','success');
 }
 
 function cancelEdit(){
@@ -2180,44 +2235,6 @@ function renderReport(){
   const maxDt=Math.max(...Object.values(groups).map(g=>g.dt),1);
 
   el.innerHTML=`
-    <details style="margin-bottom:12px;background:#f8f9fb;border:1px solid var(--bo);border-radius:8px;padding:8px 12px;font-size:.72rem">
-      <summary style="cursor:pointer;font-weight:700;color:var(--tx3)">🔍 Debug data (${allVisits.length} visits tìm thấy trong kỳ)</summary>
-      <div style="margin-top:8px;overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:.7rem">
-          <thead><tr style="background:var(--su2)">
-            <th style="padding:4px 6px;border:1px solid var(--bo);text-align:left">BN</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">Ngày</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">f1</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">f2</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">f3</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">disc%</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">ftot</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">procs</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo)">supplies</th>
-            <th style="padding:4px 6px;border:1px solid var(--bo);color:var(--da)">vonVT</th>
-          </tr></thead>
-          <tbody>${allVisits.map(v=>{
-            const vid=String(v.id);
-            let vonVT=vonByVisit[vid]||0;
-            if(!vonVT){ kho.forEach(k=>{ (k.batches||[]).forEach(b=>{ if(b.qty<0&&b.note==='Tự động xuất kho'&&b.date===v.date&&!b.visitId) vonVT+=Math.abs(b.qty)*(b.price||0); }); }); }
-            if(!vonVT&&v.supplies&&v.supplies.length) vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
-            const procsSum=v.procs&&v.procs.length?v.procs.reduce((a,pr)=>a+(pr.price||0)*(pr.qty||1),0):0;
-            return `<tr>
-            <td style="padding:3px 6px;border:1px solid var(--bo)">${v.ptName}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo)">${v.date}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f1||0).toLocaleString('vi-VN')}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f2||0).toLocaleString('vi-VN')}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f3||0).toLocaleString('vi-VN')}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${v.disc_pct||v.disc_amt||0}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--green)">${(v.ftot||0).toLocaleString('vi-VN')}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.procs||[]).map(pr=>pr.name+'×'+(pr.qty||1)+'='+((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')).join(', ')||('f3='+((v.f3||0).toLocaleString('vi-VN')))}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.supplies||[]).map(s=>s.name+'×'+(s.qty||1)+'@'+(s.price||0)).join(', ')||'—'}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right;color:var(--da);font-weight:700">${vonVT.toLocaleString('vi-VN')}</td>
-          </tr>`;}).join('')}</tbody>
-        </table>
-      </div>
-    </details>
-
     <div style="background:linear-gradient(135deg,rgba(46,160,67,.1),rgba(46,160,67,.04));border:1px solid rgba(46,160,67,.3);border-radius:12px;padding:16px;margin-bottom:14px">
       <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--ac);margin-bottom:12px">KỲ: ${label} · ${allVisits.length} lượt khám</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
