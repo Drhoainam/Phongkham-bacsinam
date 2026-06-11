@@ -247,6 +247,118 @@ textarea{resize:vertical;min-height:68px}
 .flatpickr-day.today{border-color:var(--ac)}
 input.flatpickr-input{background:var(--su2);border:1.5px solid var(--bo);border-radius:7px;padding:7px 10px;color:var(--tx);font-family:inherit;font-size:.83rem;outline:none;width:100%;transition:all .18s}
 input.flatpickr-input:focus{border-color:var(--ac);background:#fff;box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+/* =============================================
+   MOBILE RESPONSIVE
+   ============================================= */
+@media (max-width: 768px) {
+  /* Layout chính */
+  .app { flex-direction: column; height: auto; min-height: calc(100vh - 56px); }
+
+  /* Sidebar → thanh ngang ở trên */
+  .sb { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--bo); max-height: 280px; }
+  .sb-top { padding: 8px; gap: 6px; }
+  .pt-list { padding: 6px; max-height: 200px; overflow-y: auto; }
+  .pt-item { padding: 8px 10px; margin-bottom: 3px; }
+  .pt-name { font-size: .82rem; }
+  .pt-meta { font-size: .68rem; }
+
+  /* Main content */
+  .main { padding: 12px; height: auto; overflow-y: visible; }
+
+  /* Header */
+  header { padding: 0 12px; height: 50px; }
+  .logo { font-size: 1rem; }
+  .logo-dot { width: 6px; height: 6px; }
+  .user-badge span:not(.sd) { display: none; } /* Ẩn tên user */
+  .user-badge img { width: 24px; height: 24px; }
+
+  /* Detail header */
+  .dh { flex-direction: column; gap: 8px; }
+  .dh > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dh > div:last-child button { font-size: .7rem; padding: 4px 8px; }
+  .dn { font-size: 1.2rem; }
+  .dn button { font-size: .68rem; padding: 2px 8px; }
+
+  /* Stats row */
+  .sr { grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .sc { padding: 10px 8px; }
+  .sv { font-size: 1.1rem; }
+  .sl { font-size: .62rem; }
+
+  /* Tabs */
+  .tabs { gap: 0; }
+  .tab { padding: 7px 10px; font-size: .75rem; }
+
+  /* Card */
+  .card { padding: 12px; margin-bottom: 10px; }
+
+  /* Form grid → 1 cột trên mobile */
+  .fr { grid-template-columns: 1fr; gap: 8px; }
+  .fg.full { grid-column: 1; }
+
+  /* Table thủ thuật/thuốc → scroll ngang */
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 500px; font-size: .74rem; }
+  .tbl th, .tbl td { padding: 5px 6px; }
+
+  /* Proc table cột số lần + thành tiền gọn hơn */
+  .tbl input[type="number"] { width: 56px; }
+
+  /* Fee section */
+  #v_f1, #v_f2, #v_f3 { font-size: .83rem; }
+
+  /* Save bar */
+  .save-bar { flex-wrap: wrap; gap: 7px; }
+  .save-bar .btn { flex: 1; justify-content: center; font-size: .78rem; }
+
+  /* Timeline lịch sử */
+  .vt { padding-left: 16px; }
+  .vi-c { padding: 10px 12px; }
+
+  /* Modal */
+  .md { padding: 20px 16px; margin: 12px; max-width: calc(100vw - 24px); }
+  .md h3 { font-size: 1rem; }
+
+  /* Buttons header */
+  .btn-s { padding: 5px 8px; font-size: .72rem; }
+
+  /* Thêm BN button */
+  .btn-add { padding: 10px; font-size: .82rem; }
+
+  /* Search input */
+  .search { font-size: .82rem; padding: 7px 10px; }
+
+  /* Ẩn sidebar khi đang xem chi tiết BN */
+  .sb.hidden-mobile { display: none; }
+  .main.full-mobile { padding: 10px; }
+
+  /* Nút back trên mobile */
+  .btn-back-mobile {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    color: var(--ac);
+    font-size: .82rem;
+    font-weight: 600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sr { grid-template-columns: 1fr 1fr; }
+  .sr .sc:last-child { grid-column: 1 / -1; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; flex-wrap: nowrap; }
+  .tab { white-space: nowrap; flex-shrink: 0; }
+  header { height: 48px; }
+  .app { min-height: calc(100vh - 48px); }
+}
+
+/* Ẩn nút back trên desktop */
+.btn-back-mobile { display: none; }
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -717,7 +829,22 @@ function renderPtList(q=''){
 
 function filterPt(){ renderPtList(document.getElementById('sq').value); }
 
-function selPt(id){ curId=id; curTab='kham'; renderPtList(document.getElementById('sq').value); renderDetail(); }
+function isMobile(){ return window.innerWidth<=768; }
+function selPt(id){
+  curId=id; curTab='kham';
+  renderPtList(document.getElementById('sq').value);
+  renderDetail();
+  if(isMobile()){
+    document.querySelector('.sb').classList.add('hidden-mobile');
+    document.querySelector('.main').classList.add('full-mobile');
+  }
+}
+function backToList(){
+  curId=null;
+  document.querySelector('.sb').classList.remove('hidden-mobile');
+  document.querySelector('.main').classList.remove('full-mobile');
+  document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><p style="color:var(--tx3);font-size:.9rem">Chọn bệnh nhân để xem</p></div>';
+}
 
 function renderDetail(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
@@ -727,6 +854,7 @@ function renderDetail(){
   <div style="max-width:900px">
     <div class="dh">
       <div>
+        <button class="btn-back-mobile" onclick="backToList()">← Danh sách</button>
         <div class="dn" style="display:flex;align-items:center;gap:10px">
           ${p.name}
           <button class="btn btn-g" style="padding:3px 10px;font-size:.72rem;font-family:inherit" onclick="openEditPt('${p.id}')">✏️ Sửa thông tin</button>
@@ -830,7 +958,7 @@ function renderKham(p){
 
   <div class="card">
     <div class="ct">🔪 Thủ thuật / Tiêm</div>
-    <table class="tbl" style="margin-bottom:8px">
+    <div class="tbl-wrap"><table class="tbl" style="margin-bottom:8px">
       <thead><tr>
         <th style="width:48%">Tên thủ thuật</th>
         <th style="width:22%">Giá thu (đ)</th>
@@ -839,7 +967,7 @@ function renderKham(p){
         <th style="width:5%"></th>
       </tr></thead>
       <tbody id="procRows"></tbody>
-    </table>
+    </table></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
       <button class="btn-add-row" onclick="addProcRow()">＋ Thêm thủ thuật</button>
       <div style="font-size:.8rem;color:var(--tx2)">
