@@ -1715,11 +1715,34 @@ function saveNewPt(){
   showToast('✓ Đã thêm bệnh nhân','success');
 }
 
-function delPt(id){
-  if(!confirm('Xóa bệnh nhân này? Dữ liệu sẽ xóa khỏi Firebase!')) return;
-  pts=pts.filter(p=>p.id!==id); fbDel(id); svLocal(); curId=null;
+async function delPt(id){
+  const p=pts.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`Xóa bệnh nhân "${p.name}"?\nDữ liệu sẽ xóa vĩnh viễn khỏi Firebase và không thể khôi phục!`)) return;
+  // Xóa khỏi local trước
+  pts=pts.filter(x=>x.id!==id);
+  svLocal();
+  curId=null;
   renderPtList();
   document.getElementById('main').innerHTML='<div class="welcome"><div class="welcome-icon">🩺</div><h2 style="font-family:\'Playfair Display\',serif;color:var(--tx2)">Chào bác sĩ!</h2><p style="color:var(--tx3)">Chọn bệnh nhân hoặc thêm mới để bắt đầu.</p></div>';
+  // Xóa Firebase — thử nhiều lần nếu chưa connect
+  let tries=0;
+  const tryDel=async()=>{
+    if(fbOk&&curUser){
+      try{
+        await window.__deleteDoc(window.__doc('patients',id));
+        showToast('✓ Đã xóa bệnh nhân','success');
+      } catch(e){
+        showToast('Lỗi xóa Firebase: '+e.message,'error');
+      }
+    } else if(tries<10){
+      tries++;
+      setTimeout(tryDel, 800);
+    } else {
+      showToast('Xóa local xong nhưng chưa xóa được Firebase (offline)','error');
+    }
+  };
+  await tryDel();
 }
 
 // ===== QR CODE =====
