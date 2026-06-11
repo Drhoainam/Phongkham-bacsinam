@@ -2045,20 +2045,36 @@ function renderReport(){
   const el=document.getElementById('rpBody'); if(!el) return;
   const {from,to,label}=getRpDateRange();
 
+  // Normalize date về YYYY-MM-DD để so sánh đúng
+  function normDate(d){
+    if(!d) return '';
+    // Nếu đã là YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    // MM/DD/YYYY hoặc DD/MM/YYYY
+    const p=d.split(/[\/\-]/);
+    if(p.length===3){
+      if(p[0].length===4) return d; // YYYY-...
+      if(parseInt(p[0])>12) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; // DD/MM/YYYY
+      return `${p[2]}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`; // MM/DD/YYYY
+    }
+    return d;
+  }
+
   const allVisits=[];
   pts.forEach(p=>(p.visits||[]).forEach(v=>{
-    if(v.date>=from&&v.date<=to) allVisits.push({...v,ptName:p.name});
+    const nd=normDate(v.date);
+    if(nd>=from&&nd<=to) allVisits.push({...v, date:nd, ptName:p.name});
   }));
 
   if(!allVisits.length){ el.innerHTML=`<div style="text-align:center;padding:48px;color:var(--tx3)">Không có dữ liệu trong kỳ: ${label}</div>`; return; }
 
   const dtKham=allVisits.reduce((s,v)=>s+(v.f1||0),0);
   const dtThuoc=allVisits.reduce((s,v)=>s+(v.f2||0),0);
-  // dtTT từ procs thực tế (price × qty), fallback f3
+  // dtTT từ procs thực tế (price × qty), fallback f3 khi procs rỗng
   const dtTT=allVisits.reduce((s,v)=>{
-    const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
+    const procs=v.procs&&v.procs.length?v.procs:[];
     const sp=procs.reduce((a,pr)=>a+(pr.price||0)*(pr.qty||1),0);
-    return s+(sp||v.f3||0);
+    return s+(sp>0?sp:(v.f3||0));
   },0);
   // Tổng trước giảm = f1+f2+f3(thực)
   const tongTruocGiam=allVisits.reduce((s,v)=>(s+(v.ftot_before_disc||v.f1||0)+(v.ftot_before_disc?0:(v.f2||0))+(v.ftot_before_disc?0:(v.f3||0))),0);
@@ -2088,27 +2104,58 @@ function renderReport(){
   const dtThuocFinal=dtThuocGB>0?dtThuocGB:dtThuoc;
   const laiThuoc=dtThuocFinal-tongVonThuoc;
 
-  // Giá vốn vật tư: ưu tiên v.supplies (nhập trực tiếp), sau đó catalog thuThuat
+  // Giá vốn vật tư: tính từ batch xuất kho (nguồn chính xác nhất)
+  // Mỗi batch xuất kho có qty âm, price là giá vốn/đv
   let tongVonVT=0;
   const chiTietTT={};
+
+  // Build map visitId → vonVT từ kho batches
+  const vonByVisit={};
+  kho.forEach(k=>{
+    (k.batches||[]).forEach(b=>{
+      if(b.qty<0 && b.note==='Tự động xuất kho'){
+        const von=Math.abs(b.qty)*(b.price||0);
+        const vid=b.visitId||('date:'+b.date+'|'+b.supplier);
+        if(!vonByVisit[vid]) vonByVisit[vid]=0;
+        vonByVisit[vid]+=von;
+      }
+    });
+  });
+
   allVisits.forEach(v=>{
+    const vid=String(v.id);
+    const dateKey='date:'+v.date;
+    // Tìm vonVT: ưu tiên visitId, sau đó date+supplier fallback
+    let vonVT=vonByVisit[vid]||0;
+    if(!vonVT){
+      // Fallback: cộng tất cả batch cùng ngày của visit này
+      kho.forEach(k=>{
+        (k.batches||[]).forEach(b=>{
+          if(b.qty<0 && b.note==='Tự động xuất kho' && b.date===v.date && !b.visitId){
+            vonVT+=Math.abs(b.qty)*(b.price||0);
+          }
+        });
+      });
+    }
+    // Fallback cuối: lấy từ v.supplies nếu có price
+    if(!vonVT && v.supplies&&v.supplies.length){
+      vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+    }
+    tongVonVT+=vonVT;
+
+    // Chi tiết theo thủ thuật
     const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
-    // Vốn từ v.supplies (nguồn trực tiếp — luôn ưu tiên)
-    const vonSupplies=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
-    // Vốn từ catalog (nếu không có supplies)
-    let vonCatalog=0;
     procs.forEach(pr=>{
       if(!pr.name) return;
       const qty=pr.qty||1;
-      const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
-      const von=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
-      vonCatalog+=von;
       const thu=(pr.price||0)*qty;
+      // Phân bổ vonVT đều theo số thủ thuật nếu có nhiều
+      const vonPr=procs.length>0?vonVT/procs.length:0;
       if(!chiTietTT[pr.name]) chiTietTT[pr.name]={count:0,thu:0,von:0};
-      chiTietTT[pr.name].count+=qty; chiTietTT[pr.name].thu+=thu; chiTietTT[pr.name].von+=von;
+      chiTietTT[pr.name].count+=qty;
+      chiTietTT[pr.name].thu+=thu;
+      chiTietTT[pr.name].von+=vonPr;
     });
-    // Dùng supplies nếu có, không thì dùng catalog
-    tongVonVT+=vonSupplies>0?vonSupplies:vonCatalog;
   });
   const laiTT=dtTT-tongVonVT;
 
@@ -2147,8 +2194,15 @@ function renderReport(){
             <th style="padding:4px 6px;border:1px solid var(--bo)">ftot</th>
             <th style="padding:4px 6px;border:1px solid var(--bo)">procs</th>
             <th style="padding:4px 6px;border:1px solid var(--bo)">supplies</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo);color:var(--da)">vonVT</th>
           </tr></thead>
-          <tbody>${allVisits.map(v=>`<tr>
+          <tbody>${allVisits.map(v=>{
+            const vid=String(v.id);
+            let vonVT=vonByVisit[vid]||0;
+            if(!vonVT){ kho.forEach(k=>{ (k.batches||[]).forEach(b=>{ if(b.qty<0&&b.note==='Tự động xuất kho'&&b.date===v.date&&!b.visitId) vonVT+=Math.abs(b.qty)*(b.price||0); }); }); }
+            if(!vonVT&&v.supplies&&v.supplies.length) vonVT=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+            const procsSum=v.procs&&v.procs.length?v.procs.reduce((a,pr)=>a+(pr.price||0)*(pr.qty||1),0):0;
+            return `<tr>
             <td style="padding:3px 6px;border:1px solid var(--bo)">${v.ptName}</td>
             <td style="padding:3px 6px;border:1px solid var(--bo)">${v.date}</td>
             <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f1||0).toLocaleString('vi-VN')}</td>
@@ -2156,9 +2210,10 @@ function renderReport(){
             <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f3||0).toLocaleString('vi-VN')}</td>
             <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${v.disc_pct||v.disc_amt||0}</td>
             <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--green)">${(v.ftot||0).toLocaleString('vi-VN')}</td>
-            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.procs||[]).map(pr=>pr.name+'×'+(pr.qty||1)+'='+((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')).join(', ')||'—'}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.procs||[]).map(pr=>pr.name+'×'+(pr.qty||1)+'='+((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')).join(', ')||('f3='+((v.f3||0).toLocaleString('vi-VN')))}</td>
             <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.supplies||[]).map(s=>s.name+'×'+(s.qty||1)+'@'+(s.price||0)).join(', ')||'—'}</td>
-          </tr>`).join('')}</tbody>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right;color:var(--da);font-weight:700">${vonVT.toLocaleString('vi-VN')}</td>
+          </tr>`;}).join('')}</tbody>
         </table>
       </div>
     </details>
