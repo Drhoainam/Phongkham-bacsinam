@@ -2133,6 +2133,36 @@ function renderReport(){
   const maxDt=Math.max(...Object.values(groups).map(g=>g.dt),1);
 
   el.innerHTML=`
+    <details style="margin-bottom:12px;background:#f8f9fb;border:1px solid var(--bo);border-radius:8px;padding:8px 12px;font-size:.72rem">
+      <summary style="cursor:pointer;font-weight:700;color:var(--tx3)">🔍 Debug data (${allVisits.length} visits tìm thấy trong kỳ)</summary>
+      <div style="margin-top:8px;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.7rem">
+          <thead><tr style="background:var(--su2)">
+            <th style="padding:4px 6px;border:1px solid var(--bo);text-align:left">BN</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">Ngày</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">f1</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">f2</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">f3</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">disc%</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">ftot</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">procs</th>
+            <th style="padding:4px 6px;border:1px solid var(--bo)">supplies</th>
+          </tr></thead>
+          <tbody>${allVisits.map(v=>`<tr>
+            <td style="padding:3px 6px;border:1px solid var(--bo)">${v.ptName}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo)">${v.date}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f1||0).toLocaleString('vi-VN')}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f2||0).toLocaleString('vi-VN')}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${(v.f3||0).toLocaleString('vi-VN')}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right">${v.disc_pct||v.disc_amt||0}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo);text-align:right;font-weight:700;color:var(--green)">${(v.ftot||0).toLocaleString('vi-VN')}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.procs||[]).map(pr=>pr.name+'×'+(pr.qty||1)+'='+((pr.price||0)*(pr.qty||1)).toLocaleString('vi-VN')).join(', ')||'—'}</td>
+            <td style="padding:3px 6px;border:1px solid var(--bo)">${(v.supplies||[]).map(s=>s.name+'×'+(s.qty||1)+'@'+(s.price||0)).join(', ')||'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </details>
+
     <div style="background:linear-gradient(135deg,rgba(46,160,67,.1),rgba(46,160,67,.04));border:1px solid rgba(46,160,67,.3);border-radius:12px;padding:16px;margin-bottom:14px">
       <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:var(--ac);margin-bottom:12px">KỲ: ${label} · ${allVisits.length} lượt khám</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
