@@ -3187,7 +3187,6 @@ async function recalcAllVonVT(){
   showToast(`✓ Tính lại xong ${updated} visits`,'success');
   setTimeout(()=>{ if(statusEl) statusEl.textContent=''; renderLaiLoData(); },3000);
 }
-}
 
 function renderLaiLoData(){
   const year=parseInt(document.getElementById('ll_year')?.value)||new Date().getFullYear();
