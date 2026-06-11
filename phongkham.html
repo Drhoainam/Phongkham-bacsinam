@@ -1157,18 +1157,26 @@ function saveVisit(){
   const g=id=>{ const el=document.getElementById(id); return el?el.value:''; };
   if(!g('v_date')){ showToast('Vui lòng chọn ngày khám','error'); return; }
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
-  const f1=parseFloat(g('v_f1'))||0, f2=parseFloat(g('v_f2'))||0, f3=parseFloat(g('v_f3'))||0;
+  const f1=parseFloat(g('v_f1'))||0;
+  const f2=parseFloat(g('v_f2'))||0;
+  // f3: tính từ tổng procs thực tế (price × qty), không dùng input f3 trực tiếp
+  const procsSnap=JSON.parse(JSON.stringify(p.cv&&p.cv.procs||[]));
+  const f3Procs=procsSnap.reduce((s,pr)=>s+(pr.price||0)*(pr.qty||1),0);
+  const f3=f3Procs||parseFloat(g('v_f3'))||0;
+  const discPct=parseFloat(g('v_disc_pct'))||0;
+  const discAmt=parseFloat(g('v_disc_amt'))||0;
+  const subtot=f1+f2+f3;
+  const disc=discPct>0?Math.round(subtot*discPct/100):discAmt;
+  const ftot=Math.max(0,subtot-disc);
   const visit={
     id:editingVisitId||Date.now(), date:g('v_date'), type:g('v_type'),
     pulse:g('v_pulse'), bp:g('v_bp'), reason:g('v_reason'), diag:g('v_diag'),
     meds:JSON.parse(JSON.stringify(p.cv&&p.cv.meds||[])),
     proc:g('v_proc'), supplies:JSON.parse(JSON.stringify(p.cv&&p.cv.supplies||[])),
-    procs:JSON.parse(JSON.stringify(p.cv&&p.cv.procs||[])),
-    f1,f2,f3,
-    disc_pct:parseFloat(g('v_disc_pct'))||0,
-    disc_amt:parseFloat(g('v_disc_amt'))||0,
-    ftot:Math.max(0,(f1+f2+f3)-(parseFloat(g('v_disc_pct'))>0?Math.round((f1+f2+f3)*parseFloat(g('v_disc_pct'))/100):(parseFloat(g('v_disc_amt'))||0))),
-    ftot_before_disc:f1+f2+f3,
+    procs:procsSnap,
+    f1, f2, f3,
+    disc_pct:discPct, disc_amt:discAmt,
+    ftot, ftot_before_disc:subtot,
     nextVisit:g('v_next'), nextVisitTime:g('v_nt'), note:g('v_note'),
   };
   if(!p.visits) p.visits=[];
@@ -2024,13 +2032,21 @@ function renderReport(){
 
   const dtKham=allVisits.reduce((s,v)=>s+(v.f1||0),0);
   const dtThuoc=allVisits.reduce((s,v)=>s+(v.f2||0),0);
-  // dtTT: ưu tiên tổng từ procs[].price × qty, fallback về f3
+  // dtTT từ procs thực tế (price × qty), fallback f3
   const dtTT=allVisits.reduce((s,v)=>{
     const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
-    const sumProcs=procs.reduce((a,pr)=>(a+(pr.price||0)*(pr.qty||1)),0);
-    return s+(sumProcs||v.f3||0);
+    const sp=procs.reduce((a,pr)=>a+(pr.price||0)*(pr.qty||1),0);
+    return s+(sp||v.f3||0);
   },0);
-  // Doanh thu thực = sum(ftot) — đã tính giảm giá
+  // Tổng trước giảm = f1+f2+f3(thực)
+  const tongTruocGiam=allVisits.reduce((s,v)=>(s+(v.ftot_before_disc||v.f1||0)+(v.ftot_before_disc?0:(v.f2||0))+(v.ftot_before_disc?0:(v.f3||0))),0);
+  // Tổng giảm giá
+  const tongGiam=allVisits.reduce((s,v)=>{
+    const sub=v.ftot_before_disc||(v.f1||0)+(v.f2||0)+(v.f3||0);
+    const disc=v.disc_pct>0?Math.round(sub*v.disc_pct/100):(v.disc_amt||0);
+    return s+disc;
+  },0);
+  // Tổng thực thu = sum(ftot)
   const tongDT=allVisits.reduce((s,v)=>s+(v.ftot||0),0);
 
   // Giá vốn thuốc
@@ -2050,41 +2066,32 @@ function renderReport(){
   const dtThuocFinal=dtThuocGB>0?dtThuocGB:dtThuoc;
   const laiThuoc=dtThuocFinal-tongVonThuoc;
 
-  // Giá vốn vật tư thủ thuật
-  // Nguồn 1: catalog thuThuat (nếu thủ thuật có định nghĩa vật tư)
-  // Nguồn 2: v.supplies nhập trực tiếp trong phiếu khám
+  // Giá vốn vật tư: ưu tiên v.supplies (nhập trực tiếp), sau đó catalog thuThuat
   let tongVonVT=0;
   const chiTietTT={};
   allVisits.forEach(v=>{
     const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,price:v.f3||0,qty:1}]:[]);
-    // Vốn từ catalog thủ thuật
+    // Vốn từ v.supplies (nguồn trực tiếp — luôn ưu tiên)
+    const vonSupplies=(v.supplies||[]).reduce((s,x)=>s+(x.price||0)*(x.qty||1),0);
+    // Vốn từ catalog (nếu không có supplies)
+    let vonCatalog=0;
     procs.forEach(pr=>{
       if(!pr.name) return;
       const qty=pr.qty||1;
       const ttItem=thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId);
-      const vonVT=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
-      tongVonVT+=vonVT;
+      const von=ttItem?(ttItem.supplies||[]).reduce((s,x)=>s+(x.qty||1)*(x.price||0),0)*qty:0;
+      vonCatalog+=von;
       const thu=(pr.price||0)*qty;
       if(!chiTietTT[pr.name]) chiTietTT[pr.name]={count:0,thu:0,von:0};
-      chiTietTT[pr.name].count+=qty; chiTietTT[pr.name].thu+=thu; chiTietTT[pr.name].von+=vonVT;
+      chiTietTT[pr.name].count+=qty; chiTietTT[pr.name].thu+=thu; chiTietTT[pr.name].von+=von;
     });
-    // Vốn từ v.supplies nhập trực tiếp (cộng thêm nếu chưa tính qua catalog)
-    const hasProcsFromCatalog=procs.some(pr=>thuThuat.find(t=>t.name===pr.name||t.id===pr.ttId));
-    if(!hasProcsFromCatalog){
-      (v.supplies||[]).forEach(s=>{
-        const von=(s.price||0)*(s.qty||1);
-        tongVonVT+=von;
-        const key='__supply__'+s.name;
-        if(!chiTietTT[key]) chiTietTT[key]={count:0,thu:0,von:0,label:s.name+' (VT trực tiếp)'};
-        chiTietTT[key].von+=von;
-      });
-    }
+    // Dùng supplies nếu có, không thì dùng catalog
+    tongVonVT+=vonSupplies>0?vonSupplies:vonCatalog;
   });
   const laiTT=dtTT-tongVonVT;
 
   const tongGiaVon=tongVonThuoc+tongVonVT;
-  // Doanh thu tổng: dùng ftot (thực thu sau giảm giá)
-  const tongDTFinal=tongDT;
+  const tongDTFinal=tongDT; // thực thu sau giảm
   const laiGop=tongDTFinal-tongGiaVon;
   const tyLe=tongDTFinal>0?Math.round(laiGop/tongDTFinal*100):0;
 
@@ -2093,8 +2100,13 @@ function renderReport(){
   const groups={};
   allVisits.forEach(v=>{
     const key=isPeriodLong?v.date.substring(0,7):v.date;
-    if(!groups[key]) groups[key]={count:0,dt:0};
-    groups[key].count++; groups[key].dt+=(v.ftot||0);
+    if(!groups[key]) groups[key]={count:0,dt:0,giam:0,truocGiam:0};
+    const sub=v.ftot_before_disc||(v.f1||0)+(v.f2||0)+(v.f3||0);
+    const disc=v.disc_pct>0?Math.round(sub*v.disc_pct/100):(v.disc_amt||0);
+    groups[key].count++;
+    groups[key].dt+=(v.ftot||0);
+    groups[key].giam+=disc;
+    groups[key].truocGiam+=sub;
   });
   const maxDt=Math.max(...Object.values(groups).map(g=>g.dt),1);
 
@@ -2128,6 +2140,24 @@ function renderReport(){
         <div style="font-size:.7rem;color:var(--da);margin-top:3px">Vật tư: ${tongVonVT.toLocaleString('vi-VN')}đ</div>
         <div style="font-size:.76rem;font-weight:700;color:${laiTT>=0?'var(--ac)':'var(--da)'};margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Lãi: ${laiTT.toLocaleString('vi-VN')}đ</div>
       </div>
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Tiền giảm giá</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--ac3)">${tongGiam>0?'-'+tongGiam.toLocaleString('vi-VN')+'đ':'0đ'}</div>
+        <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">Trước giảm: ${(tongDTFinal+tongGiam).toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.76rem;color:var(--tx3);margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">${tongGiam>0?Math.round(tongGiam/(tongDTFinal+tongGiam)*100)+'% tổng dịch vụ':'Không có'}</div>
+      </div>
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Tổng thu thực</div>
+        <div style="font-size:.95rem;font-weight:700;color:var(--green)">${tongDTFinal.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">${allVisits.length} lượt · tb ${allVisits.length>0?Math.round(tongDTFinal/allVisits.length).toLocaleString('vi-VN'):'0'}đ/lượt</div>
+        <div style="font-size:.76rem;font-weight:700;color:var(--green);margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Sau giảm giá</div>
+      </div>
+      <div class="sc">
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--tx3);margin-bottom:7px">Lãi / Lỗ gộp</div>
+        <div style="font-size:.95rem;font-weight:700;color:${laiGop>=0?'var(--green)':'var(--da)'}">${laiGop>=0?'+':''}${laiGop.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.7rem;color:var(--tx3);margin-top:3px">Tổng vốn: ${tongGiaVon.toLocaleString('vi-VN')}đ</div>
+        <div style="font-size:.76rem;font-weight:700;color:${laiGop>=0?'var(--green)':'var(--da)'};margin-top:4px;padding-top:4px;border-top:1px solid var(--bo)">Biên lợi nhuận: ${tyLe}%</div>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:12px">
@@ -2148,16 +2178,33 @@ function renderReport(){
 
     <div class="card" style="margin-bottom:12px">
       <div class="ct">Doanh thu theo ${isPeriodLong?'tháng':'ngày'}</div>
-      ${Object.keys(groups).sort().map(k=>{
-        const g=groups[k]; const pct=Math.round(g.dt/maxDt*100);
-        return `<div style="margin-bottom:7px">
-          <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:2px">
-            <span style="color:var(--tx2)">${k} <span style="color:var(--tx3)">(${g.count} lượt)</span></span>
-            <span style="font-weight:700;color:var(--ac)">${g.dt.toLocaleString('vi-VN')}đ</span>
-          </div>
-          <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
-        </div>`;
-      }).join('')}
+      <div style="overflow-x:auto"><table class="tbl" style="font-size:.77rem">
+        <thead><tr>
+          <th>${isPeriodLong?'Tháng':'Ngày'}</th>
+          <th style="text-align:center">Lượt</th>
+          <th style="text-align:right">Dịch vụ (trước GG)</th>
+          <th style="text-align:right;color:var(--ac3)">Giảm giá</th>
+          <th style="text-align:right;color:var(--green)">Thực thu</th>
+        </tr></thead>
+        <tbody>${Object.keys(groups).sort().map(k=>{
+          const g=groups[k]; const pct=Math.round(g.dt/maxDt*100);
+          return `<tr>
+            <td><strong>${k}</strong></td>
+            <td style="text-align:center;color:var(--tx2)">${g.count}</td>
+            <td style="text-align:right;color:var(--tx2)">${g.truocGiam.toLocaleString('vi-VN')}đ</td>
+            <td style="text-align:right;color:var(--ac3)">${g.giam>0?'-'+g.giam.toLocaleString('vi-VN')+'đ':'—'}</td>
+            <td style="text-align:right;font-weight:700;color:var(--green)">${g.dt.toLocaleString('vi-VN')}đ
+              <div class="chart-bar" style="margin-top:3px"><div class="chart-bar-fill" style="width:${pct}%;background:var(--green)"></div></div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+        <tfoot><tr>
+          <td colspan="2" style="font-weight:700;padding:6px">TỔNG</td>
+          <td style="text-align:right;font-weight:600;padding:6px;color:var(--tx2)">${(tongDTFinal+tongGiam).toLocaleString('vi-VN')}đ</td>
+          <td style="text-align:right;font-weight:600;padding:6px;color:var(--ac3)">${tongGiam>0?'-'+tongGiam.toLocaleString('vi-VN')+'đ':'—'}</td>
+          <td style="text-align:right;font-weight:700;padding:6px;color:var(--green)">${tongDTFinal.toLocaleString('vi-VN')}đ</td>
+        </tr></tfoot>
+      </table></div>
     </div>
 
     ${Object.keys(chiTietThuoc).length?`
