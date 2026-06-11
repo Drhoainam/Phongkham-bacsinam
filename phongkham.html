@@ -557,13 +557,16 @@ function initDatePickers(){
   };
   ['v_date','v_next','stFrom','stTo','rpFrom','rpTo','kh_date','be_date'].forEach(id=>{
     const el=document.getElementById(id); if(!el||el._fp) return;
-    const isoVal=el.value;
+    const isoVal=el.value; // yyyy-mm-dd từ value attribute
     const fp=flatpickr(el,{...cfg, defaultDate:isoVal||undefined,
       onChange(dates){
         el.setAttribute('data-iso', dates[0]?localDateISO(dates[0]):'');
       }
     });
-    if(isoVal) el.setAttribute('data-iso',isoVal);
+    // Luôn set data-iso từ value ban đầu (kể cả khi không chọn lại)
+    if(isoVal) el.setAttribute('data-iso', isoVal);
+    // Nếu flatpickr đã chọn ngày, lấy từ selectedDates
+    else if(fp.selectedDates&&fp.selectedDates[0]) el.setAttribute('data-iso', localDateISO(fp.selectedDates[0]));
     el._fp=fp;
   });
 }
@@ -1275,7 +1278,7 @@ function updCvField(field, val){
 // ===== SAVE VISIT =====
 function saveVisit(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; return el._fp?(el.getAttribute('data-iso')||''):el.value; };
+  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; const iso=el.getAttribute('data-iso'); if(el._fp) return iso||el.value||''; return el.value; };
   if(!g('v_date')){ showToast('Vui lòng chọn ngày khám','error'); return; }
   if(!g('v_diag')){ showToast('Vui lòng điền chẩn đoán','error'); return; }
   const f1=parseFloat(g('v_f1'))||0;
@@ -1447,7 +1450,7 @@ function cancelEdit(){
 // ===== PRINT PRESCRIPTION (MẪU BYT) =====
 function openPrintModal(){
   const p=pts.find(x=>x.id===curId); if(!p) return;
-  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; return el._fp?(el.getAttribute('data-iso')||''):el.value; };
+  const g=id=>{ const el=document.getElementById(id); if(!el) return ''; const iso=el.getAttribute('data-iso'); if(el._fp) return iso||el.value||''; return el.value; };
   const meds=p.cv&&p.cv.meds||[];
   const date=g('v_date')||localDateISO();
   const diag=g('v_diag')||'';
