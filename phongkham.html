@@ -3095,79 +3095,117 @@ function renderKhoTab(){
 
 // ===== TỒN KHO =====
 function renderTonKho(){
-  if(!kho.length) return `<div style="text-align:center;padding:48px;color:var(--tx3)">Kho trống. Vào tab "Nhập kho" để thêm thuốc.</div>`;
+  if(!kho.length) return `<div style="text-align:center;padding:48px;color:var(--tx3)">Kho trống. Vào tab "Nhập kho" để thêm.</div>`;
 
   const rows=kho.map(k=>{
     const ton=getTon(k);
     const gv=getGiaVon(k);
-    const minStock=k.minStock||10;
-    const cls=ton<=0?'ton-zero':ton<=minStock?'ton-low':'ton-ok';
-    const warning=ton<=0?'🔴 Hết hàng':ton<=minStock?'🟡 Sắp hết':'';
-    return {k,ton,gv,cls,warning};
-  }).sort((a,b)=>a.ton-b.ton); // sắp xếp theo tồn ít nhất lên đầu
+    const min=k.minStock||10;
+    const cls=ton<=0?'ton-zero':ton<=min?'ton-low':'ton-ok';
+    const status=ton<=0?'🔴 Hết hàng':ton<=min?'🟡 Sắp hết':'✅ Đủ hàng';
+    return {k,ton,gv,min,cls,status};
+  }).sort((a,b)=>a.ton-b.ton);
 
-  const hetHang=rows.filter(r=>r.ton<=0).length;
-  const sapHet=rows.filter(r=>r.ton>0&&r.ton<=(r.k.minStock||10)).length;
+  const drugs=rows.filter(r=>r.k.itemtype!=='supply');
+  const supplies=rows.filter(r=>r.k.itemtype==='supply');
 
-  return `
-    ${hetHang||sapHet?`<div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.2);border-radius:9px;padding:10px 14px;margin-bottom:12px;font-size:.8rem;color:var(--da)">
-      ⚠️ ${hetHang?hetHang+' thuốc hết hàng':''}${hetHang&&sapHet?' · ':''}${sapHet?sapHet+' thuốc sắp hết':''}
-    </div>`:''}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:.72rem;color:var(--tx3)">${kho.length} mặt hàng · ${rows.filter(r=>r.ton>0).length} còn hàng</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-g" style="font-size:.76rem" onclick="exportKhoExcel()">📥 Xuất Excel</button>
-        <button class="btn btn-g" style="font-size:.76rem" onclick="khoTab='nhap';document.querySelectorAll('.kho-tab').forEach((t,i)=>{t.classList.toggle('active',i===1)});renderKhoTab()">＋ Nhập thêm</button>
-      </div>
-    </div>
-    <div style="overflow-x:auto">
-    <table class="tbl" style="font-size:.79rem">
+  function alertBox(list, label){
+    const het=list.filter(r=>r.ton<=0);
+    const sap=list.filter(r=>r.ton>0&&r.ton<=r.min);
+    if(!het.length&&!sap.length) return '';
+    const items=[
+      ...het.map(r=>`<span style="background:#fee2e2;color:var(--da);padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:700;border:1px solid #fca5a5">🔴 ${r.k.name}${r.k.dose?' '+r.k.dose:''}</span>`),
+      ...sap.map(r=>`<span style="background:#fff7ed;color:var(--ac3);padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:700;border:1px solid #fcd34d">🟡 ${r.k.name}${r.k.dose?' '+r.k.dose:''} (còn ${r.ton})</span>`)
+    ].join(' ');
+    return `<div style="background:#fef9f0;border:1.5px solid #fcd34d;border-radius:9px;padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:.74rem;font-weight:700;color:var(--ac3);margin-bottom:6px">⚠️ ${label} cần nhập thêm</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${items}</div>
+    </div>`;
+  }
+
+  function tableSection(list, icon, title, color){
+    if(!list.length) return `<div style="color:var(--tx3);font-size:.8rem;padding:12px;text-align:center">Chưa có ${title.toLowerCase()} trong kho.</div>`;
+    const tongGT=list.reduce((s,{k,ton,gv})=>s+(ton>0?ton*gv:0),0);
+    return `
+    <table class="tbl" style="font-size:.78rem">
       <thead><tr>
-        <th>Tên thuốc</th><th>Hàm lượng</th><th>ĐVT</th>
-        <th style="text-align:right">Tồn kho</th>
-        <th style="text-align:right">Tối thiểu</th>
+        <th>${icon} Tên</th>
+        <th>Hàm lượng</th>
+        <th>ĐVT</th>
+        <th style="text-align:center">Tồn kho</th>
+        <th style="text-align:center">Tối thiểu</th>
         <th style="text-align:right">Giá vốn TB</th>
         <th style="text-align:right">Giá bán</th>
         <th style="text-align:right">Lãi/đv</th>
         <th style="text-align:right">Giá trị tồn</th>
-        <th style="text-align:center">Trạng thái</th>
+        <th style="text-align:center">TT</th>
         <th></th>
       </tr></thead>
       <tbody>
-        ${rows.map(({k,ton,gv,cls,warning})=>`<tr style="${ton<=0?'opacity:.6':''}">
-          <td>
-            <span style="font-size:.65rem;padding:1px 5px;border-radius:10px;margin-right:4px;${k.itemtype==='supply'?'background:rgba(240,136,62,.15);color:var(--ac3)':'background:rgba(88,166,255,.15);color:var(--ac2)'}">${k.itemtype==='supply'?'📦':'💊'}</span>
-            <strong>${k.name}</strong>
-          </td>
-          <td>${k.dose||'—'}</td>
-          <td>${k.unit||'viên'}</td>
-          <td style="text-align:right;font-weight:700"><span class="ton-badge ${cls}">${ton}</span></td>
-          <td style="text-align:right;color:var(--tx3)">${k.minStock||10}</td>
+        ${list.map(({k,ton,gv,cls,status})=>`<tr style="${ton<=0?'opacity:.55':''}">
+          <td><strong>${k.name}</strong></td>
+          <td style="color:var(--tx2)">${k.dose||'—'}</td>
+          <td style="color:var(--tx3)">${k.unit||'viên'}</td>
+          <td style="text-align:center"><span class="ton-badge ${cls}">${ton}</span></td>
+          <td style="text-align:center;color:var(--tx3)">${k.minStock||10}</td>
           <td style="text-align:right;color:var(--tx2)">${gv>0?Math.round(gv).toLocaleString('vi-VN')+'đ':'—'}</td>
           <td style="text-align:right">
             <input type="number" value="${k.sellPrice||''}" placeholder="Nhập giá" min="0" step="500"
-              style="width:90px;padding:3px 6px;font-size:.76rem;text-align:right;background:var(--bg);border:1px solid var(--bo);border-radius:5px;color:var(--ac2)"
+              style="width:86px;padding:3px 6px;font-size:.74rem;text-align:right;background:var(--bg);border:1px solid var(--bo);border-radius:5px;color:var(--ac)"
               onchange="updateKhoSellPrice('${k.id}',this.value)">
           </td>
-          <td style="text-align:right;font-weight:600;color:${`${k.sellPrice&&gv>0?((k.sellPrice-Math.round(gv))>=0?'var(--ac)':'var(--da)'):'var(--tx3)'}`}">
+          <td style="text-align:right;font-weight:600;color:${k.sellPrice&&gv>0?((k.sellPrice-Math.round(gv))>=0?'var(--green)':'var(--da)'):'var(--tx3)'}">
             ${k.sellPrice&&gv>0?(k.sellPrice-Math.round(gv)).toLocaleString('vi-VN')+'đ':'—'}
           </td>
           <td style="text-align:right;color:var(--ac)">${ton>0&&gv>0?(ton*gv).toLocaleString('vi-VN')+'đ':'—'}</td>
-          <td style="text-align:center;font-size:.76rem">${warning||'✅ Đủ hàng'}</td>
+          <td style="text-align:center;font-size:.72rem;white-space:nowrap">${status}</td>
           <td style="white-space:nowrap">
-            <button class="btn btn-g" style="padding:2px 7px;font-size:.7rem;margin-right:3px" onclick="editKhoItem('${k.id}')">✏️</button>
+            <button class="btn btn-g" style="padding:2px 7px;font-size:.7rem;margin-right:2px" onclick="editKhoItem('${k.id}')">✏️</button>
             <button class="btn-rm" onclick="delKhoItem('${k.id}')" title="Xóa">✕</button>
           </td>
         </tr>`).join('')}
       </tbody>
-      <tfoot><tr style="background:rgba(46,160,67,.08)">
-        <td colspan="8" style="font-weight:700;padding:7px">TỔNG GIÁ TRỊ TỒN KHO</td>
-        <td style="text-align:right;font-weight:700;color:var(--ac);padding:7px">
-          ${rows.reduce((s,{k,ton,gv})=>s+(ton>0?ton*gv:0),0).toLocaleString('vi-VN')}đ
-        </td>
+      <tfoot><tr style="background:#f8fffe">
+        <td colspan="8" style="font-weight:700;padding:6px 8px;color:var(--tx2)">${list.length} mặt hàng · ${list.filter(r=>r.ton>0).length} còn hàng</td>
+        <td style="text-align:right;font-weight:700;color:${color};padding:6px 8px">${tongGT.toLocaleString('vi-VN')}đ</td>
         <td colspan="2"></td>
       </tr></tfoot>
-    </table></div>`;
+    </table>`;
+  }
+
+  const tongTatCa=rows.reduce((s,{k,ton,gv})=>s+(ton>0?ton*gv:0),0);
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:14px;font-size:.78rem;flex-wrap:wrap">
+        <span style="color:var(--tx2)">💊 <strong>${drugs.length}</strong> thuốc · <strong style="color:var(--ac)">${drugs.filter(r=>r.ton>0).length}</strong> còn hàng</span>
+        <span style="color:var(--tx2)">📦 <strong>${supplies.length}</strong> vật tư · <strong style="color:var(--ac3)">${supplies.filter(r=>r.ton>0).length}</strong> còn hàng</span>
+        <span style="color:var(--green);font-weight:700">Tổng tồn: ${tongTatCa.toLocaleString('vi-VN')}đ</span>
+      </div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-g" style="font-size:.74rem" onclick="exportKhoExcel()">📥 Excel</button>
+        <button class="btn btn-p" style="font-size:.74rem" onclick="khoTab='nhap';document.querySelectorAll('.kho-tab').forEach((t,i)=>t.classList.toggle('active',i===1));renderKhoTab()">＋ Nhập thêm</button>
+      </div>
+    </div>
+
+    ${alertBox(drugs,'Thuốc')}
+    ${alertBox(supplies,'Vật tư tiêu hao')}
+
+    <div style="background:var(--su);border:1.5px solid #bae6fd;border-radius:10px;overflow:hidden;margin-bottom:16px">
+      <div style="background:#eff6ff;padding:9px 14px;font-weight:700;font-size:.82rem;color:var(--ac);border-bottom:1px solid #bae6fd;display:flex;align-items:center;gap:8px">
+        💊 TỒN KHO THUỐC
+        <span style="margin-left:auto;font-size:.72rem;font-weight:400;color:var(--tx3)">${drugs.filter(r=>r.ton<=0).length>0?`🔴 ${drugs.filter(r=>r.ton<=0).length} hết hàng · `:''}${drugs.filter(r=>r.ton>0&&r.ton<=r.min).length>0?`🟡 ${drugs.filter(r=>r.ton>0&&r.ton<=r.min).length} sắp hết`:'✅ Đủ hàng'}</span>
+      </div>
+      <div style="overflow-x:auto">${tableSection(drugs,'💊','Thuốc','var(--ac)')}</div>
+    </div>
+
+    <div style="background:var(--su);border:1.5px solid #fcd34d;border-radius:10px;overflow:hidden">
+      <div style="background:#fff7ed;padding:9px 14px;font-weight:700;font-size:.82rem;color:var(--ac3);border-bottom:1px solid #fcd34d;display:flex;align-items:center;gap:8px">
+        📦 TỒN KHO VẬT TƯ TIÊU HAO
+        <span style="margin-left:auto;font-size:.72rem;font-weight:400;color:var(--tx3)">${supplies.filter(r=>r.ton<=0).length>0?`🔴 ${supplies.filter(r=>r.ton<=0).length} hết hàng · `:''}${supplies.filter(r=>r.ton>0&&r.ton<=r.min).length>0?`🟡 ${supplies.filter(r=>r.ton>0&&r.ton<=r.min).length} sắp hết`:'✅ Đủ hàng'}</span>
+      </div>
+      <div style="overflow-x:auto">${tableSection(supplies,'📦','Vật tư','var(--ac3)')}</div>
+    </div>`;
 }
 
 // ===== NHẬP KHO =====
