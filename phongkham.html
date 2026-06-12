@@ -1792,55 +1792,136 @@ function editVisit(ptId, visitId){
 function printVisit(ptId, visitId){
   const p=pts.find(x=>x.id===ptId); if(!p) return;
   const v=p.visits&&p.visits.find(x=>x.id==visitId); if(!v) return;
-  const age=p.year?(2026-p.year):'';
+  const age=p.year?(new Date().getFullYear()-p.year):'';
   const meds=v.meds||[];
-  const content=`<div style="font-family:Arial,sans-serif;font-size:13px;max-width:680px;margin:0 auto">
-    <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:12px">
-      <div style="font-weight:700;font-size:15px;text-transform:uppercase">Phòng khám chuyên khoa Thần kinh, Cơ xương khớp, Da liễu</div>
-      <div style="font-size:12px;color:#333;margin-top:3px">Thạc sĩ, Bác sĩ Chuyên khoa 1: Nguyễn Hoài Nam &nbsp;·&nbsp; Mobile/Zalo: 0912839115</div>
-    </div>
-    <div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:12px">ĐƠN THUỐC</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px">
-      <div><strong>Họ tên:</strong> ${p.name}</div><div><strong>Tuổi:</strong> ${age}</div>
-      <div><strong>Giới tính:</strong> ${p.gender||''}</div><div><strong>Ngày:</strong> ${v.date}</div>
-      <div style="grid-column:1/-1"><strong>Chẩn đoán:</strong> <em>${v.diag||''}</em></div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
-      <thead><tr style="background:#f0f0f0">
-        <th style="border:1px solid #ccc;padding:5px;width:5%;text-align:center">STT</th>
-        <th style="border:1px solid #ccc;padding:5px;width:30%">Tên thuốc</th>
-        <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">SL</th>
-        <th style="border:1px solid #ccc;padding:5px;width:10%;text-align:center">ĐVT</th>
-        <th style="border:1px solid #ccc;padding:5px">Cách dùng</th>
-      </tr></thead>
-      <tbody>${meds.map((m,i)=>{
-        const parts=(m.note||'').split('-');
-        const isTime=parts.some(x=>parseInt(x)>4);
-        const s=[];
-        if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
-        if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
-        if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
-        const cd=`${m.times||'?'} lần/ngày, ${m.qty||1} ${m.unit||'viên'}/lần${s.length?' ('+s.join(', ')+')':', uống sau ăn'}. ${m.days||'?'} ngày.${m.remark?' '+m.remark+'.':''}`;
-        const tot=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
-        return `<tr><td style="border:1px solid #ccc;padding:5px;text-align:center">${i+1}</td>
-          <td style="border:1px solid #ccc;padding:5px"><strong>${m.name}</strong> ${m.dose||''}</td>
-          <td style="border:1px solid #ccc;padding:5px;text-align:center">${tot}</td>
-          <td style="border:1px solid #ccc;padding:5px;text-align:center">${m.unit||'viên'}</td>
-          <td style="border:1px solid #ccc;padding:5px">${cd}</td></tr>`;
-      }).join('')}</tbody>
-    </table>
-    ${v.note?`<div style="font-size:12px;margin-bottom:10px"><strong>Lời dặn:</strong> ${v.note}</div>`:''}
-    ${v.nextVisit?`<div style="font-size:12px;margin-bottom:20px"><strong>Tái khám:</strong> ${v.nextVisit}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
-    <div style="text-align:right;margin-top:20px;font-size:12px">
-      <div>Ngày ${v.date}</div>
-      <div style="font-weight:700;margin-top:50px">Thạc sĩ, BSCK1 Nguyễn Hoài Nam</div>
-    </div>
-  </div>`;
+  // Format ngày dd/mm/yyyy
+  const fmtD=d=>{ if(!d) return ''; const pt=d.split('-'); return pt.length===3?`${pt[2]}/${pt[1]}/${pt[0]}`:d; };
+  const medRows=meds.length?meds.map((m,i)=>{
+    const parts=(m.note||'').split('-');
+    const isTime=parts.some(x=>parseInt(x)>4);
+    const s=[];
+    if(parts[0]&&parts[0]!=='0') s.push(isTime?parts[0]+'h':'sáng');
+    if(parts[1]&&parts[1]!=='0') s.push(isTime?parts[1]+'h':'trưa');
+    if(parts[2]&&parts[2]!=='0') s.push(isTime?parts[2]+'h':'tối');
+    const gioDung=s.length?s.join(', '):'';
+    const cd=`${m.times||1} lần/ngày × ${m.qty||1} ${m.unit||'viên'}/lần${gioDung?' — '+gioDung:''} × ${m.days||1} ngày${m.remark?' ('+m.remark+')':''}`;
+    const tot=(parseInt(m.qty)||1)*(parseInt(m.times)||1)*(parseInt(m.days)||1);
+    return `<tr>
+      <td class="tc">${i+1}</td>
+      <td><strong>${m.name}</strong>${m.dose?' <span class="dose">'+m.dose+'</span>':''}</td>
+      <td class="tc">${tot}</td>
+      <td class="tc">${m.unit||'viên'}</td>
+      <td>${cd}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="5" style="text-align:center;padding:14px;color:#999;font-style:italic">Không kê thuốc</td></tr>`;
+
+  const procs=v.procs&&v.procs.length?v.procs:(v.proc?[{name:v.proc,qty:1}]:[]);
+
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Đơn thuốc - ${p.name}</title>
-  <style>body{margin:20px}@media print{body{margin:10mm}}</style></head>
-  <body>${content}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.write(`<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8">
+<title>Đơn thuốc — ${p.name}</title>
+<style>
+  @page { size: A5; margin: 12mm 14mm 14mm 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #111; background: #fff; }
+  
+  /* HEADER */
+  .header { text-align: center; border-bottom: 2.5px double #111; padding-bottom: 8px; margin-bottom: 10px; }
+  .clinic-name { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; line-height: 1.4; }
+  .clinic-sub { font-size: 11px; color: #333; margin-top: 3px; }
+  
+  /* TITLE */
+  .title { text-align: center; font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin: 10px 0 8px; }
+  
+  /* PATIENT INFO */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; font-size: 12.5px; margin-bottom: 8px; }
+  .info-grid .full { grid-column: 1 / -1; }
+  .info-grid strong { font-weight: 600; }
+  
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid #ccc; margin: 6px 0; }
+  
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  th { background: #f0f0f0; font-weight: 700; border: 1px solid #bbb; padding: 5px 6px; text-align: center; font-size: 11.5px; }
+  td { border: 1px solid #ccc; padding: 5px 6px; vertical-align: top; line-height: 1.5; }
+  .tc { text-align: center; }
+  .dose { font-size: 11px; color: #555; font-style: italic; }
+  tr:nth-child(even) td { background: #fafafa; }
+  
+  /* PROCEDURES */
+  .proc-box { border: 1px solid #ddd; border-radius: 4px; padding: 7px 10px; margin: 8px 0; font-size: 12px; background: #fafff9; }
+  .proc-box .label { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #555; margin-bottom: 4px; }
+  .proc-item { padding: 2px 0; }
+  
+  /* NOTE + FOLLOWUP */
+  .note-box { font-size: 12px; margin: 6px 0; line-height: 1.7; }
+  .note-box strong { font-weight: 700; }
+  .followup { font-size: 12.5px; font-weight: 600; color: #c00; margin: 6px 0; }
+  
+  /* SIGNATURE */
+  .sig { display: flex; justify-content: flex-end; margin-top: 16px; text-align: center; font-size: 12px; }
+  .sig-inner { min-width: 160px; }
+  .sig-date { margin-bottom: 2px; }
+  .sig-space { height: 44px; }
+  .sig-name { font-weight: 700; font-size: 13px; }
+  .sig-title { font-size: 11px; color: #444; margin-top: 1px; }
+  
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="clinic-name">Phòng khám chuyên khoa<br>Thần kinh · Cơ xương khớp · Da liễu</div>
+    <div class="clinic-sub">ThS.BSCK1 Nguyễn Hoài Nam &nbsp;|&nbsp; Mobile/Zalo: <strong>0912 839 115</strong></div>
+  </div>
+
+  <div class="title">Đơn thuốc</div>
+
+  <div class="info-grid">
+    <div><strong>Họ tên:</strong> ${p.name}</div>
+    <div><strong>Tuổi:</strong> ${age}${age?' tuổi':''}</div>
+    <div><strong>Giới tính:</strong> ${p.gender||'—'}</div>
+    <div><strong>Ngày khám:</strong> ${fmtD(v.date)}</div>
+    <div class="full"><strong>Chẩn đoán:</strong> <em>${v.diag||'—'}</em></div>
+  </div>
+  <hr class="divider">
+
+  <table>
+    <thead><tr>
+      <th style="width:6%">STT</th>
+      <th style="width:28%">Tên thuốc</th>
+      <th style="width:8%">SL</th>
+      <th style="width:9%">ĐVT</th>
+      <th>Cách dùng</th>
+    </tr></thead>
+    <tbody>${medRows}</tbody>
+  </table>
+
+  ${procs.length?`
+  <div class="proc-box">
+    <div class="label">🔧 Thủ thuật / Tiêm</div>
+    ${procs.map(pr=>`<div class="proc-item">• ${pr.name}${(pr.qty&&pr.qty>1)?' × '+pr.qty+' lần':''}</div>`).join('')}
+  </div>`:''}
+
+  ${v.note?`<div class="note-box"><strong>Lời dặn:</strong> ${v.note}</div>`:''}
+  ${v.nextVisit?`<div class="followup">📅 Tái khám: ${fmtD(v.nextVisit)}${v.nextVisitTime?' lúc '+v.nextVisitTime:''}</div>`:''}
+
+  <div class="sig">
+    <div class="sig-inner">
+      <div class="sig-date">Ngày ${fmtD(v.date)}</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">ThS.BSCK1 Nguyễn Hoài Nam</div>
+      <div class="sig-title">Bác sĩ khám bệnh</div>
+    </div>
+  </div>
+</body></html>`);
   w.document.close();
+  setTimeout(()=>w.print(), 400);
 }
 
 // ===== FILES TAB =====
