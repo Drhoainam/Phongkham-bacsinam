@@ -3245,7 +3245,7 @@ function renderNhapKho(){
           <div class="fg"><label>Giá vốn/đơn vị (đ) *</label><input type="number" id="kh_price" placeholder="1500" min="0" oninput="suggestSellPrice()"></div>
         </div>
         <div class="fr">
-          <div class="fg"><label>Giá bán/đơn vị (đ)</label><input type="number" id="kh_sell" placeholder="Tự động gợi ý" min="0"></div>
+          <div class="fg"><label>Giá bán/đơn vị (đ)</label><input type="number" id="kh_sell" placeholder="Tự động gợi ý" min="0" oninput="suggestSellPrice()"></div>
           <div class="fg"><label style="color:var(--green)">Lãi dự kiến/đv</label>
             <div id="kh_profit" style="padding:6px 0;font-size:.88rem;font-weight:700;color:var(--ac)">—</div>
           </div>
@@ -3351,23 +3351,29 @@ function selectKhoAC(name,dose,unit){
 
 function suggestSellPrice(){
   const cost=parseFloat(document.getElementById('kh_price')?.value)||0;
-  if(!cost) return;
   const sellEl=document.getElementById('kh_sell');
   const profitEl=document.getElementById('kh_profit');
-  // Gợi ý giá bán = giá vốn * 1.3 (30% lãi) nếu chưa điền
-  if(sellEl&&!sellEl.value){
-    const suggested=Math.ceil(cost*1.3/500)*500; // làm tròn lên 500đ
+  // Gợi ý giá bán = giá vốn * 1.3 nếu chưa điền và có giá vốn
+  if(cost>0 && sellEl && !sellEl.value){
+    const suggested=Math.ceil(cost*1.3/500)*500;
     sellEl.placeholder=suggested.toLocaleString('vi-VN')+'đ (gợi ý 30%)';
   }
   // Tính lãi dự kiến
   const sell=parseFloat(sellEl?.value)||0;
   if(profitEl){
-    if(sell>0&&cost>0){
+    if(sell>0 && cost>0){
       const profit=sell-cost;
       const pct=Math.round(profit/cost*100);
-      profitEl.textContent=profit.toLocaleString('vi-VN')+'đ ('+pct+'%)';
-      profitEl.style.color=profit>=0?'var(--ac)':'var(--da)';
-    } else profitEl.textContent='—';
+      profitEl.innerHTML=`<span style="font-size:1rem">${profit.toLocaleString('vi-VN')}đ</span> <span style="font-size:.78rem">(${pct}%)</span>`;
+      profitEl.style.color=profit>=0?'var(--green)':'var(--da)';
+    } else if(cost>0){
+      // Chưa nhập giá bán — hiện gợi ý
+      const suggested=Math.ceil(cost*1.3/500)*500;
+      profitEl.innerHTML=`<span style="font-size:.78rem;color:var(--tx3)">Gợi ý giá bán: ${suggested.toLocaleString('vi-VN')}đ → lãi 30%</span>`;
+    } else {
+      profitEl.textContent='—';
+      profitEl.style.color='var(--ac)';
+    }
   }
 }
 
