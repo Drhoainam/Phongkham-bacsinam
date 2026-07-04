@@ -398,7 +398,7 @@ input.flatpickr-input:focus{border-color:var(--ac);background:#fff;box-shadow:0 
     <button class="btn-s" onclick="showStats()">📊 Thống kê</button>
     <button class="btn-s" onclick="showReport()">📈 Báo cáo</button>
     <button class="btn-s" onclick="showKho()" style="background:#fff7ed;color:var(--ac3);border-color:#fcd34d">📦 Kho thuốc</button>
-    <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center"><span class="sd" id="sd"></span><span id="st">Kết nối...</span></div>
+    <div style="font-size:.74rem;color:var(--tx2);display:flex;align-items:center;gap:4px"><span class="sd" id="sd"></span><span id="st">Kết nối...</span><span id="queueBadge" style="display:none;font-size:.68rem;color:var(--ac3);font-weight:700;background:#fff7ed;border:1px solid #fcd34d;border-radius:10px;padding:1px 6px"></span></div>
     <div class="user-badge" id="userBadge"></div>
     <button class="btn btn-g" style="padding:5px 10px;font-size:.75rem" onclick="doLogout()">Đăng xuất</button>
   </div>
@@ -683,6 +683,69 @@ function initDatePickers(){
   });
 }
 
+// ===== OFFLINE QUEUE =====
+// Lưu các thao tác chưa sync vào localStorage, tự push khi có mạng
+const QUEUE_KEY = 'pk3_offlineQueue';
+
+function queuePush(type, data){
+  try{
+    const q = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
+    // Nếu đã có item cùng id thì replace (không duplicate)
+    const idx = q.findIndex(x=>x.type===type && x.id===data.id);
+    if(idx>=0) q[idx]={type,id:data.id,data,ts:Date.now()};
+    else q.push({type,id:data.id,data,ts:Date.now()});
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  }catch(e){}
+}
+
+function queueRemove(type, id){
+  try{
+    const q = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q.filter(x=>!(x.type===type&&x.id===id))));
+  }catch(e){}
+}
+
+function queueCount(){
+  try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]').length; }catch(e){ return 0; }
+}
+
+async function flushQueue(){
+  if(!fbOk||!curUser) return;
+  let q;
+  try{ q=JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]'); }catch(e){ return; }
+  if(!q.length) return;
+  let ok=0, fail=0;
+  for(const item of q){
+    try{
+      if(item.type==='patient') await window.__setDoc(window.__doc('patients',item.id), JSON.parse(JSON.stringify(item.data)));
+      else if(item.type==='kho') await window.__setDoc(window.__doc('kho',item.id), JSON.parse(JSON.stringify(item.data)));
+      else if(item.type==='thuthuat') await window.__setDoc(window.__doc('thuthuat',item.id), JSON.parse(JSON.stringify(item.data)));
+      else if(item.type==='del_patient') await window.__deleteDoc(window.__doc('patients',item.id));
+      queueRemove(item.type, item.id);
+      ok++;
+    }catch(e){ fail++; }
+  }
+  updateQueueBadge();
+  if(ok>0) showToast(`✓ Đã sync ${ok} thao tác offline lên Firebase`,'success');
+  if(fail>0) showToast(`⚠️ Còn ${fail} thao tác chưa sync được`,'error');
+}
+
+function updateQueueBadge(){
+  const n=queueCount();
+  const el=document.getElementById('queueBadge');
+  if(el){ el.textContent=n>0?`⏳ ${n} chờ sync`:''; el.style.display=n>0?'inline':'none'; }
+}
+
+// Lắng nghe khi có mạng trở lại
+window.addEventListener('online', ()=>{
+  showToast('🌐 Đã có mạng — đang sync dữ liệu...','info');
+  setTimeout(async()=>{
+    if(!fbOk){ await loadData(); }
+    await flushQueue();
+  }, 1000);
+});
+window.addEventListener('offline', ()=>{ showToast('📵 Mất mạng — dữ liệu vẫn lưu local','info'); setSd('err'); });
+
 // ===== STATE =====
 let pts=[], curId=null, curTab='kham', fbOk=false, curUser=null, editingVisitId=null;
 let kho=[]; // [{id,name,dose,unit,minStock,batches:[{date,qty,price,supplier}]}]
@@ -701,18 +764,26 @@ function doLogout(){
 
 // ===== FIREBASE =====
 async function fbSave(p){
-  if(!fbOk||!curUser) return;
+  const d=JSON.parse(JSON.stringify(p)); delete d.cv;
+  queuePush('patient', d); // Luôn queue trước
+  if(!fbOk||!curUser){ updateQueueBadge(); return; }
   try{
     setSd('sync');
-    const d=JSON.parse(JSON.stringify(p)); delete d.cv;
     await window.__setDoc(window.__doc('patients',p.id),d);
+    queueRemove('patient',p.id);
     setSd('ok');
   }catch(e){ setSd('err'); }
+  updateQueueBadge();
 }
 
 async function fbDel(id){
-  if(!fbOk||!curUser) return;
-  try{ await window.__deleteDoc(window.__doc('patients',id)); }catch(e){}
+  queuePush('del_patient',{id});
+  if(!fbOk||!curUser){ updateQueueBadge(); return; }
+  try{
+    await window.__deleteDoc(window.__doc('patients',id));
+    queueRemove('del_patient',id);
+  }catch(e){}
+  updateQueueBadge();
 }
 
 async function fbSaveQR(id,data){
@@ -722,7 +793,19 @@ async function fbSaveQR(id,data){
 
 function svLocal(){ localStorage.setItem('pk3',JSON.stringify(pts)); }
 function sv(p){ svLocal(); if(p) fbSave(p); }
-function setSd(s){ document.getElementById('sd').className='sd '+(s==='sync'?'sync':s==='ok'?'ok':'err'); document.getElementById('st').textContent=s==='sync'?'Đang đồng bộ...':s==='ok'?'Firebase ✓':'Offline'; }
+function setSd(s){ 
+  document.getElementById('sd').className='sd '+(s==='sync'?'sync':s==='ok'?'ok':'err'); 
+  const stEl=document.getElementById('st');
+  if(s==='sync') stEl.innerHTML='Đang đồng bộ...';
+  else if(s==='ok') stEl.innerHTML='Firebase ✓';
+  else stEl.innerHTML='Offline <button onclick="retrySync()" style="margin-left:4px;font-size:.68rem;padding:1px 6px;border:1px solid var(--da);border-radius:4px;background:none;color:var(--da);cursor:pointer">Thử lại</button>';
+}
+
+function retrySync(){
+  setSd('sync');
+  loadData();
+  updateQueueBadge();
+}
 
 // ===== INIT =====
 function init(){
@@ -793,9 +876,14 @@ async function loadData(){
       if(fbTT.length>0){ thuThuat=fbTT; svTTLocal(); }
       else if(thuThuat.length>0){ for(const t of thuThuat) await fbSaveTT(t); }
       setSd('ok');
+      // Flush offline queue sau khi sync thành công
+      await flushQueue();
+      updateQueueBadge();
     }catch(e){
       console.error('Firebase sync error:', e);
       setSd('err');
+      // Auto retry sau 5 giây
+      setTimeout(syncFirebase, 5000);
     }
   };
 
@@ -2989,11 +3077,14 @@ function printStats(date){
 function svKhoLocal(){ localStorage.setItem('pk3_kho', JSON.stringify(kho)); }
 
 async function fbSaveKho(k){
-  if(!fbOk||!curUser) return;
+  const d=JSON.parse(JSON.stringify(k));
+  queuePush('kho', d);
+  if(!fbOk||!curUser){ updateQueueBadge(); return; }
   try{
-    const d=JSON.parse(JSON.stringify(k));
     await window.__setDoc(window.__doc('kho', k.id), d);
+    queueRemove('kho', k.id);
   }catch(e){}
+  updateQueueBadge();
 }
 
 async function fbDelKho(id){
@@ -3004,10 +3095,14 @@ async function fbDelKho(id){
 // ===== THU THUAT FIREBASE =====
 function svTTLocal(){ localStorage.setItem('pk3_tt', JSON.stringify(thuThuat)); }
 async function fbSaveTT(t){
-  if(!fbOk||!curUser) return;
+  const d=JSON.parse(JSON.stringify(t));
+  queuePush('thuthuat', d);
+  if(!fbOk||!curUser){ updateQueueBadge(); return; }
   try{
-    await window.__setDoc(window.__doc('thuthuat',t.id), JSON.parse(JSON.stringify(t)));
+    await window.__setDoc(window.__doc('thuthuat',t.id), d);
+    queueRemove('thuthuat', t.id);
   }catch(e){}
+  updateQueueBadge();
 }
 async function fbDelTT(id){
   if(!fbOk||!curUser) return;
