@@ -102,6 +102,29 @@ h2.sec:first-child{margin-top:0}
 .inst .x{position:absolute;top:6px;right:8px;background:none;border:none;font-size:1.1rem;color:var(--tx3);cursor:pointer;padding:4px}
 .inst ol{margin:8px 0 0 20px;font-size:.88rem;color:var(--tx2)}.inst ol li{margin:3px 0}
 .inst .btn{margin-top:10px}
+.stp{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:.92rem;line-height:1.4}
+.stp .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.ico{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;background:#fff;border:1.5px solid var(--bo);border-radius:8px;padding:3px 6px;margin:0 2px;font-weight:600;font-size:.82rem;color:var(--tx)}
+.ico svg{width:18px;height:18px;stroke:#0a84ff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pointer{position:fixed;z-index:60;font-size:2.4rem;pointer-events:none;animation:bob 1s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+.pointer.tr{top:4px;right:15%}.pointer.bc{bottom:6px;left:50%;margin-left:-18px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.pointer.tr{animation-name:bobup}@keyframes bobup{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.bigbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:none;border-radius:14px;padding:16px;font-size:1.15rem;font-weight:700;background:#059669;color:#fff;margin-top:10px;cursor:pointer;text-decoration:none;box-shadow:0 6px 16px rgba(5,150,105,.3)}
+.later{display:block;width:100%;background:none;border:none;color:var(--tx3);font-size:.85rem;margin-top:6px;padding:6px;cursor:pointer}
+.guide{position:fixed;inset:0;z-index:80;background:#fff;overflow:auto;padding:18px 16px calc(24px + env(safe-area-inset-bottom));font-size:1.12rem}
+.guide h3{font-size:1.35rem;margin:6px 0 4px}
+.guide .gs{border:2px solid var(--bo);border-radius:16px;padding:14px;margin-top:14px}
+.guide .gh{display:flex;gap:10px;align-items:center;font-weight:700;font-size:1.15rem}
+.guide .gh .n{flex:0 0 34px;height:34px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center}
+.mock{margin-top:12px;border-radius:12px;background:#f2f2f7;padding:10px;font-size:1rem;color:#111}
+.mock .bar{display:flex;align-items:center;justify-content:space-around;background:#fff;border-radius:10px;padding:10px 6px}
+.mock .bar span{font-size:1.3rem;color:#0a84ff;opacity:.35}
+.mock .hl{opacity:1!important;outline:3px solid #ef4444;outline-offset:3px;border-radius:8px;animation:pulse2 1.2s infinite}
+@keyframes pulse2{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 9px rgba(239,68,68,0)}}
+.mock .row{background:#fff;padding:12px;border-bottom:1px solid #e5e5ea;display:flex;justify-content:space-between;color:#8e8e93}
+.mock .row.hl{color:#111;font-weight:700}
+.mock svg{width:26px;height:26px;stroke:#0a84ff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
 .disc{font-size:.76rem;color:var(--tx3);background:#f8fafc;border:1px solid var(--bo);border-radius:10px;padding:10px 12px;margin-top:12px}
 </style>
 </head>
@@ -574,40 +597,67 @@ function vMe(){
 let deferredInstall=null;
 const UA=navigator.userAgent;
 const ENV={
-  ios:/iphone|ipad|ipod/i.test(UA) || (/macintosh/i.test(UA) && navigator.maxTouchPoints>1),
+  ios:/iphone|ipad|ipod/i.test(UA) || (/macintosh/i.test(UA) && (navigator.maxTouchPoints>1 || 'ontouchend' in document)),
+  ipad:/ipad/i.test(UA) || (/macintosh/i.test(UA) && (navigator.maxTouchPoints>1 || 'ontouchend' in document)),
   android:/android/i.test(UA),
   inApp:/zalo|FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\/|TikTok|musical_ly|BytedanceWebview|Bytedance|; wv\)|CocCoc/i.test(UA) && !/SamsungBrowser/i.test(UA),
   standalone:()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true
 };
+const SHARE_SVG='<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+const APP_URL='phongkham-bacsinam.vercel.app/cskh';
 function installHtml(always){
   if(ENV.standalone()) return '';
   if(!always && LS.get('instHide',0) > Date.now()) return '';
-  const url='phongkham-bacsinam.vercel.app/cskh';
-  const close= always?'':`<button class="x" onclick="hideInstall()" aria-label="Đóng">✕</button>`;
-  let body;
-  if(ENV.inApp){
-    body = ENV.android
-      ? `<div class="muted" style="margin-top:4px">Bạn đang mở trong Zalo/Facebook nên chưa cài được. Mở bằng Chrome để cài:</div>
-         <a class="btn full" href="intent://${url}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2F${encodeURIComponent(url)};end">🌐 Mở bằng Chrome</a>
-         <ol><li>Nếu nút trên không mở được: bấm <b>⋮</b> (góc trên bên phải) → <b>Mở bằng trình duyệt</b>.</li><li>Trong Chrome, bấm nút <b>Cài ứng dụng</b> hiện ra ở khung này.</li></ol>`
-      : `<div class="muted" style="margin-top:4px">Bạn đang mở trong Zalo/Facebook nên chưa cài được.</div>
-         <ol><li>Bấm <b>⋯</b> hoặc biểu tượng la bàn (góc màn hình) → <b>Mở bằng Safari</b>.</li><li>Trong Safari, bấm nút <b>Chia sẻ</b> <span style="font-size:1.05em">⬆️</span> → <b>Thêm vào MH chính</b> → <b>Thêm</b>.</li></ol>
-         <button class="btn ghost full" onclick="copyLink()">📋 Sao chép link để dán vào Safari</button>`;
+  return `<div class="inst"><div class="ttl" style="font-size:1.05rem">📲 Cài app lên điện thoại</div>
+    <div class="muted" style="margin-top:4px">Lần sau chỉ cần bấm biểu tượng <b>BS Hoài Nam</b> trên màn hình là vào.</div>
+    <button class="bigbtn" onclick="startInstall()">📲 Cài app ngay</button>
+    ${always?'':'<button class="later" onclick="hideInstall()">Để sau</button>'}</div>`;
+}
+window.startInstall = async () => {
+  if(deferredInstall){ deferredInstall.prompt(); const r=await deferredInstall.userChoice; deferredInstall=null; if(r.outcome!=='accepted') refreshInstall(); return; }
+  if(ENV.android && ENV.inApp){ location.href=`intent://${APP_URL}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2F${encodeURIComponent(APP_URL)};end`; setTimeout(()=>showGuide(),1500); return; }
+  showGuide();
+};
+function showGuide(){
+  let h='';
+  const step=(n,t,m)=>`<div class="gs"><div class="gh"><span class="n">${n}</span><span>${t}</span></div>${m||''}</div>`;
+  if(ENV.ios && ENV.inApp){
+    h=`<h3>Mở bằng Safari trước</h3><div class="muted">Zalo/Facebook không cho cài app. Làm 2 bước sau:</div>
+      ${step(1,'Bấm nút <b>⋯</b> hoặc hình <b>la bàn 🧭</b> ở góc màn hình')}
+      ${step(2,'Chọn <b>Mở bằng Safari</b> (hoặc "Mở trong trình duyệt")')}
+      <button class="bigbtn" style="background:var(--ac)" onclick="copyLink()">📋 Hoặc bấm đây để chép link, rồi dán vào Safari</button>`;
   } else if(ENV.ios){
-    body = `<ol><li>Bấm nút <b>Chia sẻ</b> <span style="font-size:1.05em">⬆️</span> ở thanh dưới của Safari.</li><li>Kéo xuống, chọn <b>Thêm vào MH chính</b> → bấm <b>Thêm</b>.</li><li>Mở app từ biểu tượng <b>BS Hoài Nam</b> trên màn hình.</li></ol>`;
-  } else if(deferredInstall){
-    body = `<div class="muted" style="margin-top:4px">Mở nhanh từ màn hình điện thoại, nhận nhắc lịch và nhắc uống thuốc.</div><button class="btn full" onclick="doInstall()">📲 Cài ứng dụng</button>`;
+    const bar = ENV.ipad
+      ? `<div class="bar"><span>‹</span><span style="flex:1"></span><span class="hl">${SHARE_SVG}</span><span>＋</span><span>⧉</span></div><div class="tiny" style="margin-top:6px;text-align:center">Thanh trên cùng của Safari (góc phải)</div>`
+      : `<div class="bar"><span>‹</span><span>›</span><span class="hl">${SHARE_SVG}</span><span>📖</span><span>⧉</span></div><div class="tiny" style="margin-top:6px;text-align:center">Thanh dưới cùng của Safari. Không thấy thì bấm <b>⋯</b> trước</div>`;
+    h=`<h3>Cài app chỉ với 3 lần bấm</h3><div class="muted">Xem hình, bấm đúng nút có <b style="color:#ef4444">khung đỏ</b>:</div>
+      ${step(1,`Bấm nút <b>Chia sẻ</b> ${ENV.ipad?'ở <u>góc trên bên phải</u>':'ở <u>dưới cùng</u> màn hình'}`,`<div class="mock">${bar}</div>`)}
+      ${step(2,'Kéo xuống, bấm <b>Thêm vào MH chính</b>',`<div class="mock"><div class="row"><span>Sao chép</span><span>⧉</span></div><div class="row"><span>Thêm vào Danh sách đọc</span><span>👓</span></div><div class="row hl"><span>Thêm vào MH chính</span><span>⊞</span></div><div class="row"><span>Đánh dấu trang</span><span>☆</span></div></div>`)}
+      ${step(3,'Bấm chữ <b style="color:#0a84ff">Thêm</b> ở góc trên bên phải',`<div class="mock"><div class="bar" style="justify-content:space-between;padding:10px 14px"><b style="color:#0a84ff;opacity:.4">Hủy</b><b>Thêm vào MH chính</b><b class="hl" style="color:#0a84ff;padding:2px 6px">Thêm</b></div></div>`)}
+      ${step('✓','Xong! Trên màn hình sẽ có biểu tượng này:',`<div style="text-align:center;margin-top:10px"><img src="/icon-192.png" style="width:64px;height:64px;border-radius:14px"><div style="font-size:.9rem">BS Hoài Nam</div></div>`)}`;
   } else {
-    body = `<ol><li>Bấm menu <b>⋮</b> của trình duyệt (góc trên bên phải).</li><li>Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</li></ol>`;
+    h=`<h3>Cài app chỉ với 2 lần bấm</h3>
+      ${step(1,'Bấm nút <b>⋮</b> (3 chấm) ở <u>góc trên bên phải</u>',`<div class="mock"><div class="bar" style="justify-content:space-between"><span style="font-size:.9rem;color:#555;opacity:1">🔒 phongkham-bacsinam…</span><span class="hl" style="color:#333;padding:0 8px">⋮</span></div></div>`)}
+      ${step(2,'Bấm <b>Thêm vào màn hình chính</b> hoặc <b>Cài đặt ứng dụng</b> → <b>Cài đặt</b>',`<div class="mock"><div class="row"><span>Trang mới</span></div><div class="row"><span>Dấu trang</span></div><div class="row hl"><span>Thêm vào màn hình chính</span><span>📲</span></div><div class="row"><span>Chia sẻ…</span></div></div>`)}
+      ${ENV.inApp?`<div class="disc">Đang mở trong Zalo/Facebook: bấm ⋮ → <b>Mở bằng trình duyệt</b> trước.</div>`:''}`;
   }
-  return `<div class="inst">${close}<div class="ttl">📲 Cài app Phòng khám BS. Hoài Nam</div>${body}</div>`;
+  const g=document.createElement('div'); g.className='guide'; g.id='guide';
+  g.innerHTML=h+`<button class="bigbtn" style="margin-top:18px" onclick="closeGuide(true)">👍 Đã hiểu, bắt đầu</button><button class="later" onclick="closeGuide(false)">Đóng</button>`;
+  document.body.appendChild(g);
+}
+window.closeGuide = go2 => { $('guide')?.remove(); if(go2){ window.__ptrShown=false; updatePointer(true); } };
+function updatePointer(force){
+  document.querySelectorAll('.pointer').forEach(x=>x.remove());
+  if(window.__ptrShown||!ENV.ios||ENV.inApp||ENV.standalone()||(!force&&!document.querySelector('.inst'))) return;
+  window.__ptrShown=true; const d=document.createElement('div'); d.className='pointer '+(ENV.ipad?'tr':'bc'); d.textContent=ENV.ipad?'☝️':'👇'; document.body.appendChild(d);
+  setTimeout(()=>d.remove(),15000);
 }
 function refreshInstall(){ const el=$('instLogin'); if(el) el.innerHTML=installHtml(false); if(S.user && (S.tab==='home'||S.tab==='me')) render(); }
 window.hideInstall = () => { LS.set('instHide', Date.now()+3*864e5); refreshInstall(); };
 window.copyLink = async () => { try{ await navigator.clipboard.writeText('https://phongkham-bacsinam.vercel.app/cskh'); toast('Đã sao chép. Mở Safari và dán vào thanh địa chỉ.'); }catch(e){ prompt('Sao chép link này:','https://phongkham-bacsinam.vercel.app/cskh'); } };
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall=e; refreshInstall(); });
 window.addEventListener('appinstalled', ()=>{ deferredInstall=null; toast('✓ Đã cài app lên màn hình chính'); refreshInstall(); });
-window.doInstall = async () => { if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; refreshInstall(); };
+window.doInstall = window.startInstall;
 refreshInstall();
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}).catch(e=>console.warn('SW',e));
