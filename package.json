@@ -1,8 +1,0 @@
-{
-  "name": "phongkham-bacsinam",
-  "private": true,
-  "engines": { "node": ">=18" },
-  "dependencies": {
-    "firebase-admin": "^12.7.0"
-  }
-}
