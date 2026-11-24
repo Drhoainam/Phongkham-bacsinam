@@ -53,7 +53,7 @@ pre.log{background:#0f172a;color:#cbd5e1;padding:12px;border-radius:8px;max-heig
 <div id="scrLogin" class="login hidden"><div class="c"><h2 style="margin-bottom:6px">Quản trị CSKH</h2><p class="muted" style="margin-bottom:20px">Đăng nhập bằng tài khoản Google của bác sĩ</p><button class="btn" onclick="login()">Đăng nhập Google</button><p class="tiny" id="loginErr" style="margin-top:12px;color:var(--da)"></p></div></div>
 
 <div id="scrApp" class="hidden">
-<header><b>🩺 CSKH — BS. Hoài Nam</b><div><span class="tiny" id="who"></span> <button class="btn line" onclick="reloadAll()">🔄</button> <button class="btn line" onclick="logout()">Đăng xuất</button></div></header>
+<header><b>🩺 CSKH — BS. Hoài Nam</b><div><span class="tiny" id="who"></span> <button class="btn ghost" id="bellBtn" onclick="enableBell()" style="display:none">🔔 Bật chuông báo lịch mới</button> <button class="btn line" onclick="reloadAll()">🔄</button> <button class="btn line" onclick="logout()">Đăng xuất</button></div></header>
 <div class="tabs" id="tabs"></div>
 <main><div class="panel" id="panel"></div></main>
 </div>
@@ -64,7 +64,8 @@ pre.log{background:#0f172a;color:#cbd5e1;padding:12px;border-radius:8px;max-heig
 const ADMIN_EMAIL='bsnam115@gmail.com';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 const app=initializeApp({apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",authDomain:"phongkham-bacsinam.firebaseapp.com",projectId:"phongkham-bacsinam",storageBucket:"phongkham-bacsinam.firebasestorage.app",messagingSenderId:"187579047275",appId:"1:187579047275:web:c0e30e60a91cbdda82402e"});
 const auth=getAuth(app), db=getFirestore(app);
 
@@ -154,7 +155,7 @@ window.openEdit=(id,kind)=>{ S.editing={id,kind}; render(); setTimeout(()=>$('rs
 window.pickReason=(id,k,i)=>{ $('rs_'+id).value=REASONS[k][i]; };
 window.setAppt=async(id,status)=>{
   try{ const upd={status,updatedAt:serverTimestamp()};
-    await updateDoc(doc(db,'appointments',id),upd); Object.assign(S.appts.find(x=>x.id===id),upd); toast('Đã cập nhật'); render(); }
+    await updateDoc(doc(db,'appointments',id),upd); Object.assign(S.appts.find(x=>x.id===id),upd); toast('Đã cập nhật'); render(); if(status==='confirmed') callNotify('appt',id); }
   catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
 window.saveEdit=async id=>{
@@ -165,9 +166,9 @@ window.saveEdit=async id=>{
     if(!d||!t){ toast('Chọn ngày và giờ mới'); return; }
     if(d===a.date&&t===a.time){ toast('Giờ mới đang trùng giờ cũ'); return; }
     upd.proposedDate=d; upd.proposedTime=t; }
-  try{ await updateDoc(doc(db,'appointments',id),upd); Object.assign(a,upd); S.editing=null; render();
+  try{ await updateDoc(doc(db,'appointments',id),upd); Object.assign(a,upd); S.editing=null; render(); callNotify('appt',id);
     toast(k==='reschedule'?'Đã gửi đề xuất giờ mới':'Đã '+(upd.prevStatus==='pending'?'từ chối':'huỷ')+' lịch');
-    if(confirm('Nhắn Zalo cho khách luôn? (tin nhắn đã soạn sẵn, anh chỉ cần dán và gửi)')) notifyZalo(id);
+    if(confirm('Đã gửi thông báo vào app của khách.\nNhắn thêm qua Zalo cho chắc? (tin nhắn đã soạn sẵn, anh chỉ cần dán và gửi)')) notifyZalo(id);
   }catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
 function apptMsg(a){
@@ -199,7 +200,7 @@ const TPL={visit:'\n\nĐể chẩn đoán chính xác, anh/chị nên đến kh�
 window.tpl=(id,k)=>{ const t=$('rp_'+id); t.value=(t.value.trim()+TPL[k]).trim(); t.focus(); };
 window.reply=async id=>{
   const r=$('rp_'+id).value.trim(); if(!r){ toast('Chưa nhập nội dung'); return; }
-  try{ const upd={reply:r,status:'answered',repliedAt:serverTimestamp()}; await updateDoc(doc(db,'consults',id),upd);
+  try{ const upd={reply:r,status:'answered',repliedAt:serverTimestamp()}; await updateDoc(doc(db,'consults',id),upd); callNotify('consult',id);
     Object.assign(S.consults.find(x=>x.id===id),upd,{repliedAt:Date.now()}); toast('Đã gửi trả lời'); render(); }
   catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
@@ -244,6 +245,38 @@ window.syncAll=async()=>{
   }catch(e){ log.textContent+='Lỗi: '+(e.code||e.message); }
   btn.disabled=false;
 };
+
+/* ---------- Chuông báo cho bác sĩ ---------- */
+const VAPID='BB1V91mj_5sowpGcvprfhXFaPKvQ4DEhgvDcV9CmeZpLRVM43uZJtFTIBlC-1kGp9A4T55YxVR_HBwFbBpFilFw';
+async function callNotify(type,id){
+  try{ const t=await auth.currentUser.getIdToken();
+    const r=await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({type,id})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok && j.sent>0) toast('🔔 Đã báo chuông tới điện thoại khách');
+    else if(r.ok && j.reason==='no-tokens' && type!=='test') toast('Khách chưa bật thông báo — nên nhắn Zalo');
+    else if(!r.ok) console.warn('notify',r.status,j);
+  }catch(e){ console.warn('notify',e); }
+}
+window.callNotify=callNotify;
+async function saveBell(test){
+  const reg=await navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}); await navigator.serviceWorker.ready;
+  const token=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});
+  await setDoc(doc(db,'pushTokens',auth.currentUser.uid),{tokens:arrayUnion(token),role:'admin',updatedAt:serverTimestamp()},{merge:true});
+  localStorage.setItem('bellToken',token); $('bellBtn').style.display='none';
+  if(test) callNotify('test','x');
+}
+window.enableBell=async()=>{
+  try{ const p=await Notification.requestPermission(); if(p!=='granted'){ toast('Trình duyệt đang chặn thông báo'); return; }
+    await saveBell(true); toast('🔔 Đã bật — máy này sẽ báo khi có lịch hẹn / tư vấn mới'); }
+  catch(e){ toast('Lỗi bật chuông: '+(e.code||e.message)); }
+};
+onAuthStateChanged(auth, async u=>{
+  if(!u||u.email!==ADMIN_EMAIL) return;
+  if(!(await isSupported().catch(()=>false))||!('Notification' in window)) return;
+  if(Notification.permission==='granted' && localStorage.getItem('bellToken')) saveBell(false).catch(()=>{});
+  else $('bellBtn').style.display='';
+});
+navigator.serviceWorker?.addEventListener('message', e=>{ if(e.data?.type==='cskh-refresh') reloadAll(); });
 </script>
 </body>
 </html>

@@ -206,7 +206,8 @@ const CLINIC = {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, updateDoc, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
 const app = initializeApp({
   apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
@@ -281,7 +282,7 @@ onAuthStateChanged(auth, async u => {
     $('scrLogin').classList.add('hidden'); $('scrApp').classList.remove('hidden');
     $('hdCall').href='tel:'+CLINIC.phone;
     $('view').innerHTML='<div class="empty">Đang tải dữ liệu...</div>';
-    await loadAll(); go(S.tab); scheduleDoseNotifications();
+    await loadAll(); go(S.tab); scheduleDoseNotifications(); if(PUSH.on) saveToken(false).catch(()=>{});
   }else{
     if(u && !u.phoneNumber){ await signOut(auth); return; } // tài khoản không phải bệnh nhân (vd Google của bác sĩ)
     S.user=null; $('scrApp').classList.add('hidden'); $('scrLogin').classList.remove('hidden');
@@ -428,6 +429,7 @@ function vHome(){
     <a href="tel:${CLINIC.phone}"><span class="i">📞</span>Gọi điện</a>
     <a href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener"><span class="i">💬</span>Zalo</a></div>`;
   h+=noticesHtml();
+  h+=pushCardHtml();
   h+=installHtml(false);
   if(!S.portal) h+=`<div class="card" style="margin-top:14px;background:var(--acl);border-color:#7dd3fc"><b>Chào mừng bạn đến với phòng khám!</b><div class="muted" style="margin-top:4px">Bạn có thể <b>đặt lịch khám</b> hoặc <b>gửi ảnh tư vấn</b> ngay. Sau lần khám đầu tiên, đơn thuốc và lịch tái khám sẽ tự hiện trong app.<br><span class="tiny">Đã từng khám nhưng chưa thấy hồ sơ? Báo phòng khám cập nhật số ${esc(localPhone(S.phone))}.</span></div></div>`;
   h+=`<h2 class="sec">💊 Thuốc hôm nay <span class="tiny">${doses.length?`${taken.length}/${doses.length} cữ`:''}</span></h2>`;
@@ -505,7 +507,7 @@ function noticesHtml(){
 window.acceptNew = async id => {
   const a=S.appts.find(x=>x.id===id); if(!a) return;
   try{ await updateDoc(doc(db,'appointments',id),{status:'confirmed',date:a.proposedDate,time:a.proposedTime,acceptedAt:serverTimestamp()});
-    Object.assign(a,{status:'confirmed',date:a.proposedDate,time:a.proposedTime,acceptedAt:Date.now()}); markApptSeen(a);
+    Object.assign(a,{status:'confirmed',date:a.proposedDate,time:a.proposedTime,acceptedAt:Date.now()}); markApptSeen(a); callNotify('accepted',id);
     toast('✓ Đã đồng ý. Hẹn gặp bạn '+fmtShort(a.date)+' lúc '+a.time); render(); }
   catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
@@ -536,14 +538,14 @@ window.book = async () => {
     const prof=profiles().find(p=>p.name===name);
     const data={uid:S.user.uid,phone:S.phone,name,ptId:prof?.ptId||'',service:svc,date:S.booking.date,time:S.booking.time,note,status:'pending',adminNote:'',createdAt:serverTimestamp()};
     const r=await addDoc(collection(db,'appointments'),data);
-    S.appts.unshift({id:r.id,...data,createdAt:Date.now()}); S.booking={date:'',time:''}; S.rebookFrom=null;
-    toast('✓ Đã gửi yêu cầu. Phòng khám sẽ xác nhận sớm.'); render();
+    S.appts.unshift({id:r.id,...data,createdAt:Date.now()}); S.booking={date:'',time:''}; S.rebookFrom=null; callNotify('newAppt',r.id);
+    toast(PUSH.on?'✓ Đã gửi yêu cầu. Phòng khám sẽ xác nhận sớm.':'✓ Đã gửi. Bật 🔔 thông báo ở Trang chủ để biết khi phòng khám xác nhận.'); render();
   }catch(e){ console.error(e); toast('Không gửi được: '+(e.code||e.message)); $('bkBtn').disabled=false; }
 };
 window.cancelAppt = async id => {
   if(!confirm('Huỷ lịch hẹn này?')) return;
   try{ await updateDoc(doc(db,'appointments',id),{status:'cancelled',cancelledAt:serverTimestamp()});
-    const a=S.appts.find(x=>x.id===id); if(a) a.status='cancelled'; toast('Đã huỷ lịch'); render(); }
+    const a=S.appts.find(x=>x.id===id); if(a) a.status='cancelled'; toast('Đã huỷ lịch'); render(); callNotify('cancelled',id); }
   catch(e){ toast('Không huỷ được: '+(e.code||e.message)); }
 };
 
@@ -617,7 +619,7 @@ window.sendConsult = async () => {
     const data={uid:S.user.uid,phone:S.phone,name:profiles()[0]?.name||'',area,duration,desc,images:urls,status:'open',reply:'',createdAt:serverTimestamp()};
     const r=await addDoc(collection(db,'consults'),data);
     S.consults.unshift({id:r.id,...data,createdAt:Date.now()}); S.photos=[]; S.cTab='list';
-    toast('✓ Đã gửi. Bác sĩ sẽ trả lời trong ứng dụng.'); render();
+    callNotify('newConsult',r.id); toast(PUSH.on?'✓ Đã gửi. Bạn sẽ nhận thông báo khi bác sĩ trả lời.':'✓ Đã gửi. Bật 🔔 thông báo ở Trang chủ để biết khi bác sĩ trả lời.'); render();
   }catch(e){ console.error(e); toast('Gửi lỗi: '+(e.code||e.message)); btn.disabled=false; btn.textContent='Gửi cho bác sĩ'; }
 };
 
@@ -711,6 +713,47 @@ window.doInstall = window.startInstall;
 refreshInstall();
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}).catch(e=>console.warn('SW',e));
+
+/* ======================= THÔNG BÁO ĐẨY (chuông) ======================= */
+const VAPID='BB1V91mj_5sowpGcvprfhXFaPKvQ4DEhgvDcV9CmeZpLRVM43uZJtFTIBlC-1kGp9A4T55YxVR_HBwFbBpFilFw';
+const PUSH={supported:null,on:false};
+isSupported().then(v=>{ PUSH.supported=v && 'Notification' in window && 'serviceWorker' in navigator;
+  PUSH.on = PUSH.supported && Notification.permission==='granted' && !!LS.get('pushToken',null);
+  if(PUSH.on && S.user) saveToken(false); if(S.user && S.tab==='home') render(); }).catch(()=>{ PUSH.supported=false; });
+async function saveToken(test){
+  const reg=await navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}); await navigator.serviceWorker.ready;
+  const token=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});
+  if(!token) throw new Error('no-token');
+  await setDoc(doc(db,'pushTokens',S.user.uid),{tokens:arrayUnion(token),phone:S.phone,updatedAt:serverTimestamp()},{merge:true});
+  LS.set('pushToken',token); PUSH.on=true;
+  if(test) callNotify('test','x');
+}
+window.enablePush = async () => {
+  const btn=$('pushBtn'); if(btn){ btn.disabled=true; btn.textContent='Đang bật...'; }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ toast('Bạn chưa cho phép thông báo. Có thể bật lại trong Cài đặt của điện thoại.'); render(); return; }
+    await saveToken(true); toast('🔔 Đã bật thông báo. Bạn sẽ nhận một thông báo thử ngay bây giờ.'); render();
+  }catch(e){ console.error(e); toast('Chưa bật được thông báo: '+(e.code||e.message)); render(); }
+};
+async function callNotify(type,id){
+  try{ const t=await auth.currentUser.getIdToken();
+    await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({type,id})}); }
+  catch(e){ console.warn('notify',e); }
+}
+function pushCardHtml(){
+  if(PUSH.on || PUSH.supported===null) return '';
+  if(!PUSH.supported){
+    if(ENV.ios && !ENV.standalone()) return `<div class="inst" style="border-color:#fcd34d;background:#fffbeb"><div class="ttl">🔔 Muốn nhận thông báo?</div><div class="muted" style="margin-top:4px">Trên iPhone/iPad, cần <b>cài app lên màn hình chính</b> trước (nút xanh bên dưới), rồi mở app từ biểu tượng <b>BS Hoài Nam</b> để bật thông báo.</div></div>`;
+    return '';
+  }
+  if(Notification.permission==='denied') return `<div class="inst" style="border-color:#fca5a5;background:#fef2f2"><div class="ttl">🔕 Thông báo đang bị chặn</div><div class="muted" style="margin-top:4px">Vào <b>Cài đặt</b> điện thoại → Thông báo → cho phép <b>BS Hoài Nam</b> (hoặc trình duyệt) để nhận tin xác nhận lịch, đổi giờ, trả lời tư vấn.</div></div>`;
+  return `<div class="inst" style="border-color:#fcd34d;background:#fffbeb"><div class="ttl" style="font-size:1.05rem">🔔 Bật thông báo</div>
+    <div class="muted" style="margin-top:4px">Điện thoại sẽ <b>báo chuông</b> khi phòng khám xác nhận, đổi giờ, huỷ lịch hoặc trả lời tư vấn.</div>
+    <button class="bigbtn" id="pushBtn" style="background:#d97706;box-shadow:0 6px 16px rgba(217,119,6,.3)" onclick="enablePush()">🔔 Bật thông báo</button>
+    <div class="tiny" style="margin-top:6px;text-align:center">Khi điện thoại hỏi, bấm <b>Cho phép</b></div></div>`;
+}
+navigator.serviceWorker?.addEventListener('message', async e=>{ if(e.data?.type==='cskh-refresh' && S.user){ lastLoad=Date.now(); await loadAll(); render(); } });
 let lastLoad=Date.now();
 document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState==='visible' && S.user){
   if(Date.now()-lastLoad>30000){ lastLoad=Date.now(); await loadAll(); render(); } else if(S.tab==='home') render();
