@@ -62,7 +62,7 @@ h2.sec:first-child{margin-top:0}
 .muted{color:var(--tx2);font-size:.85rem}
 .tiny{color:var(--tx3);font-size:.76rem}
 .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:600;white-space:nowrap}
-.b-pending{background:var(--aml);color:var(--am)}.b-confirmed{background:var(--grl);color:var(--gr)}.b-cancelled,.b-rejected{background:var(--dal);color:var(--da)}.b-done{background:#e2e8f0;color:var(--tx2)}.b-open{background:var(--aml);color:var(--am)}.b-answered{background:var(--grl);color:var(--gr)}
+.b-reschedule{background:var(--aml);color:var(--am)}.b-pending{background:var(--aml);color:var(--am)}.b-confirmed{background:var(--grl);color:var(--gr)}.b-cancelled,.b-rejected{background:var(--dal);color:var(--da)}.b-done{background:#e2e8f0;color:var(--tx2)}.b-open{background:var(--aml);color:var(--am)}.b-answered{background:var(--grl);color:var(--gr)}
 .med{border-top:1px dashed var(--bo);padding:10px 0}
 .med:first-of-type{border-top:none}
 .med .mn{font-weight:600}
@@ -125,6 +125,9 @@ h2.sec:first-child{margin-top:0}
 .mock .row{background:#fff;padding:12px;border-bottom:1px solid #e5e5ea;display:flex;justify-content:space-between;color:#8e8e93}
 .mock .row.hl{color:#111;font-weight:700}
 .mock svg{width:26px;height:26px;stroke:#0a84ff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+.notice{border-radius:var(--r);padding:14px;margin-bottom:10px;border:1.5px solid}
+.notice.red{background:#fef2f2;border-color:#fca5a5}.notice.amber{background:#fffbeb;border-color:#fcd34d}.notice.green{background:#ecfdf5;border-color:#6ee7b7}
+.notice .t{font-weight:700;font-size:1rem}.notice .why{margin-top:6px;background:#fff;border-radius:10px;padding:10px;font-size:.92rem;white-space:pre-wrap}
 .disc{font-size:.76rem;color:var(--tx3);background:#f8fafc;border:1px solid var(--bo);border-radius:10px;padding:10px 12px;margin-top:12px}
 </style>
 </head>
@@ -297,6 +300,10 @@ async function loadAll(){
   ];
   await Promise.all(tasks);
 }
+function updateApptDot(){
+  const btn=document.querySelector('nav.bn button[data-tab="book"]'); btn.querySelectorAll('.dot').forEach(x=>x.remove());
+  if(apptUpdates().some(a=>a.status!=='confirmed')) btn.insertAdjacentHTML('beforeend','<span class="dot"></span>');
+}
 function updateDot(){ // chấm đỏ: tư vấn có trả lời mới chưa xem
   const seen=LS.get('seenReplies',[]);
   const unread=S.consults.filter(c=>c.status==='answered'&&!seen.includes(c.id)).length;
@@ -393,7 +400,7 @@ window.go = tab => { S.tab=tab; document.querySelectorAll('nav.bn button').forEa
   $('hdTitle').textContent=TITLES[tab]; render(); window.scrollTo(0,0); };
 function render(){ $('view').innerHTML = ({home:vHome,book:vBook,rx:vRx,consult:vConsult,me:vMe})[S.tab](); afterRender(); }
 function afterRender(){
-  updateDot();
+  updateDot(); updateApptDot();
   if(S.tab==='book'){ const di=$('bkDate'); if(di){ const t=new Date(), mx=new Date(); mx.setDate(mx.getDate()+CLINIC.bookDaysAhead); di.min=ymd(t); di.max=ymd(mx); } }
 }
 
@@ -420,6 +427,7 @@ function vHome(){
     <button onclick="go('consult')"><span class="i">📷</span>Gửi ảnh</button>
     <a href="tel:${CLINIC.phone}"><span class="i">📞</span>Gọi điện</a>
     <a href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener"><span class="i">💬</span>Zalo</a></div>`;
+  h+=noticesHtml();
   h+=installHtml(false);
   if(!S.portal) h+=`<div class="card" style="margin-top:14px;background:var(--acl);border-color:#7dd3fc"><b>Chào mừng bạn đến với phòng khám!</b><div class="muted" style="margin-top:4px">Bạn có thể <b>đặt lịch khám</b> hoặc <b>gửi ảnh tư vấn</b> ngay. Sau lần khám đầu tiên, đơn thuốc và lịch tái khám sẽ tự hiện trong app.<br><span class="tiny">Đã từng khám nhưng chưa thấy hồ sơ? Báo phòng khám cập nhật số ${esc(localPhone(S.phone))}.</span></div></div>`;
   h+=`<h2 class="sec">💊 Thuốc hôm nay <span class="tiny">${doses.length?`${taken.length}/${doses.length} cữ`:''}</span></h2>`;
@@ -444,26 +452,68 @@ function vBook(){
   let h=`<div class="card"><label class="lb" style="margin-top:0">Người khám</label>
     ${ps.length>1?`<select class="in" id="bkWho">${ps.map(p=>`<option>${esc(p.name)}</option>`).join('')}<option value="__new">Người khác...</option></select>`:''}
     <input class="in ${ps.length>1?'hidden':''}" id="bkName" placeholder="Họ và tên" value="${esc(ps[0]?.name||'')}" style="${ps.length>1?'margin-top:8px':''}">
-    <label class="lb">Dịch vụ</label><select class="in" id="bkSvc">${CLINIC.services.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+    <label class="lb">Dịch vụ</label><select class="in" id="bkSvc">${CLINIC.services.map(s=>`<option ${S.rebookFrom?.service===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
     <label class="lb">Ngày khám</label><input class="in" type="date" id="bkDate" value="${esc(S.booking.date)}" onchange="pickDate(this.value)">
     <div id="bkSlots">${slotsHtml()}</div>
-    <label class="lb">Triệu chứng / ghi chú</label><textarea class="in" id="bkNote" placeholder="VD: đau lưng lan xuống chân 2 tuần nay"></textarea>
+    <label class="lb">Triệu chứng / ghi chú</label><textarea class="in" id="bkNote" placeholder="VD: đau lưng lan xuống chân 2 tuần nay">${esc(S.rebookFrom?.note||'')}</textarea>
     <button class="btn full" id="bkBtn" onclick="book()">Gửi yêu cầu đặt lịch</button>
     <p class="note">Phòng khám sẽ xác nhận lịch qua ứng dụng hoặc gọi điện cho bạn.</p></div>`;
   h+=`<h2 class="sec">Lịch hẹn của bạn</h2>`;
   h+= S.appts.length ? `<div class="list">${S.appts.map(apptHtml).join('')}</div>` : `<div class="card empty">Chưa có lịch hẹn nào.</div>`;
   return h;
 }
-const ST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',cancelled:'Đã huỷ',rejected:'Không nhận',done:'Đã khám'};
+const ST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',reschedule:'PK đề nghị đổi giờ',cancelled:'Bạn đã huỷ',rejected:'PK không nhận',done:'Đã khám'};
+function rejTitle(a){ return a.prevStatus==='confirmed' ? 'Phòng khám đã huỷ lịch hẹn' : 'Phòng khám chưa thể nhận lịch hẹn'; }
 function apptHtml(a){
   const future=(parseDate(a.date)||0)>=new Date(new Date().setHours(0,0,0,0));
-  return `<div class="item"><div class="row"><div><b>${fmtDate(a.date)} · ${esc(a.time)}</b><div class="muted">${esc(a.service)} — ${esc(a.name)}</div></div><span class="badge b-${a.status}">${ST[a.status]||a.status}</span></div>
-    ${a.note?`<div class="tiny" style="margin-top:6px">Ghi chú: ${esc(a.note)}</div>`:''}
-    ${a.adminNote?`<div class="reply">Phòng khám: ${esc(a.adminNote)}</div>`:''}
+  let extra='';
+  if(a.status==='rejected') extra=`<div class="notice red" style="margin:10px 0 0"><div class="t">❌ ${rejTitle(a)}</div>${a.adminNote?`<div class="why"><b>Lý do:</b> ${esc(a.adminNote)}</div>`:''}
+    <div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px;flex-wrap:wrap"><a class="btn line sm" href="tel:${CLINIC.phone}">📞 Gọi phòng khám</a><button class="btn sm" onclick="rebook('${a.id}')">📅 Đặt lịch khác</button></div></div>`;
+  else if(a.status==='reschedule') extra=`<div class="notice amber" style="margin:10px 0 0"><div class="t">🕑 Phòng khám đề nghị đổi sang</div>
+    <div style="font-size:1.1rem;font-weight:700;margin-top:4px">${fmtDate(a.proposedDate)} · ${esc(a.proposedTime)}</div>
+    ${a.adminNote?`<div class="why"><b>Lý do:</b> ${esc(a.adminNote)}</div>`:''}
+    <button class="btn full" style="background:#059669;margin-top:10px" onclick="acceptNew('${a.id}')">✓ Đồng ý giờ mới</button>
+    <div class="row" style="margin-top:8px;gap:8px"><button class="btn line sm" style="flex:1" onclick="rebook('${a.id}')">Chọn giờ khác</button><a class="btn line sm" style="flex:1" href="tel:${CLINIC.phone}">📞 Gọi PK</a></div></div>`;
+  else if(a.adminNote) extra=`<div class="reply">Phòng khám: ${esc(a.adminNote)}</div>`;
+  return `<div class="item" id="ap_${a.id}"><div class="row"><div><b style="${['rejected','reschedule','cancelled'].includes(a.status)?'text-decoration:line-through;color:var(--tx3)':''}">${fmtDate(a.date)} · ${esc(a.time)}</b><div class="muted">${esc(a.service)} — ${esc(a.name)}</div></div><span class="badge b-${a.status}">${ST[a.status]||a.status}</span></div>
+    ${a.note?`<div class="tiny" style="margin-top:6px">Ghi chú: ${esc(a.note)}</div>`:''}${extra}
     ${future&&(a.status==='pending'||a.status==='confirmed')?`<div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px">
       ${a.status==='confirmed'?`<button class="btn ghost sm" onclick="icsApptById('${a.id}')">📆 Thêm vào lịch</button>`:''}
       <button class="btn red sm" onclick="cancelAppt('${a.id}')">Huỷ lịch</button></div>`:''}</div>`;
 }
+/* ---- thông báo thay đổi lịch hẹn từ phòng khám ---- */
+const seenKey=a=>`${a.id}:${a.status}:${a.proposedDate||''}${a.proposedTime||''}`;
+function apptUpdates(){ const seen=LS.get('seenAppt',[]);
+  return S.appts.filter(a=>['rejected','reschedule','confirmed'].includes(a.status) && a.updatedAt && !seen.includes(seenKey(a))); }
+function markApptSeen(a){ const seen=LS.get('seenAppt',[]); const k=seenKey(a); if(!seen.includes(k)){ seen.push(k); LS.set('seenAppt',seen.slice(-200)); } }
+window.dismissNotice=id=>{ const a=S.appts.find(x=>x.id===id); if(a) markApptSeen(a); render(); };
+function noticesHtml(){
+  const ups=apptUpdates(); if(!ups.length) return '';
+  return `<h2 class="sec">📢 Thông báo từ phòng khám</h2>`+ups.map(a=>{
+    const when=`${fmtDate(a.date)} · ${esc(a.time)}`;
+    if(a.status==='rejected') return `<div class="notice red"><div class="t">❌ ${rejTitle(a)}</div><div class="muted" style="margin-top:2px">${when} — ${esc(a.service)}</div>
+      ${a.adminNote?`<div class="why"><b>Lý do:</b> ${esc(a.adminNote)}</div>`:''}
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn line sm" onclick="dismissNotice('${a.id}')">Đã hiểu</button><button class="btn sm" onclick="rebook('${a.id}')">📅 Đặt lịch khác</button></div></div>`;
+    if(a.status==='reschedule') return `<div class="notice amber"><div class="t">🕑 Phòng khám đề nghị đổi giờ khám</div><div class="muted" style="margin-top:2px"><s>${when}</s> → <b style="color:var(--tx)">${fmtDate(a.proposedDate)} · ${esc(a.proposedTime)}</b></div>
+      ${a.adminNote?`<div class="why"><b>Lý do:</b> ${esc(a.adminNote)}</div>`:''}
+      <button class="btn full" style="background:#059669;margin-top:10px" onclick="acceptNew('${a.id}')">✓ Đồng ý giờ mới</button>
+      <button class="btn line full" style="margin-top:8px" onclick="rebook('${a.id}')">Chọn giờ khác</button></div>`;
+    return `<div class="notice green"><div class="t">✅ Lịch khám đã được xác nhận</div><div style="margin-top:4px;font-weight:600">${when}</div>${a.adminNote?`<div class="why">${esc(a.adminNote)}</div>`:''}
+      <div class="row" style="margin-top:10px;gap:8px"><button class="btn line sm" onclick="dismissNotice('${a.id}')">Đã hiểu</button><button class="btn ghost sm" onclick="icsApptById('${a.id}');dismissNotice('${a.id}')">📆 Thêm vào lịch ĐT</button></div></div>`;
+  }).join('');
+}
+window.acceptNew = async id => {
+  const a=S.appts.find(x=>x.id===id); if(!a) return;
+  try{ await updateDoc(doc(db,'appointments',id),{status:'confirmed',date:a.proposedDate,time:a.proposedTime,acceptedAt:serverTimestamp()});
+    Object.assign(a,{status:'confirmed',date:a.proposedDate,time:a.proposedTime,acceptedAt:Date.now()}); markApptSeen(a);
+    toast('✓ Đã đồng ý. Hẹn gặp bạn '+fmtShort(a.date)+' lúc '+a.time); render(); }
+  catch(e){ toast('Lỗi: '+(e.code||e.message)); }
+};
+window.rebook = async id => {
+  const a=S.appts.find(x=>x.id===id); if(!a) return;
+  if(a.status==='reschedule'){ try{ await updateDoc(doc(db,'appointments',id),{status:'cancelled',cancelledAt:serverTimestamp()}); a.status='cancelled'; }catch(e){} }
+  markApptSeen(a); S.booking={date:'',time:''}; S.rebookFrom=a; go('book');
+};
 function slotsHtml(){
   if(!S.booking.date) return `<p class="tiny" style="margin-top:8px">Chọn ngày để xem giờ còn nhận.</p>`;
   const d=parseDate(S.booking.date); const list=CLINIC.slots[d.getDay()]||[];
@@ -486,7 +536,7 @@ window.book = async () => {
     const prof=profiles().find(p=>p.name===name);
     const data={uid:S.user.uid,phone:S.phone,name,ptId:prof?.ptId||'',service:svc,date:S.booking.date,time:S.booking.time,note,status:'pending',adminNote:'',createdAt:serverTimestamp()};
     const r=await addDoc(collection(db,'appointments'),data);
-    S.appts.unshift({id:r.id,...data,createdAt:Date.now()}); S.booking={date:'',time:''};
+    S.appts.unshift({id:r.id,...data,createdAt:Date.now()}); S.booking={date:'',time:''}; S.rebookFrom=null;
     toast('✓ Đã gửi yêu cầu. Phòng khám sẽ xác nhận sớm.'); render();
   }catch(e){ console.error(e); toast('Không gửi được: '+(e.code||e.message)); $('bkBtn').disabled=false; }
 };
@@ -661,7 +711,10 @@ window.doInstall = window.startInstall;
 refreshInstall();
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}).catch(e=>console.warn('SW',e));
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && S.user){ scheduleDoseNotifications(); if(S.tab==='home') render(); } });
+let lastLoad=Date.now();
+document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState==='visible' && S.user){
+  if(Date.now()-lastLoad>30000){ lastLoad=Date.now(); await loadAll(); render(); } else if(S.tab==='home') render();
+  scheduleDoseNotifications(); } });
 </script>
 </body>
 </html>

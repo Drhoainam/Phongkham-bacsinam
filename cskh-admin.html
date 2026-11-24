@@ -79,7 +79,7 @@ const lp=e=>e?'0'+String(e).replace('+84',''):'';
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
 window.zoom=u=>{ $('lbImg').src=u; $('lightbox').classList.remove('hidden'); };
 
-const S={tab:'appts',appts:[],consults:[],feedback:[],af:'pending',cf:'open'};
+const S={tab:'appts',appts:[],consults:[],feedback:[],af:'pending',cf:'open',editing:null};
 window.login=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>$('loginErr').textContent=e.message);
 window.logout=()=>signOut(auth);
 onAuthStateChanged(auth,async u=>{
@@ -107,25 +107,78 @@ function render(){
 const contact=(name,phone)=>`<b>${esc(name)}</b> · <a href="tel:${esc(lp(phone))}">${esc(lp(phone))}</a> · <a href="https://zalo.me/${esc(lp(phone))}" target="_blank" rel="noopener">Zalo</a>`;
 
 /* ---------- Lịch hẹn ---------- */
-const AST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',done:'Đã khám',cancelled:'BN huỷ',rejected:'Từ chối'};
+const AST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',reschedule:'Chờ BN đồng ý giờ mới',done:'Đã khám',cancelled:'BN huỷ',rejected:'PK từ chối/huỷ'};
+const REASONS={
+  rejected:['Bác sĩ có việc đột xuất vào thời gian này, mong anh/chị đặt lại ngày khác.',
+            'Tình trạng của anh/chị nằm ngoài chuyên khoa của phòng khám. Anh/chị nên đến bệnh viện để được khám và điều trị phù hợp.',
+            'Khung giờ này đã kín lịch, mong anh/chị chọn giờ khác.'],
+  reschedule:['Bác sĩ về muộn hơn dự kiến, xin phép dời sang giờ mới.',
+              'Bác sĩ bận vào ngày này, xin phép dời sang ngày mới.']
+};
+const CLINIC_NAME='Phòng khám BS. Hoài Nam', APP_LINK='https://phongkham-bacsinam.vercel.app/cskh';
 function vAppts(){
   const today=new Date().toISOString().slice(0,10);
   const list=S.appts.filter(a=>S.af==='all'?true:S.af==='today'?a.date===today:a.status===S.af);
-  let h=`<div class="flt">${[['pending','Chờ xác nhận'],['today','Hôm nay'],['confirmed','Đã xác nhận'],['done','Đã khám'],['cancelled','BN huỷ'],['rejected','Từ chối'],['all','Tất cả']].map(([k,l])=>`<button class="${S.af===k?'on':''}" onclick="af('${k}')">${l}</button>`).join('')}</div>`;
+  let h=`<div class="flt">${[['pending','Chờ xác nhận'],['today','Hôm nay'],['confirmed','Đã xác nhận'],['reschedule','Chờ BN đồng ý đổi giờ'],['done','Đã khám'],['cancelled','BN huỷ'],['rejected','PK từ chối/huỷ'],['all','Tất cả']].map(([k,l])=>`<button class="${S.af===k?'on':''}" onclick="af('${k}')">${l}</button>`).join('')}</div>`;
   if(!list.length) return h+'<div class="empty">Không có lịch hẹn.</div>';
-  return h+list.map(a=>`<div class="it"><div class="row"><div><b style="font-size:1rem">${fd(a.date)} · ${esc(a.time)}</b> — ${esc(a.service)}<div>${contact(a.name,a.phone)}</div>
-    ${a.note?`<div class="muted">Ghi chú BN: ${esc(a.note)}</div>`:''}${a.adminNote?`<div class="tiny">PK đã nhắn: ${esc(a.adminNote)}</div>`:''}<div class="tiny">Đặt lúc ${fdt(a.createdAt)}${a.ptId?' · có hồ sơ':' · BN mới'}</div></div>
-    <span class="badge b-${a.status}">${AST[a.status]||a.status}</span></div>
-    ${a.status==='pending'||a.status==='confirmed'?`<div class="acts"><input class="in" id="an_${a.id}" placeholder="Lời nhắn cho BN (tuỳ chọn)" style="flex:1;min-width:200px">
-      ${a.status==='pending'?`<button class="btn gr" onclick="setAppt('${a.id}','confirmed')">✓ Xác nhận</button><button class="btn red" onclick="setAppt('${a.id}','rejected')">Từ chối</button>`:`<button class="btn" onclick="setAppt('${a.id}','done')">Đã khám</button><button class="btn red" onclick="setAppt('${a.id}','rejected')">Huỷ lịch</button>`}</div>`:''}</div>`).join('');
+  return h+list.map(apptCard).join('');
 }
-window.af=k=>{ S.af=k; render(); };
+function apptCard(a){
+  const open=S.editing&&S.editing.id===a.id;
+  let acts='';
+  if(['pending','confirmed','reschedule'].includes(a.status) && !open){
+    acts=`<div class="acts">
+      ${a.status==='pending'?`<button class="btn gr" onclick="setAppt('${a.id}','confirmed')">✓ Xác nhận</button>`:''}
+      ${a.status==='confirmed'?`<button class="btn" onclick="setAppt('${a.id}','done')">Đã khám</button>`:''}
+      <button class="btn ghost" onclick="openEdit('${a.id}','reschedule')">🕑 Đổi giờ</button>
+      <button class="btn red" onclick="openEdit('${a.id}','rejected')">✕ ${a.status==='pending'?'Từ chối':'Huỷ lịch'}</button></div>`;
+  }
+  if(open){
+    const k=S.editing.kind;
+    acts=`<div style="margin-top:10px;border-top:1px dashed var(--bo);padding-top:10px">
+      <b>${k==='reschedule'?'🕑 Đề xuất giờ mới cho khách':'✕ '+(a.status==='pending'?'Từ chối':'Huỷ')+' lịch — lý do gửi khách'}</b>
+      ${k==='reschedule'?`<div class="acts"><input type="date" class="in" id="nd_${a.id}" value="${esc(a.proposedDate||a.date)}" style="width:auto"><input type="time" class="in" id="nt_${a.id}" step="900" value="${esc(a.proposedTime||a.time)}" style="width:auto"></div>`:''}
+      <div class="acts">${REASONS[k].map((r,i)=>`<button class="btn line" onclick="pickReason('${a.id}','${k}',${i})" style="text-align:left;font-weight:500">${esc(r.length>60?r.slice(0,58)+'…':r)}</button>`).join('')}</div>
+      <textarea class="in" id="rs_${a.id}" placeholder="Lý do / lời nhắn cho khách (bắt buộc)" style="min-height:80px;margin-top:8px"></textarea>
+      <div class="acts"><button class="btn ${k==='reschedule'?'':'red'}" style="${k==='reschedule'?'':'background:var(--da);color:#fff'}" onclick="saveEdit('${a.id}')">${k==='reschedule'?'Gửi đề xuất giờ mới':'Xác nhận '+(a.status==='pending'?'từ chối':'huỷ lịch')}</button><button class="btn line" onclick="S.editing=null;render()">Thôi</button></div></div>`;
+  }
+  const notify = (['rejected','reschedule'].includes(a.status)&&a.adminNote) ? `<div class="acts"><button class="btn ghost" onclick="notifyZalo('${a.id}')">💬 Chép tin & mở Zalo khách</button><span class="tiny" style="align-self:center">Khách cũng thấy thông báo khi mở app</span></div>` : '';
+  return `<div class="it"><div class="row"><div><b style="font-size:1rem">${fd(a.date)} · ${esc(a.time)}</b> — ${esc(a.service)}<div>${contact(a.name,a.phone)}</div>
+    ${a.note?`<div class="muted">Ghi chú BN: ${esc(a.note)}</div>`:''}
+    ${a.status==='reschedule'?`<div style="color:var(--am);font-weight:600">→ Đề xuất: ${fd(a.proposedDate)} · ${esc(a.proposedTime)}</div>`:''}
+    ${a.adminNote?`<div class="tiny">PK đã nhắn: ${esc(a.adminNote)}</div>`:''}<div class="tiny">Đặt lúc ${fdt(a.createdAt)}${a.ptId?' · có hồ sơ':' · BN mới'}${a.acceptedAt?' · BN đã đồng ý giờ mới':''}</div></div>
+    <span class="badge b-${a.status==='reschedule'?'pending':a.status}">${AST[a.status]||a.status}</span></div>${acts}${notify}</div>`;
+}
+window.af=k=>{ S.af=k; S.editing=null; render(); };
+window.openEdit=(id,kind)=>{ S.editing={id,kind}; render(); setTimeout(()=>$('rs_'+id)?.focus(),50); };
+window.pickReason=(id,k,i)=>{ $('rs_'+id).value=REASONS[k][i]; };
 window.setAppt=async(id,status)=>{
-  const note=$('an_'+id)?.value.trim()||'';
-  if(status==='rejected'&&!note&&!confirm('Từ chối/huỷ mà không ghi lý do?')) return;
-  try{ const upd={status,updatedAt:serverTimestamp()}; if(note) upd.adminNote=note;
+  try{ const upd={status,updatedAt:serverTimestamp()};
     await updateDoc(doc(db,'appointments',id),upd); Object.assign(S.appts.find(x=>x.id===id),upd); toast('Đã cập nhật'); render(); }
   catch(e){ toast('Lỗi: '+(e.code||e.message)); }
+};
+window.saveEdit=async id=>{
+  const a=S.appts.find(x=>x.id===id), k=S.editing.kind, note=$('rs_'+id).value.trim();
+  if(!note){ toast('Vui lòng ghi lý do để khách biết'); $('rs_'+id).focus(); return; }
+  const upd={status:k,adminNote:note,updatedAt:serverTimestamp(),prevStatus:a.status};
+  if(k==='reschedule'){ const d=$('nd_'+id).value, t=$('nt_'+id).value;
+    if(!d||!t){ toast('Chọn ngày và giờ mới'); return; }
+    if(d===a.date&&t===a.time){ toast('Giờ mới đang trùng giờ cũ'); return; }
+    upd.proposedDate=d; upd.proposedTime=t; }
+  try{ await updateDoc(doc(db,'appointments',id),upd); Object.assign(a,upd); S.editing=null; render();
+    toast(k==='reschedule'?'Đã gửi đề xuất giờ mới':'Đã '+(upd.prevStatus==='pending'?'từ chối':'huỷ')+' lịch');
+    if(confirm('Nhắn Zalo cho khách luôn? (tin nhắn đã soạn sẵn, anh chỉ cần dán và gửi)')) notifyZalo(id);
+  }catch(e){ toast('Lỗi: '+(e.code||e.message)); }
+};
+function apptMsg(a){
+  const when=`${fd(a.date)} lúc ${a.time}`;
+  if(a.status==='reschedule') return `${CLINIC_NAME} xin thông báo: lịch khám ${when} của anh/chị ${a.name} cần dời sang ${fd(a.proposedDate)} lúc ${a.proposedTime}.\nLý do: ${a.adminNote}\nAnh/chị vui lòng mở app để bấm "Đồng ý giờ mới" hoặc chọn giờ khác: ${APP_LINK}`;
+  return `${CLINIC_NAME} xin thông báo: lịch khám ${when} của anh/chị ${a.name} ${a.prevStatus==='confirmed'?'đã bị huỷ':'chưa thể tiếp nhận'}.\nLý do: ${a.adminNote}\nXin lỗi anh/chị vì sự bất tiện. Đặt lịch khác tại: ${APP_LINK}`;
+}
+window.notifyZalo=async id=>{
+  const a=S.appts.find(x=>x.id===id); const msg=apptMsg(a);
+  try{ await navigator.clipboard.writeText(msg); toast('Đã chép tin nhắn — dán (Ctrl+V) vào Zalo rồi gửi'); }catch(e){ prompt('Chép tin nhắn này:',msg); }
+  window.open('https://zalo.me/'+lp(a.phone),'_blank');
 };
 
 /* ---------- Tư vấn ---------- */
