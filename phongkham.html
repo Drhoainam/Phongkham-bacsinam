@@ -395,6 +395,7 @@ input.flatpickr-input:focus{border-color:var(--ac);background:#fff;box-shadow:0 
 <header>
   <div class="logo"><div class="logo-dot"></div>PhòngKhám <span style="color:var(--tx3);font-family:'Be Vietnam Pro';font-weight:400;font-size:.9rem"> — BS. Hoài Nam</span></div>
   <div style="display:flex;align-items:center;gap:10px">
+    <a class="btn-s" href="/cskh-admin" target="cskh_admin" style="text-decoration:none;background:#e0f2fe;color:#0284c7;border-color:#7dd3fc;position:relative" title="Lịch hẹn & tư vấn ảnh từ app bệnh nhân">💬 CSKH<span id="cskhBadge" style="display:none;position:absolute;top:-7px;right:-7px;background:#ef4444;color:#fff;border-radius:99px;font-size:.68rem;font-weight:700;padding:1px 6px;line-height:1.4"></span></a>
     <button class="btn-s" onclick="showStats()">📊 Thống kê</button>
     <button class="btn-s" onclick="showReport()">📈 Báo cáo</button>
     <button class="btn-s" onclick="showKho()" style="background:#fff7ed;color:var(--ac3);border-color:#fcd34d">📦 Kho thuốc</button>
@@ -808,6 +809,21 @@ async function syncPortalFor(p){
     await window.__setDoc(window.__doc('portal',e),{phone:e,profiles:same.map(cskhProfile),updatedAt:new Date()});
   }catch(err){ console.warn('[CSKH] portal sync',err); }
 }
+
+// ===== [CSKH] Đếm lịch hẹn chờ xác nhận + câu hỏi tư vấn chờ trả lời =====
+async function cskhCount(){
+  try{
+    if(!fbOk||!curUser||!window.__getDocs||!window.__query||!window.__where) return;
+    const q=(c,st)=>window.__getDocs(window.__query(window.__col(c),window.__where('status','==',st)));
+    const [a,c]=await Promise.all([q('appointments','pending'),q('consults','open')]);
+    const n=a.size+c.size, el=document.getElementById('cskhBadge'); if(!el) return;
+    el.textContent=n; el.style.display=n?'inline':'none';
+    el.parentElement.title=`${a.size} lịch hẹn chờ xác nhận · ${c.size} câu hỏi tư vấn chờ trả lời`;
+  }catch(e){ console.warn('[CSKH] count',e); }
+}
+setInterval(cskhCount,60000);
+window.addEventListener('focus',()=>setTimeout(cskhCount,500));
+setTimeout(cskhCount,4000);
 
 function svLocal(){ localStorage.setItem('pk3',JSON.stringify(pts)); }
 function sv(p){ svLocal(); if(p) fbSave(p); }
