@@ -97,6 +97,11 @@ h2.sec:first-child{margin-top:0}
 .sw span:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
 .sw input:checked+span{background:var(--gr)}
 .sw input:checked+span:before{transform:translateX(20px)}
+.inst{background:linear-gradient(135deg,#ecfdf5,#e0f2fe);border:1.5px solid #6ee7b7;border-radius:var(--r);padding:14px;margin:14px 0 4px;position:relative}
+.inst .ttl{font-weight:700;display:flex;gap:8px;align-items:center}
+.inst .x{position:absolute;top:6px;right:8px;background:none;border:none;font-size:1.1rem;color:var(--tx3);cursor:pointer;padding:4px}
+.inst ol{margin:8px 0 0 20px;font-size:.88rem;color:var(--tx2)}.inst ol li{margin:3px 0}
+.inst .btn{margin-top:10px}
 .disc{font-size:.76rem;color:var(--tx3);background:#f8fafc;border:1px solid var(--bo);border-radius:10px;padding:10px 12px;margin-top:12px}
 </style>
 </head>
@@ -109,12 +114,13 @@ h2.sec:first-child{margin-top:0}
     <h1>Phòng khám BS. Hoài Nam</h1>
     <p class="sub" id="clinicSub"></p>
   </div>
+  <div id="instLogin"></div>
   <div class="card" id="stepPhone">
-    <label class="lb">Số điện thoại đã đăng ký khi khám</label>
+    <label class="lb">Số điện thoại của bạn</label>
     <input class="in" id="inPhone" type="tel" inputmode="tel" placeholder="VD: 0912 345 678" autocomplete="tel">
     <button class="btn full" id="btnSend" onclick="sendOtp()">Nhận mã xác thực</button>
     <div class="err" id="errPhone"></div>
-    <p class="note">Mã OTP gồm 6 số sẽ được gửi qua SMS.</p>
+    <p class="note">Mã OTP gồm 6 số sẽ được gửi qua SMS. Khách đã từng khám: dùng đúng số đã đăng ký để xem đơn thuốc.</p>
   </div>
   <div class="card hidden" id="stepOtp">
     <label class="lb">Nhập mã 6 số đã gửi tới <span id="otpPhone"></span></label>
@@ -391,7 +397,8 @@ function vHome(){
     <button onclick="go('consult')"><span class="i">📷</span>Gửi ảnh</button>
     <a href="tel:${CLINIC.phone}"><span class="i">📞</span>Gọi điện</a>
     <a href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener"><span class="i">💬</span>Zalo</a></div>`;
-  if(!S.portal) h+=`<div class="card" style="margin-top:14px;background:var(--aml);border-color:#fde68a"><b>Chưa tìm thấy hồ sơ khám</b><div class="muted" style="margin-top:4px">Số ${esc(localPhone(S.phone))} chưa khớp với hồ sơ tại phòng khám. Bạn vẫn đặt lịch và gửi ảnh tư vấn được. Nếu đã từng khám, hãy báo phòng khám cập nhật số điện thoại.</div></div>`;
+  h+=installHtml(false);
+  if(!S.portal) h+=`<div class="card" style="margin-top:14px;background:var(--acl);border-color:#7dd3fc"><b>Chào mừng bạn đến với phòng khám!</b><div class="muted" style="margin-top:4px">Bạn có thể <b>đặt lịch khám</b> hoặc <b>gửi ảnh tư vấn</b> ngay. Sau lần khám đầu tiên, đơn thuốc và lịch tái khám sẽ tự hiện trong app.<br><span class="tiny">Đã từng khám nhưng chưa thấy hồ sơ? Báo phòng khám cập nhật số ${esc(localPhone(S.phone))}.</span></div></div>`;
   h+=`<h2 class="sec">💊 Thuốc hôm nay <span class="tiny">${doses.length?`${taken.length}/${doses.length} cữ`:''}</span></h2>`;
   if(!doses.length) h+=`<div class="card empty">Hôm nay bạn không có thuốc cần uống theo đơn.</div>`;
   else h+=`<div class="card">${doses.map(d=>`<div class="dose ${taken.includes(d.h)?'taken':''} ${d.h<nowH&&!taken.includes(d.h)?'past':''}">
@@ -469,7 +476,7 @@ window.cancelAppt = async id => {
 
 function vRx(){
   const vs=allVisits();
-  if(!S.portal) return `<div class="card empty">Chưa có hồ sơ khám gắn với số ${esc(localPhone(S.phone))}.<br>Nếu bạn đã khám tại phòng khám, vui lòng báo để cập nhật số điện thoại.</div>`;
+  if(!S.portal) return `<div class="card empty">Đơn thuốc và lịch sử khám sẽ hiện ở đây sau lần khám đầu tiên.<br><br><button class="btn" onclick="go('book')">📅 Đặt lịch khám</button><br><br><span class="tiny">Đã từng khám? Báo phòng khám cập nhật số ${esc(localPhone(S.phone))}.</span></div>`;
   if(!vs.length) return `<div class="card empty">Chưa có lần khám nào.</div>`;
   const multi=profiles().length>1; const today=new Date(); today.setHours(0,0,0,0);
   return `<p class="tiny" style="margin:0 2px 10px">Cập nhật: ${S.portal.updatedAt?new Date(tsMs(S.portal.updatedAt)).toLocaleString('vi-VN'):'—'}</p>`+
@@ -552,21 +559,56 @@ window.sendFb = async visitId => {
 };
 
 function vMe(){
-  const ps=profiles(); const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent); const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  const ps=profiles();
   return `<div class="card"><div class="muted">Số điện thoại</div><b style="font-size:1.1rem">${esc(localPhone(S.phone))}</b>
     ${ps.length?`<div class="muted" style="margin-top:12px">Hồ sơ gắn với số này</div>${ps.map(p=>`<div style="margin-top:4px"><b>${esc(p.name)}</b> <span class="tiny">${esc(p.gender||'')}${p.year?' · '+esc(p.year):''} · ${(p.visits||[]).length} lần khám</span></div>`).join('')}`:''}</div>
   <h2 class="sec">Phòng khám</h2><div class="card"><b>${esc(CLINIC.name)}</b><div class="muted">${esc(CLINIC.doctor)}</div>
     ${CLINIC.address?`<div class="muted" style="margin-top:6px">📍 ${esc(CLINIC.address)}</div>`:''}
     <div class="row" style="margin-top:12px;justify-content:flex-start;gap:8px;flex-wrap:wrap"><a class="btn ghost sm" href="tel:${CLINIC.phone}">📞 ${esc(CLINIC.phone)}</a><a class="btn ghost sm" href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener">💬 Zalo</a>${CLINIC.mapUrl?`<a class="btn ghost sm" href="${esc(CLINIC.mapUrl)}" target="_blank" rel="noopener">🗺️ Chỉ đường</a>`:''}</div></div>
-  ${standalone?'':`<h2 class="sec">Cài ứng dụng lên điện thoại</h2><div class="card muted">${isIOS?'Trên iPhone: bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên) ở Safari → <b>Thêm vào MH chính</b>.':'Trên Android: bấm menu <b>⋮</b> của Chrome → <b>Thêm vào màn hình chính</b> / <b>Cài đặt ứng dụng</b>.'}
-    ${deferredInstall?'<button class="btn full" onclick="doInstall()">Cài đặt ngay</button>':''}</div>`}
+  ${installHtml(true)}
   <button class="btn line full" onclick="loadAll().then(render).then(()=>toast('Đã cập nhật'))">🔄 Tải lại dữ liệu</button>
   <button class="btn red full" onclick="logout()">Đăng xuất</button>
   <p class="note">Dữ liệu sức khoẻ của bạn chỉ hiển thị khi đăng nhập bằng đúng số điện thoại đã đăng ký tại phòng khám.</p>`;
 }
+/* ---------- Cài app lên màn hình chính ---------- */
 let deferredInstall=null;
-window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall=e; });
-window.doInstall = async () => { if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; render(); };
+const UA=navigator.userAgent;
+const ENV={
+  ios:/iphone|ipad|ipod/i.test(UA) || (/macintosh/i.test(UA) && navigator.maxTouchPoints>1),
+  android:/android/i.test(UA),
+  inApp:/zalo|FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\/|TikTok|musical_ly|BytedanceWebview|Bytedance|; wv\)|CocCoc/i.test(UA) && !/SamsungBrowser/i.test(UA),
+  standalone:()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true
+};
+function installHtml(always){
+  if(ENV.standalone()) return '';
+  if(!always && LS.get('instHide',0) > Date.now()) return '';
+  const url='phongkham-bacsinam.vercel.app/cskh';
+  const close= always?'':`<button class="x" onclick="hideInstall()" aria-label="Đóng">✕</button>`;
+  let body;
+  if(ENV.inApp){
+    body = ENV.android
+      ? `<div class="muted" style="margin-top:4px">Bạn đang mở trong Zalo/Facebook nên chưa cài được. Mở bằng Chrome để cài:</div>
+         <a class="btn full" href="intent://${url}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2F${encodeURIComponent(url)};end">🌐 Mở bằng Chrome</a>
+         <ol><li>Nếu nút trên không mở được: bấm <b>⋮</b> (góc trên bên phải) → <b>Mở bằng trình duyệt</b>.</li><li>Trong Chrome, bấm nút <b>Cài ứng dụng</b> hiện ra ở khung này.</li></ol>`
+      : `<div class="muted" style="margin-top:4px">Bạn đang mở trong Zalo/Facebook nên chưa cài được.</div>
+         <ol><li>Bấm <b>⋯</b> hoặc biểu tượng la bàn (góc màn hình) → <b>Mở bằng Safari</b>.</li><li>Trong Safari, bấm nút <b>Chia sẻ</b> <span style="font-size:1.05em">⬆️</span> → <b>Thêm vào MH chính</b> → <b>Thêm</b>.</li></ol>
+         <button class="btn ghost full" onclick="copyLink()">📋 Sao chép link để dán vào Safari</button>`;
+  } else if(ENV.ios){
+    body = `<ol><li>Bấm nút <b>Chia sẻ</b> <span style="font-size:1.05em">⬆️</span> ở thanh dưới của Safari.</li><li>Kéo xuống, chọn <b>Thêm vào MH chính</b> → bấm <b>Thêm</b>.</li><li>Mở app từ biểu tượng <b>BS Hoài Nam</b> trên màn hình.</li></ol>`;
+  } else if(deferredInstall){
+    body = `<div class="muted" style="margin-top:4px">Mở nhanh từ màn hình điện thoại, nhận nhắc lịch và nhắc uống thuốc.</div><button class="btn full" onclick="doInstall()">📲 Cài ứng dụng</button>`;
+  } else {
+    body = `<ol><li>Bấm menu <b>⋮</b> của trình duyệt (góc trên bên phải).</li><li>Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</li></ol>`;
+  }
+  return `<div class="inst">${close}<div class="ttl">📲 Cài app Phòng khám BS. Hoài Nam</div>${body}</div>`;
+}
+function refreshInstall(){ const el=$('instLogin'); if(el) el.innerHTML=installHtml(false); if(S.user && (S.tab==='home'||S.tab==='me')) render(); }
+window.hideInstall = () => { LS.set('instHide', Date.now()+3*864e5); refreshInstall(); };
+window.copyLink = async () => { try{ await navigator.clipboard.writeText('https://phongkham-bacsinam.vercel.app/cskh'); toast('Đã sao chép. Mở Safari và dán vào thanh địa chỉ.'); }catch(e){ prompt('Sao chép link này:','https://phongkham-bacsinam.vercel.app/cskh'); } };
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall=e; refreshInstall(); });
+window.addEventListener('appinstalled', ()=>{ deferredInstall=null; toast('✓ Đã cài app lên màn hình chính'); refreshInstall(); });
+window.doInstall = async () => { if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; refreshInstall(); };
+refreshInstall();
 
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}).catch(e=>console.warn('SW',e));
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && S.user){ scheduleDoseNotifications(); if(S.tab==='home') render(); } });
