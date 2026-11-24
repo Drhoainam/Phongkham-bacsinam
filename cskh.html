@@ -336,6 +336,7 @@ function todayDoses(){
   return Object.keys(byHour).map(Number).sort((a,b)=>a-b).map(h=>({h,meds:byHour[h]}));
 }
 const takenKey = () => 'taken_'+ymd(new Date());
+window.reloadData = async () => { await loadAll(); render(); toast('Đã cập nhật'); };
 window.toggleTaken = h => { const k=takenKey(); const t=LS.get(k,[]); const i=t.indexOf(h); i>=0?t.splice(i,1):t.push(h); LS.set(k,t); render(); };
 
 /* ---------- thông báo nhắc thuốc (khi app đang mở / chạy nền) ---------- */
@@ -641,7 +642,7 @@ function vMe(){
     ${CLINIC.address?`<div class="muted" style="margin-top:6px">📍 ${esc(CLINIC.address)}</div>`:''}
     <div class="row" style="margin-top:12px;justify-content:flex-start;gap:8px;flex-wrap:wrap"><a class="btn ghost sm" href="tel:${CLINIC.phone}">📞 ${esc(CLINIC.phone)}</a><a class="btn ghost sm" href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener">💬 Zalo</a>${CLINIC.mapUrl?`<a class="btn ghost sm" href="${esc(CLINIC.mapUrl)}" target="_blank" rel="noopener">🗺️ Chỉ đường</a>`:''}</div></div>
   ${installHtml(true)}
-  <button class="btn line full" onclick="loadAll().then(render).then(()=>toast('Đã cập nhật'))">🔄 Tải lại dữ liệu</button>
+  <button class="btn line full" onclick="reloadData()">🔄 Tải lại dữ liệu</button>
   <button class="btn red full" onclick="logout()">Đăng xuất</button>
   <p class="note">Dữ liệu sức khoẻ của bạn chỉ hiển thị khi đăng nhập bằng đúng số điện thoại đã đăng ký tại phòng khám.</p>`;
 }

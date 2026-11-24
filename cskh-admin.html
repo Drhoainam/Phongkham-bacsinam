@@ -80,7 +80,7 @@ const lp=e=>e?'0'+String(e).replace('+84',''):'';
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
 window.zoom=u=>{ $('lbImg').src=u; $('lightbox').classList.remove('hidden'); };
 
-const S={tab:'appts',appts:[],consults:[],feedback:[],af:'pending',cf:'open',editing:null};
+const S={tab:'appts',appts:[],consults:[],feedback:[],af:'pending',cf:'open',editing:null}; window.S=S;
 window.login=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>$('loginErr').textContent=e.message);
 window.logout=()=>signOut(auth);
 onAuthStateChanged(auth,async u=>{
@@ -99,6 +99,7 @@ window.reloadAll=async()=>{
   render();
 };
 window.tab=t=>{ S.tab=t; render(); };
+window.render=()=>render();
 function render(){
   const np=S.appts.filter(a=>a.status==='pending').length, nc=S.consults.filter(c=>c.status==='open').length;
   $('tabs').innerHTML=[['appts','📅 Lịch hẹn',np],['consults','📷 Tư vấn ảnh',nc],['feedback','⭐ Đánh giá',0],['sync','🔁 Đồng bộ hồ sơ BN',0]]
@@ -117,6 +118,9 @@ const REASONS={
               'Bác sĩ bận vào ngày này, xin phép dời sang ngày mới.']
 };
 const CLINIC_NAME='Phòng khám BS. Hoài Nam', APP_LINK='https://phongkham-bacsinam.vercel.app/cskh';
+// Khung giờ khám (giống app bệnh nhân): T2–T7 19h–22h, CN 7h–11h
+const EVE=['19:00','19:30','20:00','20:30','21:00','21:30'], SUN=['07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30'];
+const slotsFor=d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return EVE; return new Date(+m[1],+m[2]-1,+m[3]).getDay()===0?SUN:EVE; };
 function vAppts(){
   const today=new Date().toISOString().slice(0,10);
   const list=S.appts.filter(a=>S.af==='all'?true:S.af==='today'?a.date===today:a.status===S.af);
@@ -138,9 +142,17 @@ function apptCard(a){
     const k=S.editing.kind;
     acts=`<div style="margin-top:10px;border-top:1px dashed var(--bo);padding-top:10px">
       <b>${k==='reschedule'?'🕑 Đề xuất giờ mới cho khách':'✕ '+(a.status==='pending'?'Từ chối':'Huỷ')+' lịch — lý do gửi khách'}</b>
-      ${k==='reschedule'?`<div class="acts"><input type="date" class="in" id="nd_${a.id}" value="${esc(a.proposedDate||a.date)}" style="width:auto"><input type="time" class="in" id="nt_${a.id}" step="900" value="${esc(a.proposedTime||a.time)}" style="width:auto"></div>`:''}
+      ${k==='reschedule'?`<div style="margin-top:10px"><div class="tiny" style="font-weight:600;color:var(--tx2)">① Ngày mới</div>
+        <input type="date" class="in" id="nd_${a.id}" value="${esc(S.editing.d||a.date)}" style="width:auto;margin-top:4px" onchange="S.editing.d=this.value;S.editing.t='';render()">
+        <div class="tiny" style="font-weight:600;color:var(--tx2);margin-top:10px">② Bấm chọn giờ mới <span style="color:var(--da)">(bắt buộc)</span></div>
+        <div class="acts" style="margin-top:4px">${slotsFor(S.editing.d||a.date).map(t=>{ const same=(S.editing.d||a.date)===a.date&&t===a.time; const on=S.editing.t===t;
+          return `<button class="btn ${on?'':'line'}" ${same?'disabled title="Giờ hiện tại của khách"':''} onclick="S.editing.t='${t}';render()" style="min-width:70px${on?';background:var(--ac);color:#fff':''}">${t}${same?' (cũ)':''}</button>`; }).join('')}
+          <input type="time" class="in" id="nt_${a.id}" value="${esc(S.editing.t||'')}" onchange="S.editing.t=this.value;render()" style="width:auto" title="Giờ khác"></div>
+        <div class="tiny" style="font-weight:600;color:var(--tx2);margin-top:10px">③ Lý do gửi khách</div></div>`:''}
       <div class="acts">${REASONS[k].map((r,i)=>`<button class="btn line" onclick="pickReason('${a.id}','${k}',${i})" style="text-align:left;font-weight:500">${esc(r.length>60?r.slice(0,58)+'…':r)}</button>`).join('')}</div>
-      <textarea class="in" id="rs_${a.id}" placeholder="Lý do / lời nhắn cho khách (bắt buộc)" style="min-height:80px;margin-top:8px"></textarea>
+      <textarea class="in" id="rs_${a.id}" placeholder="Lý do / lời nhắn cho khách (bắt buộc)" style="min-height:80px;margin-top:8px" oninput="S.editing.note=this.value">${esc(S.editing.note||'')}</textarea>
+      ${k==='reschedule'&&S.editing.t?`<div style="margin-top:8px;font-weight:600;color:var(--gr)">→ Đề xuất: ${fd(S.editing.d||a.date)} · ${S.editing.t}</div>`:''}
+      <div class="err" id="er_${a.id}" style="color:var(--da);font-weight:600;margin-top:8px">${esc(S.editing.err||'')}</div>
       <div class="acts"><button class="btn ${k==='reschedule'?'':'red'}" style="${k==='reschedule'?'':'background:var(--da);color:#fff'}" onclick="saveEdit('${a.id}')">${k==='reschedule'?'Gửi đề xuất giờ mới':'Xác nhận '+(a.status==='pending'?'từ chối':'huỷ lịch')}</button><button class="btn line" onclick="S.editing=null;render()">Thôi</button></div></div>`;
   }
   const notify = (['rejected','reschedule'].includes(a.status)&&a.adminNote) ? `<div class="acts"><button class="btn ghost" onclick="notifyZalo('${a.id}')">💬 Chép tin & mở Zalo khách</button><span class="tiny" style="align-self:center">Khách cũng thấy thông báo khi mở app</span></div>` : '';
@@ -151,20 +163,21 @@ function apptCard(a){
     <span class="badge b-${a.status==='reschedule'?'pending':a.status}">${AST[a.status]||a.status}</span></div>${acts}${notify}</div>`;
 }
 window.af=k=>{ S.af=k; S.editing=null; render(); };
-window.openEdit=(id,kind)=>{ S.editing={id,kind}; render(); setTimeout(()=>$('rs_'+id)?.focus(),50); };
-window.pickReason=(id,k,i)=>{ $('rs_'+id).value=REASONS[k][i]; };
+window.openEdit=(id,kind)=>{ const a=S.appts.find(x=>x.id===id); S.editing={id,kind,d:a.date,t:'',note:'',err:''}; render(); };
+window.pickReason=(id,k,i)=>{ $('rs_'+id).value=REASONS[k][i]; S.editing.note=REASONS[k][i]; };
 window.setAppt=async(id,status)=>{
   try{ const upd={status,updatedAt:serverTimestamp()};
     await updateDoc(doc(db,'appointments',id),upd); Object.assign(S.appts.find(x=>x.id===id),upd); toast('Đã cập nhật'); render(); if(status==='confirmed') callNotify('appt',id); }
   catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
 window.saveEdit=async id=>{
-  const a=S.appts.find(x=>x.id===id), k=S.editing.kind, note=$('rs_'+id).value.trim();
-  if(!note){ toast('Vui lòng ghi lý do để khách biết'); $('rs_'+id).focus(); return; }
+  const a=S.appts.find(x=>x.id===id), k=S.editing.kind, note=$('rs_'+id).value.trim(); S.editing.note=note;
+  const fail=m=>{ S.editing.err='⚠️ '+m; render(); toast(m); };
+  if(k==='reschedule' && !S.editing.t) return fail('Anh chưa bấm chọn GIỜ MỚI ở bước ②');
+  if(!note) return fail('Vui lòng ghi lý do để khách biết');
   const upd={status:k,adminNote:note,updatedAt:serverTimestamp(),prevStatus:a.status};
-  if(k==='reschedule'){ const d=$('nd_'+id).value, t=$('nt_'+id).value;
-    if(!d||!t){ toast('Chọn ngày và giờ mới'); return; }
-    if(d===a.date&&t===a.time){ toast('Giờ mới đang trùng giờ cũ'); return; }
+  if(k==='reschedule'){ const d=S.editing.d||a.date, t=S.editing.t;
+    if(d===a.date&&t===a.time) return fail('Giờ mới đang trùng giờ cũ ('+t+'), hãy chọn giờ khác');
     upd.proposedDate=d; upd.proposedTime=t; }
   try{ await updateDoc(doc(db,'appointments',id),upd); Object.assign(a,upd); S.editing=null; render(); callNotify('appt',id);
     toast(k==='reschedule'?'Đã gửi đề xuất giờ mới':'Đã '+(upd.prevStatus==='pending'?'từ chối':'huỷ')+' lịch');
