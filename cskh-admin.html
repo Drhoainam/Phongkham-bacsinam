@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Quản trị CSKH — BS. Hoài Nam</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f2f5;--su:#fff;--bo:#dde1e8;--ac:#0284c7;--acl:#e0f2fe;--gr:#059669;--grl:#d1fae5;--am:#d97706;--aml:#fef3c7;--da:#dc2626;--dal:#fee2e2;--tx:#111827;--tx2:#4b5563;--tx3:#9ca3af}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+header{background:var(--su);border-bottom:1px solid var(--bo);padding:0 18px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+header b{color:var(--ac);font-size:1.05rem}
+.tabs{display:flex;gap:4px;padding:12px 18px 0;max-width:1100px;margin:0 auto;flex-wrap:wrap}
+.tabs button{border:none;background:none;padding:9px 14px;border-radius:8px 8px 0 0;font-weight:600;color:var(--tx2);cursor:pointer;position:relative}
+.tabs button.on{background:var(--su);color:var(--ac)}
+.tabs .n{background:var(--da);color:#fff;border-radius:99px;padding:0 7px;font-size:.72rem;margin-left:4px}
+main{max-width:1100px;margin:0 auto;padding:0 18px 40px}
+.panel{background:var(--su);border-radius:0 10px 10px 10px;padding:16px;min-height:300px}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;background:var(--ac);color:#fff;font-size:.85rem}
+.btn.gr{background:var(--gr)}.btn.red{background:var(--dal);color:var(--da)}.btn.line{background:#fff;border:1.5px solid var(--bo);color:var(--tx2)}.btn.ghost{background:var(--acl);color:var(--ac)}
+.btn:disabled{opacity:.5}
+.flt{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.flt button{border:1.5px solid var(--bo);background:#fff;border-radius:99px;padding:5px 12px;cursor:pointer;font-size:.82rem}
+.flt button.on{border-color:var(--ac);background:var(--acl);color:var(--ac);font-weight:600}
+.it{border:1px solid var(--bo);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.muted{color:var(--tx2)}.tiny{color:var(--tx3);font-size:.78rem}
+.badge{padding:2px 9px;border-radius:99px;font-size:.72rem;font-weight:600}
+.b-pending,.b-open{background:var(--aml);color:var(--am)}.b-confirmed,.b-answered{background:var(--grl);color:var(--gr)}.b-cancelled,.b-rejected{background:var(--dal);color:var(--da)}.b-done{background:#e5e7eb;color:var(--tx2)}
+.in{width:100%;border:1.5px solid var(--bo);border-radius:8px;padding:8px 10px;outline:none}
+.in:focus{border-color:var(--ac)}
+textarea.in{min-height:110px}
+.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.thumbs img{width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--bo);cursor:zoom-in}
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login .c{background:#fff;padding:40px;border-radius:16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi div{border:1px solid var(--bo);border-radius:10px;padding:12px}.kpi b{font-size:1.4rem;display:block}
+.stars{color:#f59e0b;letter-spacing:1px}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid var(--bo);text-align:left;font-size:.85rem}
+.empty{text-align:center;color:var(--tx3);padding:40px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;z-index:99}.toast.show{opacity:1}
+pre.log{background:#0f172a;color:#cbd5e1;padding:12px;border-radius:8px;max-height:260px;overflow:auto;font-size:.78rem;white-space:pre-wrap;margin-top:10px}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:50;cursor:zoom-out}#lightbox img{max-width:95vw;max-height:95vh}
+</style>
+</head>
+<body>
+<div id="scrLogin" class="login hidden"><div class="c"><h2 style="margin-bottom:6px">Quản trị CSKH</h2><p class="muted" style="margin-bottom:20px">Đăng nhập bằng tài khoản Google của bác sĩ</p><button class="btn" onclick="login()">Đăng nhập Google</button><p class="tiny" id="loginErr" style="margin-top:12px;color:var(--da)"></p></div></div>
+
+<div id="scrApp" class="hidden">
+<header><b>🩺 CSKH — BS. Hoài Nam</b><div><span class="tiny" id="who"></span> <button class="btn line" onclick="reloadAll()">🔄</button> <button class="btn line" onclick="logout()">Đăng xuất</button></div></header>
+<div class="tabs" id="tabs"></div>
+<main><div class="panel" id="panel"></div></main>
+</div>
+<div class="toast" id="toast"></div>
+<div id="lightbox" class="hidden" onclick="this.classList.add('hidden')"><img id="lbImg"></div>
+
+<script type="module">
+const ADMIN_EMAIL='bsnam115@gmail.com';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const app=initializeApp({apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",authDomain:"phongkham-bacsinam.firebaseapp.com",projectId:"phongkham-bacsinam",storageBucket:"phongkham-bacsinam.firebasestorage.app",messagingSenderId:"187579047275",appId:"1:187579047275:web:c0e30e60a91cbdda82402e"});
+const auth=getAuth(app), db=getFirestore(app);
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const tsMs=t=>t?.toMillis?t.toMillis():(t?.seconds?t.seconds*1000:(typeof t==='number'?t:0));
+const fdt=t=>tsMs(t)?new Date(tsMs(t)).toLocaleString('vi-VN'):'—';
+function fd(s){ const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return s||'—'; const d=new Date(+m[1],+m[2]-1,+m[3]); return `${['CN','T2','T3','T4','T5','T6','T7'][d.getDay()]} ${m[3]}/${m[2]}/${m[1]}`; }
+function toE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(d.startsWith('84')) d=d.slice(2); else if(d.startsWith('0')) d=d.slice(1); return (d.length>=9&&d.length<=10)?'+84'+d:null; }
+const lp=e=>e?'0'+String(e).replace('+84',''):'';
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+window.zoom=u=>{ $('lbImg').src=u; $('lightbox').classList.remove('hidden'); };
+
+const S={tab:'appts',appts:[],consults:[],feedback:[],af:'pending',cf:'open'};
+window.login=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>$('loginErr').textContent=e.message);
+window.logout=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{
+  if(u&&u.email===ADMIN_EMAIL){ $('scrLogin').classList.add('hidden'); $('scrApp').classList.remove('hidden'); $('who').textContent=u.email; await reloadAll(); }
+  else{ if(u){ $('loginErr').textContent='Tài khoản '+(u.email||u.phoneNumber)+' không có quyền quản trị.'; await signOut(auth); } $('scrApp').classList.add('hidden'); $('scrLogin').classList.remove('hidden'); }
+});
+
+window.reloadAll=async()=>{
+  $('panel').innerHTML='<div class="empty">Đang tải...</div>';
+  const get=async c=>(await getDocs(collection(db,c))).docs.map(d=>({id:d.id,...d.data()}));
+  try{ [S.appts,S.consults,S.feedback]=await Promise.all([get('appointments'),get('consults'),get('feedback')]); }
+  catch(e){ $('panel').innerHTML=`<div class="empty">Lỗi tải dữ liệu: ${esc(e.code||e.message)}<br>Kiểm tra lại Firestore Rules đã deploy chưa.</div>`; return; }
+  S.appts.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  S.consults.sort((a,b)=>tsMs(b.createdAt)-tsMs(a.createdAt));
+  S.feedback.sort((a,b)=>tsMs(b.createdAt)-tsMs(a.createdAt));
+  render();
+};
+window.tab=t=>{ S.tab=t; render(); };
+function render(){
+  const np=S.appts.filter(a=>a.status==='pending').length, nc=S.consults.filter(c=>c.status==='open').length;
+  $('tabs').innerHTML=[['appts','📅 Lịch hẹn',np],['consults','📷 Tư vấn ảnh',nc],['feedback','⭐ Đánh giá',0],['sync','🔁 Đồng bộ hồ sơ BN',0]]
+    .map(([k,l,n])=>`<button class="${S.tab===k?'on':''}" onclick="tab('${k}')">${l}${n?`<span class="n">${n}</span>`:''}</button>`).join('');
+  $('panel').innerHTML=({appts:vAppts,consults:vConsults,feedback:vFeedback,sync:vSync})[S.tab]();
+}
+const contact=(name,phone)=>`<b>${esc(name)}</b> · <a href="tel:${esc(lp(phone))}">${esc(lp(phone))}</a> · <a href="https://zalo.me/${esc(lp(phone))}" target="_blank" rel="noopener">Zalo</a>`;
+
+/* ---------- Lịch hẹn ---------- */
+const AST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',done:'Đã khám',cancelled:'BN huỷ',rejected:'Từ chối'};
+function vAppts(){
+  const today=new Date().toISOString().slice(0,10);
+  const list=S.appts.filter(a=>S.af==='all'?true:S.af==='today'?a.date===today:a.status===S.af);
+  let h=`<div class="flt">${[['pending','Chờ xác nhận'],['today','Hôm nay'],['confirmed','Đã xác nhận'],['done','Đã khám'],['cancelled','BN huỷ'],['rejected','Từ chối'],['all','Tất cả']].map(([k,l])=>`<button class="${S.af===k?'on':''}" onclick="af('${k}')">${l}</button>`).join('')}</div>`;
+  if(!list.length) return h+'<div class="empty">Không có lịch hẹn.</div>';
+  return h+list.map(a=>`<div class="it"><div class="row"><div><b style="font-size:1rem">${fd(a.date)} · ${esc(a.time)}</b> — ${esc(a.service)}<div>${contact(a.name,a.phone)}</div>
+    ${a.note?`<div class="muted">Ghi chú BN: ${esc(a.note)}</div>`:''}${a.adminNote?`<div class="tiny">PK đã nhắn: ${esc(a.adminNote)}</div>`:''}<div class="tiny">Đặt lúc ${fdt(a.createdAt)}${a.ptId?' · có hồ sơ':' · BN mới'}</div></div>
+    <span class="badge b-${a.status}">${AST[a.status]||a.status}</span></div>
+    ${a.status==='pending'||a.status==='confirmed'?`<div class="acts"><input class="in" id="an_${a.id}" placeholder="Lời nhắn cho BN (tuỳ chọn)" style="flex:1;min-width:200px">
+      ${a.status==='pending'?`<button class="btn gr" onclick="setAppt('${a.id}','confirmed')">✓ Xác nhận</button><button class="btn red" onclick="setAppt('${a.id}','rejected')">Từ chối</button>`:`<button class="btn" onclick="setAppt('${a.id}','done')">Đã khám</button><button class="btn red" onclick="setAppt('${a.id}','rejected')">Huỷ lịch</button>`}</div>`:''}</div>`).join('');
+}
+window.af=k=>{ S.af=k; render(); };
+window.setAppt=async(id,status)=>{
+  const note=$('an_'+id)?.value.trim()||'';
+  if(status==='rejected'&&!note&&!confirm('Từ chối/huỷ mà không ghi lý do?')) return;
+  try{ const upd={status,updatedAt:serverTimestamp()}; if(note) upd.adminNote=note;
+    await updateDoc(doc(db,'appointments',id),upd); Object.assign(S.appts.find(x=>x.id===id),upd); toast('Đã cập nhật'); render(); }
+  catch(e){ toast('Lỗi: '+(e.code||e.message)); }
+};
+
+/* ---------- Tư vấn ---------- */
+function vConsults(){
+  const list=S.consults.filter(c=>S.cf==='all'||c.status===S.cf);
+  let h=`<div class="flt">${[['open','Chờ trả lời'],['answered','Đã trả lời'],['all','Tất cả']].map(([k,l])=>`<button class="${S.cf===k?'on':''}" onclick="cf('${k}')">${l}</button>`).join('')}</div>`;
+  if(!list.length) return h+'<div class="empty">Không có câu hỏi.</div>';
+  return h+list.map(c=>`<div class="it"><div class="row"><div>${contact(c.name||'(chưa có hồ sơ)',c.phone)}<div class="tiny">${fdt(c.createdAt)} · Vị trí: ${esc(c.area||'—')} · Thời gian bị: ${esc(c.duration||'—')}</div></div><span class="badge b-${c.status}">${c.status==='answered'?'Đã trả lời':'Chờ trả lời'}</span></div>
+    <div style="margin-top:8px;white-space:pre-wrap">${esc(c.desc)}</div>
+    ${(c.images||[]).length?`<div class="thumbs">${c.images.map(u=>`<img src="${esc(u)}" loading="lazy" onclick="zoom(this.src)">`).join('')}</div>`:'<div class="tiny">(không có ảnh)</div>'}
+    <textarea class="in" id="rp_${c.id}" placeholder="Trả lời bệnh nhân...">${esc(c.reply||'')}</textarea>
+    <div class="acts"><button class="btn gr" onclick="reply('${c.id}')">${c.status==='answered'?'Cập nhật trả lời':'Gửi trả lời'}</button>
+    <button class="btn line" onclick="tpl('${c.id}','visit')">+ Mẫu: mời khám</button><button class="btn line" onclick="tpl('${c.id}','photo')">+ Mẫu: xin ảnh rõ hơn</button></div>
+    ${c.repliedAt?`<div class="tiny">Trả lời lúc ${fdt(c.repliedAt)}</div>`:''}</div>`).join('');
+}
+window.cf=k=>{ S.cf=k; render(); };
+const TPL={visit:'\n\nĐể chẩn đoán chính xác, anh/chị nên đến khám trực tiếp. Anh/chị có thể đặt lịch ngay trong mục "Đặt lịch" của ứng dụng.',photo:'\n\nẢnh hiện chưa đủ rõ. Anh/chị vui lòng chụp lại dưới ánh sáng tự nhiên, gồm 1 ảnh toàn cảnh và 1–2 ảnh cận cảnh tổn thương, rồi gửi câu hỏi mới.'};
+window.tpl=(id,k)=>{ const t=$('rp_'+id); t.value=(t.value.trim()+TPL[k]).trim(); t.focus(); };
+window.reply=async id=>{
+  const r=$('rp_'+id).value.trim(); if(!r){ toast('Chưa nhập nội dung'); return; }
+  try{ const upd={reply:r,status:'answered',repliedAt:serverTimestamp()}; await updateDoc(doc(db,'consults',id),upd);
+    Object.assign(S.consults.find(x=>x.id===id),upd,{repliedAt:Date.now()}); toast('Đã gửi trả lời'); render(); }
+  catch(e){ toast('Lỗi: '+(e.code||e.message)); }
+};
+
+/* ---------- Đánh giá ---------- */
+function vFeedback(){
+  const f=S.feedback; if(!f.length) return '<div class="empty">Chưa có đánh giá.</div>';
+  const avg=f.reduce((s,x)=>s+(x.stars||0),0)/f.length; const low=f.filter(x=>x.stars<=3).length;
+  const d30=Date.now()-30*864e5; const f30=f.filter(x=>tsMs(x.createdAt)>=d30);
+  return `<div class="kpi"><div><span class="tiny">Điểm trung bình</span><b>${avg.toFixed(2)} ★</b></div><div><span class="tiny">Tổng lượt</span><b>${f.length}</b></div><div><span class="tiny">30 ngày qua</span><b>${f30.length}</b></div><div><span class="tiny">≤ 3 sao (cần xem)</span><b style="color:var(--da)">${low}</b></div></div>
+  <table><tr><th>Thời gian</th><th>Bệnh nhân</th><th>Sao</th><th>Góp ý</th></tr>${f.map(x=>`<tr style="${x.stars<=3?'background:#fff7ed':''}"><td>${fdt(x.createdAt)}</td><td>${contact(x.name,x.phone)}</td><td class="stars">${'★'.repeat(x.stars||0)}</td><td>${esc(x.comment||'')}</td></tr>`).join('')}</table>`;
+}
+
+/* ---------- Đồng bộ hồ sơ BN -> portal ---------- */
+function buildProfile(p){
+  const visits=(p.visits||[]).map(v=>({id:String(v.id),date:v.date||'',type:v.type||'',diag:v.diag||'',
+    meds:(v.meds||[]).filter(m=>m&&m.name).map(m=>({name:m.name,dose:m.dose||'',unit:m.unit||'',qty:m.qty||'',times:m.times||'',days:m.days||'',note:m.note||'',remark:m.remark||''})),
+    procs:(v.procs||[]).filter(x=>x&&x.name).map(x=>({name:x.name,qty:x.qty||1})),note:v.note||'',nextVisit:v.nextVisit||'',nextVisitTime:v.nextVisitTime||''}));
+  const last=visits[visits.length-1];
+  return {ptId:p.id,name:p.name||'',year:p.year||'',gender:p.gender||'',nextVisit:p.nextVisit||last?.nextVisit||'',nextVisitTime:p.nextVisitTime||last?.nextVisitTime||'',visits};
+}
+function vSync(){
+  return `<p>Bệnh nhân chỉ xem được đơn thuốc/lịch sử khám sau khi hồ sơ được <b>đồng bộ sang cổng bệnh nhân</b> (collection <code>portal</code>, mỗi SĐT một bản ghi, chỉ chứa thông tin lâm sàng cần thiết — không có chi phí, vốn, kho).</p>
+  <p class="muted" style="margin-top:6px">Nếu anh đã gắn bản vá vào app phòng khám thì mỗi lần lưu hồ sơ sẽ tự đồng bộ. Nút dưới đây đồng bộ lại <b>toàn bộ</b> — dùng lần đầu và khi đổi SĐT bệnh nhân.</p>
+  <div class="acts"><button class="btn" id="syncBtn" onclick="syncAll()">🔁 Đồng bộ toàn bộ hồ sơ</button></div><pre class="log hidden" id="syncLog"></pre>`;
+}
+window.syncAll=async()=>{
+  const btn=$('syncBtn'), log=$('syncLog'); btn.disabled=true; log.classList.remove('hidden'); log.textContent='Đang đọc hồ sơ bệnh nhân...\n';
+  try{
+    const pts=(await getDocs(collection(db,'patients'))).docs.map(d=>({id:d.id,...d.data()}));
+    const groups={}; let noPhone=0;
+    pts.forEach(p=>{ const e=toE164(p.phone); if(!e){ noPhone++; return; } (groups[e]=groups[e]||[]).push(p); });
+    const keys=Object.keys(groups); log.textContent+=`${pts.length} hồ sơ · ${keys.length} số điện thoại hợp lệ · ${noPhone} hồ sơ thiếu/sai SĐT\n`;
+    let ok=0, fail=0;
+    for(const e of keys){
+      try{ await setDoc(doc(db,'portal',e),{phone:e,profiles:groups[e].map(buildProfile),updatedAt:serverTimestamp()}); ok++; }
+      catch(err){ fail++; log.textContent+=`✗ ${lp(e)}: ${err.code||err.message}\n`; }
+      if(ok%20===0) log.textContent+=`... ${ok}/${keys.length}\n`;
+    }
+    log.textContent+=`\nXONG: ${ok} cổng BN đã cập nhật${fail?`, ${fail} lỗi`:''}.`;
+    if(noPhone) log.textContent+=`\nHồ sơ thiếu SĐT: ${pts.filter(p=>!toE164(p.phone)).map(p=>p.name).slice(0,50).join(', ')}`;
+  }catch(e){ log.textContent+='Lỗi: '+(e.code||e.message); }
+  btn.disabled=false;
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0284c7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BS Hoài Nam">
+<link rel="manifest" href="/manifest-cskh.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Phòng khám BS. Hoài Nam — Chăm sóc khách hàng</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f9;--su:#fff;--bo:#e2e8f0;--ac:#0284c7;--ac2:#0ea5e9;--acl:#e0f2fe;--gr:#059669;--grl:#d1fae5;--am:#d97706;--aml:#fef3c7;--da:#dc2626;--dal:#fee2e2;--tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;--r:14px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+/* Login */
+.login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 22px;background:linear-gradient(160deg,#e0f2fe,#f0fdf4)}
+.login .brand{text-align:center;margin-bottom:28px}
+.login .logo{width:72px;height:72px;border-radius:20px;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px;box-shadow:0 10px 24px rgba(2,132,199,.3)}
+.login h1{font-size:1.35rem;font-weight:700}
+.login p.sub{color:var(--tx2);font-size:.9rem;margin-top:4px}
+.card{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:18px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+label.lb{display:block;font-size:.82rem;font-weight:600;color:var(--tx2);margin:12px 0 6px}
+.in{width:100%;border:1.5px solid var(--bo);border-radius:10px;padding:12px 14px;background:#fff;outline:none;font-size:1rem}
+.in:focus{border-color:var(--ac2);box-shadow:0 0 0 3px rgba(14,165,233,.15)}
+textarea.in{min-height:96px;resize:vertical}
+.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:10px;padding:12px 18px;font-weight:600;cursor:pointer;background:var(--ac);color:#fff;font-size:.95rem}
+.btn:disabled{opacity:.55}
+.btn.full{width:100%;margin-top:16px}
+.btn.ghost{background:var(--acl);color:var(--ac)}
+.btn.line{background:#fff;color:var(--tx2);border:1.5px solid var(--bo)}
+.btn.sm{padding:8px 12px;font-size:.83rem;border-radius:8px}
+.btn.red{background:var(--dal);color:var(--da)}
+.note{font-size:.78rem;color:var(--tx3);margin-top:10px;text-align:center}
+.err{color:var(--da);font-size:.85rem;margin-top:8px}
+/* App */
+header.top{position:sticky;top:0;z-index:20;background:var(--su);border-bottom:1px solid var(--bo);padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between}
+header.top .t{font-weight:700;font-size:1.05rem}
+header.top .s{font-size:.75rem;color:var(--tx3)}
+main{padding:16px 14px calc(96px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+nav.bn{position:fixed;bottom:0;left:0;right:0;background:var(--su);border-top:1px solid var(--bo);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:30}
+nav.bn button{flex:1;background:none;border:none;padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.68rem;color:var(--tx3);cursor:pointer;position:relative}
+nav.bn button .i{font-size:1.3rem;line-height:1}
+nav.bn button.on{color:var(--ac);font-weight:600}
+nav.bn .dot{position:absolute;top:6px;right:calc(50% - 18px);width:8px;height:8px;border-radius:50%;background:var(--da)}
+h2.sec{font-size:1rem;font-weight:700;margin:20px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+h2.sec:first-child{margin-top:0}
+.hero{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border-radius:18px;padding:18px;margin-bottom:6px}
+.hero .hi{font-size:.85rem;opacity:.9}
+.hero .nm{font-size:1.25rem;font-weight:700;margin-top:2px}
+.hero .next{margin-top:14px;background:rgba(255,255,255,.16);border-radius:12px;padding:12px}
+.hero .next b{font-size:1.05rem}
+.qa{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.qa a,.qa button{background:var(--su);border:1px solid var(--bo);border-radius:12px;padding:12px 4px;text-align:center;text-decoration:none;color:var(--tx);font-size:.72rem;font-weight:500;cursor:pointer}
+.qa .i{font-size:1.4rem;display:block;margin-bottom:4px}
+.list>.item{background:var(--su);border:1px solid var(--bo);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.muted{color:var(--tx2);font-size:.85rem}
+.tiny{color:var(--tx3);font-size:.76rem}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:.72rem;font-weight:600;white-space:nowrap}
+.b-pending{background:var(--aml);color:var(--am)}.b-confirmed{background:var(--grl);color:var(--gr)}.b-cancelled,.b-rejected{background:var(--dal);color:var(--da)}.b-done{background:#e2e8f0;color:var(--tx2)}.b-open{background:var(--aml);color:var(--am)}.b-answered{background:var(--grl);color:var(--gr)}
+.med{border-top:1px dashed var(--bo);padding:10px 0}
+.med:first-of-type{border-top:none}
+.med .mn{font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{background:var(--acl);color:var(--ac);border-radius:8px;padding:3px 8px;font-size:.76rem;font-weight:500}
+.chip.g{background:var(--grl);color:var(--gr)}.chip.a{background:var(--aml);color:var(--am)}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.slot{border:1.5px solid var(--bo);border-radius:10px;padding:10px 0;text-align:center;background:#fff;cursor:pointer;font-weight:500;font-size:.9rem}
+.slot.on{border-color:var(--ac);background:var(--acl);color:var(--ac);font-weight:700}
+.dose{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bo)}
+.dose:first-child{border-top:none}
+.dose .h{font-weight:700;color:var(--ac);width:52px;font-size:1.05rem}
+.dose.past .h{color:var(--tx3)}
+.dose.taken{opacity:.55}
+.dose .ck{margin-left:auto;width:34px;height:34px;border-radius:50%;border:2px solid var(--bo);background:#fff;cursor:pointer;font-size:1rem}
+.dose.taken .ck{background:var(--gr);border-color:var(--gr);color:#fff}
+.stars{display:flex;gap:6px;font-size:1.9rem;margin:6px 0}
+.stars span{cursor:pointer;color:#cbd5e1}.stars span.on{color:#f59e0b}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumbs img{width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid var(--bo)}
+.thumbs .add{width:76px;height:76px;border:2px dashed var(--bo);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--tx3);cursor:pointer;background:#fff}
+.reply{background:var(--grl);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:.9rem;white-space:pre-wrap}
+.empty{text-align:center;color:var(--tx3);padding:26px 10px;font-size:.9rem}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-size:.88rem;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.seg{display:flex;background:#e2e8f0;border-radius:10px;padding:3px;margin-bottom:12px}
+.seg button{flex:1;border:none;background:none;padding:8px;border-radius:8px;font-weight:600;font-size:.85rem;color:var(--tx2);cursor:pointer}
+.seg button.on{background:#fff;color:var(--ac);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sw{position:relative;width:46px;height:26px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#cbd5e1;border-radius:99px;transition:.2s;cursor:pointer}
+.sw span:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+span{background:var(--gr)}
+.sw input:checked+span:before{transform:translateX(20px)}
+.disc{font-size:.76rem;color:var(--tx3);background:#f8fafc;border:1px solid var(--bo);border-radius:10px;padding:10px 12px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="scrLogin" class="login hidden">
+  <div class="brand">
+    <div class="logo">🩺</div>
+    <h1>Phòng khám BS. Hoài Nam</h1>
+    <p class="sub" id="clinicSub"></p>
+  </div>
+  <div class="card" id="stepPhone">
+    <label class="lb">Số điện thoại đã đăng ký khi khám</label>
+    <input class="in" id="inPhone" type="tel" inputmode="tel" placeholder="VD: 0912 345 678" autocomplete="tel">
+    <button class="btn full" id="btnSend" onclick="sendOtp()">Nhận mã xác thực</button>
+    <div class="err" id="errPhone"></div>
+    <p class="note">Mã OTP gồm 6 số sẽ được gửi qua SMS.</p>
+  </div>
+  <div class="card hidden" id="stepOtp">
+    <label class="lb">Nhập mã 6 số đã gửi tới <span id="otpPhone"></span></label>
+    <input class="in" id="inOtp" type="text" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="one-time-code" style="letter-spacing:.5em;text-align:center;font-size:1.3rem">
+    <button class="btn full" id="btnVerify" onclick="verifyOtp()">Xác nhận</button>
+    <button class="btn line full" onclick="backToPhone()">Đổi số điện thoại</button>
+    <div class="err" id="errOtp"></div>
+  </div>
+  <div id="recaptcha"></div>
+</section>
+
+<!-- ============ APP ============ -->
+<section id="scrApp" class="hidden">
+  <header class="top">
+    <div><div class="t" id="hdTitle">Trang chủ</div><div class="s" id="hdSub">BS. Hoài Nam</div></div>
+    <a class="btn ghost sm" id="hdCall" href="#">📞 Gọi</a>
+  </header>
+  <main id="view"></main>
+  <nav class="bn">
+    <button data-tab="home" class="on" onclick="go('home')"><span class="i">🏠</span>Trang chủ</button>
+    <button data-tab="book" onclick="go('book')"><span class="i">📅</span>Đặt lịch</button>
+    <button data-tab="rx" onclick="go('rx')"><span class="i">💊</span>Đơn thuốc</button>
+    <button data-tab="consult" onclick="go('consult')"><span class="i">📷</span>Tư vấn</button>
+    <button data-tab="me" onclick="go('me')"><span class="i">👤</span>Tài khoản</button>
+  </nav>
+</section>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="filePick" accept="image/*" multiple class="hidden">
+
+<script type="module">
+/* =====================================================================
+   CẤU HÌNH PHÒNG KHÁM — anh Nam chỉnh tại đây
+   ===================================================================== */
+const CLINIC = {
+  name: 'Phòng khám CK Thần kinh – Cơ xương khớp – Da liễu',
+  doctor: 'ThS.BSCK1 Nguyễn Hoài Nam',
+  phone: '0912839115',           // số gọi/Zalo của phòng khám
+  address: '',                   // địa chỉ (để trống nếu chưa muốn hiện)
+  mapUrl: '',                    // link Google Maps (tuỳ chọn)
+  services: ['Khám Thần kinh','Khám Cơ xương khớp','Khám Da liễu','Tái khám theo hẹn','Tiểu phẫu / thủ thuật','Tư vấn trực tiếp'],
+  // Khung giờ nhận đặt lịch theo thứ (0 = Chủ nhật ... 6 = Thứ 7). Mảng rỗng = nghỉ.
+  slots: {
+    1:['17:00','17:30','18:00','18:30','19:00','19:30','20:00'],
+    2:['17:00','17:30','18:00','18:30','19:00','19:30','20:00'],
+    3:['17:00','17:30','18:00','18:30','19:00','19:30','20:00'],
+    4:['17:00','17:30','18:00','18:30','19:00','19:30','20:00'],
+    5:['17:00','17:30','18:00','18:30','19:00','19:30','20:00'],
+    6:['08:00','08:30','09:00','09:30','10:00','10:30','14:00','14:30','15:00','15:30','16:00'],
+    0:['08:00','08:30','09:00','09:30','10:00','10:30']
+  },
+  bookDaysAhead: 30,
+  maxConsultPhotos: 4
+};
+/* ===================================================================== */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey:"AIzaSyDkWWIZaV8hJpu0Yhls6e3szBMYuiuXb6M",
+  authDomain:"phongkham-bacsinam.firebaseapp.com",
+  projectId:"phongkham-bacsinam",
+  storageBucket:"phongkham-bacsinam.firebasestorage.app",
+  messagingSenderId:"187579047275",
+  appId:"1:187579047275:web:c0e30e60a91cbdda82402e"
+});
+const auth = getAuth(app); auth.languageCode = 'vi';
+const db = getFirestore(app);
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const WD = ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+function parseDate(s){ if(!s) return null; s=String(s);
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return new Date(+m[3],+m[2]-1,+m[1]);
+  const d=new Date(s); return isNaN(d)?null:d; }
+function fmtDate(s){ const d=parseDate(s); return d?`${WD[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:(s||'—'); }
+function fmtShort(s){ const d=parseDate(s); return d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:(s||'—'); }
+function toE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(d.startsWith('84')) d=d.slice(2); else if(d.startsWith('0')) d=d.slice(1);
+  return (d.length>=9 && d.length<=10) ? '+84'+d : null; }
+const localPhone = e => e ? '0'+e.replace('+84','') : '';
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+const tsMs = t => t?.toMillis ? t.toMillis() : (t?.seconds ? t.seconds*1000 : (typeof t==='number'?t:0));
+const LS = { get:(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } }, set:(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} } };
+
+/* ---------- state ---------- */
+const S = { user:null, phone:null, portal:null, appts:[], consults:[], feedback:[], tab:'home', photos:[], booking:{date:'',time:''} };
+
+/* ======================= AUTH ======================= */
+$('clinicSub').textContent = CLINIC.doctor;
+let confirmation = null, verifier = null;
+function getVerifier(){ if(!verifier) verifier = new RecaptchaVerifier(auth,'recaptcha',{size:'invisible'}); return verifier; }
+
+window.sendOtp = async () => {
+  $('errPhone').textContent='';
+  const e164 = toE164($('inPhone').value);
+  if(!e164){ $('errPhone').textContent='Số điện thoại chưa đúng. Vui lòng kiểm tra lại.'; return; }
+  $('btnSend').disabled=true; $('btnSend').textContent='Đang gửi mã...';
+  try{
+    confirmation = await signInWithPhoneNumber(auth, e164, getVerifier());
+    $('otpPhone').textContent = localPhone(e164);
+    $('stepPhone').classList.add('hidden'); $('stepOtp').classList.remove('hidden');
+    setTimeout(()=>$('inOtp').focus(),100);
+  }catch(e){
+    console.error(e);
+    $('errPhone').textContent = e.code==='auth/too-many-requests' ? 'Gửi mã quá nhiều lần. Vui lòng thử lại sau ít phút.' : 'Không gửi được mã: '+(e.code||e.message);
+    try{ verifier?.clear(); }catch(_){} verifier=null;
+  }
+  $('btnSend').disabled=false; $('btnSend').textContent='Nhận mã xác thực';
+};
+window.verifyOtp = async () => {
+  $('errOtp').textContent='';
+  const code=$('inOtp').value.trim();
+  if(!/^\d{6}$/.test(code)){ $('errOtp').textContent='Mã gồm 6 chữ số.'; return; }
+  $('btnVerify').disabled=true;
+  try{ await confirmation.confirm(code); }
+  catch(e){ $('errOtp').textContent='Mã không đúng hoặc đã hết hạn.'; }
+  $('btnVerify').disabled=false;
+};
+window.backToPhone = () => { $('stepOtp').classList.add('hidden'); $('stepPhone').classList.remove('hidden'); $('inOtp').value=''; };
+$('inOtp').addEventListener('input', e=>{ if(e.target.value.trim().length===6) verifyOtp(); });
+
+onAuthStateChanged(auth, async u => {
+  if(u && u.phoneNumber){
+    S.user=u; S.phone=u.phoneNumber;
+    $('scrLogin').classList.add('hidden'); $('scrApp').classList.remove('hidden');
+    $('hdCall').href='tel:'+CLINIC.phone;
+    $('view').innerHTML='<div class="empty">Đang tải dữ liệu...</div>';
+    await loadAll(); go(S.tab); scheduleDoseNotifications();
+  }else{
+    if(u && !u.phoneNumber){ await signOut(auth); return; } // tài khoản không phải bệnh nhân (vd Google của bác sĩ)
+    S.user=null; $('scrApp').classList.add('hidden'); $('scrLogin').classList.remove('hidden');
+  }
+});
+window.logout = async () => { if(confirm('Đăng xuất khỏi ứng dụng?')){ await signOut(auth); location.reload(); } };
+
+/* ======================= DATA ======================= */
+async function loadAll(){
+  const uid=S.user.uid;
+  const tasks=[
+    getDoc(doc(db,'portal',S.phone)).then(s=>{ S.portal=s.exists()?s.data():null; }).catch(e=>{ console.warn('portal',e); S.portal=null; }),
+    getDocs(query(collection(db,'appointments'),where('uid','==',uid))).then(r=>{ S.appts=r.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>tsMs(b.createdAt)-tsMs(a.createdAt)); }).catch(e=>console.warn('appts',e)),
+    getDocs(query(collection(db,'consults'),where('uid','==',uid))).then(r=>{ S.consults=r.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>tsMs(b.createdAt)-tsMs(a.createdAt)); }).catch(e=>console.warn('consults',e)),
+    getDocs(query(collection(db,'feedback'),where('uid','==',uid))).then(r=>{ S.feedback=r.docs.map(d=>({id:d.id,...d.data()})); }).catch(e=>console.warn('feedback',e)),
+  ];
+  await Promise.all(tasks);
+}
+function updateDot(){ // chấm đỏ: tư vấn có trả lời mới chưa xem
+  const seen=LS.get('seenReplies',[]);
+  const unread=S.consults.filter(c=>c.status==='answered'&&!seen.includes(c.id)).length;
+  const btn=document.querySelector('nav.bn button[data-tab="consult"]');
+  btn.querySelectorAll('.dot').forEach(x=>x.remove()); if(unread) btn.insertAdjacentHTML('beforeend','<span class="dot"></span>');
+}
+const profiles = () => S.portal?.profiles || [];
+function allVisits(){ const out=[]; profiles().forEach(p=>(p.visits||[]).forEach(v=>out.push({...v,ptName:p.name,ptId:p.ptId})));
+  return out.sort((a,b)=>(parseDate(b.date)||0)-(parseDate(a.date)||0)); }
+
+/* ---------- lịch uống thuốc ---------- */
+function doseHours(m){
+  const n=String(m.note||'').trim();
+  if(/^\d{1,2}(\s*-\s*\d{1,2})+$/.test(n)){ const hs=n.split('-').map(x=>parseInt(x)).filter(h=>h>0&&h<24); if(hs.length) return hs; }
+  const t=parseInt(m.times)||0;
+  return ({1:[8],2:[8,20],3:[8,14,20],4:[7,11,16,21]})[t] || (t>4?[7,11,15,19,22].slice(0,t):[]);
+}
+function activeMeds(){ // thuốc còn trong liệu trình
+  const today=new Date(); today.setHours(0,0,0,0); const out=[];
+  allVisits().forEach(v=>{ const start=parseDate(v.date); if(!start) return;
+    (v.meds||[]).forEach(m=>{ const days=parseInt(m.days)||0; if(!days) return;
+      const end=new Date(start); end.setDate(end.getDate()+days-1);
+      if(today>=start && today<=end) out.push({...m,visitId:v.id,ptName:v.ptName,start,end,dayNo:Math.round((today-start)/864e5)+1,days}); }); });
+  return out;
+}
+function todayDoses(){
+  const byHour={};
+  activeMeds().forEach(m=>doseHours(m).forEach(h=>{ (byHour[h]=byHour[h]||[]).push(m); }));
+  return Object.keys(byHour).map(Number).sort((a,b)=>a-b).map(h=>({h,meds:byHour[h]}));
+}
+const takenKey = () => 'taken_'+ymd(new Date());
+window.toggleTaken = h => { const k=takenKey(); const t=LS.get(k,[]); const i=t.indexOf(h); i>=0?t.splice(i,1):t.push(h); LS.set(k,t); render(); };
+
+/* ---------- thông báo nhắc thuốc (khi app đang mở / chạy nền) ---------- */
+let doseTimers=[];
+async function scheduleDoseNotifications(){
+  doseTimers.forEach(clearTimeout); doseTimers=[];
+  if(!LS.get('remindOn',false) || !('Notification' in window) || Notification.permission!=='granted') return;
+  const reg = await navigator.serviceWorker?.getRegistration?.();
+  const now=new Date();
+  todayDoses().forEach(d=>{
+    const t=new Date(); t.setHours(d.h,0,0,0); const ms=t-now; if(ms<=0) return;
+    doseTimers.push(setTimeout(()=>{
+      const body=d.meds.map(m=>`${m.name} ${m.dose||''} — ${m.qty||1} ${m.unit||''}${m.remark?' ('+m.remark+')':''}`).join('\n');
+      if(reg) reg.showNotification(`💊 ${pad(d.h)}:00 — Đến giờ uống thuốc`,{body,tag:'dose-'+d.h,icon:'/icon-192.png',requireInteraction:true});
+      else new Notification(`💊 ${pad(d.h)}:00 — Đến giờ uống thuốc`,{body});
+    },ms));
+  });
+}
+window.toggleRemind = async el => {
+  if(el.checked){
+    if(!('Notification' in window)){ toast('Trình duyệt này không hỗ trợ thông báo. Hãy dùng "Thêm vào lịch điện thoại".'); el.checked=false; return; }
+    const p=await Notification.requestPermission();
+    if(p!=='granted'){ toast('Chưa cấp quyền thông báo.'); el.checked=false; return; }
+  }
+  LS.set('remindOn',el.checked); scheduleDoseNotifications();
+  toast(el.checked?'Đã bật nhắc uống thuốc':'Đã tắt nhắc uống thuốc');
+};
+
+/* ---------- xuất lịch .ics (nhắc tin cậy trên điện thoại) ---------- */
+function icsStamp(d){ return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; }
+const icsEsc = s => String(s||'').replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+function downloadIcs(name, events){
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//BS Hoai Nam//CSKH//VI','CALSCALE:GREGORIAN'];
+  events.forEach((e,i)=>{ lines.push('BEGIN:VEVENT',`UID:${Date.now()}-${i}@bshoainam`,`DTSTAMP:${icsStamp(new Date())}`,
+    `DTSTART;TZID=Asia/Ho_Chi_Minh:${icsStamp(e.start)}`,`DTEND;TZID=Asia/Ho_Chi_Minh:${icsStamp(new Date(e.start.getTime()+(e.mins||15)*6e4))}`,
+    `SUMMARY:${icsEsc(e.title)}`,`DESCRIPTION:${icsEsc(e.desc)}`);
+    if(e.location) lines.push(`LOCATION:${icsEsc(e.location)}`);
+    if(e.count) lines.push(`RRULE:FREQ=DAILY;COUNT=${e.count}`);
+    lines.push('BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEsc(e.title)}`,`TRIGGER:-PT${e.alarmMin||0}M`,'END:VALARM','END:VEVENT'); });
+  lines.push('END:VCALENDAR');
+  const blob=new Blob([lines.join('\r\n')],{type:'text/calendar'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+window.icsMeds = visitId => {
+  const v=allVisits().find(x=>String(x.id)===String(visitId)); if(!v) return;
+  const start=parseDate(v.date), ev=[];
+  (v.meds||[]).forEach(m=>{ const days=parseInt(m.days)||0; if(!days) return;
+    doseHours(m).forEach(h=>{ const s=new Date(start); s.setHours(h,0,0,0);
+      ev.push({start:s,count:days,title:`💊 Uống ${m.name} ${m.dose||''}`,desc:`${m.qty||1} ${m.unit||''} ${m.remark||''} — đơn BS. Hoài Nam ngày ${fmtShort(v.date)}`}); }); });
+  if(!ev.length){ toast('Đơn này chưa có thông tin số ngày/giờ uống.'); return; }
+  downloadIcs(`lich-uong-thuoc-${ymd(start)}.ics`,ev); toast('Mở file vừa tải để thêm vào lịch điện thoại');
+};
+function icsAppt(date,time,title){
+  const d=parseDate(date); if(!d) return; const [h,mi]=(time||'08:00').split(':').map(Number); d.setHours(h||8,mi||0,0,0);
+  downloadIcs(`lich-kham-${ymd(d)}.ics`,[{start:d,mins:30,alarmMin:120,title,desc:`${CLINIC.doctor} — ĐT ${CLINIC.phone}`,location:CLINIC.address}]);
+}
+window.icsApptById = id => { const a=S.appts.find(x=>x.id===id); if(a) icsAppt(a.date,a.time,`Khám: ${a.service}`); };
+window.icsNextVisit = (date,time) => icsAppt(date,time,'Tái khám — BS. Hoài Nam');
+
+/* ======================= ROUTER ======================= */
+const TITLES={home:'Trang chủ',book:'Đặt lịch khám',rx:'Đơn thuốc & lịch sử',consult:'Tư vấn qua ảnh',me:'Tài khoản'};
+window.go = tab => { S.tab=tab; document.querySelectorAll('nav.bn button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  $('hdTitle').textContent=TITLES[tab]; render(); window.scrollTo(0,0); };
+function render(){ $('view').innerHTML = ({home:vHome,book:vBook,rx:vRx,consult:vConsult,me:vMe})[S.tab](); afterRender(); }
+function afterRender(){
+  updateDot();
+  if(S.tab==='book'){ const di=$('bkDate'); if(di){ const t=new Date(), mx=new Date(); mx.setDate(mx.getDate()+CLINIC.bookDaysAhead); di.min=ymd(t); di.max=ymd(mx); } }
+}
+
+/* ---------- views ---------- */
+function nextAppointment(){
+  const now=new Date(); now.setHours(0,0,0,0); const c=[];
+  S.appts.filter(a=>a.status==='confirmed'||a.status==='pending').forEach(a=>{ const d=parseDate(a.date); if(d&&d>=now) c.push({date:a.date,time:a.time,label:a.service,status:a.status,source:'appt',id:a.id}); });
+  profiles().forEach(p=>{ const d=parseDate(p.nextVisit); if(d&&d>=now) c.push({date:p.nextVisit,time:p.nextVisitTime,label:'Tái khám theo hẹn của bác sĩ'+(profiles().length>1?' — '+p.name:''),status:'doctor',source:'doctor'}); });
+  return c.sort((a,b)=>parseDate(a.date)-parseDate(b.date))[0];
+}
+function pendingFeedbackVisit(){
+  const done=new Set(S.feedback.map(f=>String(f.visitId))); const lim=new Date(); lim.setDate(lim.getDate()-30);
+  return allVisits().find(v=>!done.has(String(v.id)) && (parseDate(v.date)||0)>=lim && !LS.get('skipFb',[]).includes(String(v.id)));
+}
+function vHome(){
+  const name=profiles()[0]?.name || 'Quý khách';
+  const nx=nextAppointment(); const doses=todayDoses(); const taken=LS.get(takenKey(),[]); const fbv=pendingFeedbackVisit(); const nowH=new Date().getHours();
+  let h=`<div class="hero"><div class="hi">Xin chào,</div><div class="nm">${esc(name)}</div>`;
+  h+= nx ? `<div class="next"><div class="tiny" style="color:#e0f2fe">${nx.source==='doctor'?'Lịch tái khám':'Lịch hẹn của bạn'}${nx.status==='pending'?' · đang chờ xác nhận':''}</div>
+      <b>${fmtDate(nx.date)}${nx.time?' · '+esc(nx.time):''}</b><div style="font-size:.85rem">${esc(nx.label)}</div></div>`
+     : `<div class="next">Bạn chưa có lịch hẹn sắp tới. <a href="#" onclick="go('book');return false" style="color:#fff;font-weight:700">Đặt lịch ngay →</a></div>`;
+  h+=`</div><div class="qa">
+    <button onclick="go('book')"><span class="i">📅</span>Đặt lịch</button>
+    <button onclick="go('consult')"><span class="i">📷</span>Gửi ảnh</button>
+    <a href="tel:${CLINIC.phone}"><span class="i">📞</span>Gọi điện</a>
+    <a href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener"><span class="i">💬</span>Zalo</a></div>`;
+  if(!S.portal) h+=`<div class="card" style="margin-top:14px;background:var(--aml);border-color:#fde68a"><b>Chưa tìm thấy hồ sơ khám</b><div class="muted" style="margin-top:4px">Số ${esc(localPhone(S.phone))} chưa khớp với hồ sơ tại phòng khám. Bạn vẫn đặt lịch và gửi ảnh tư vấn được. Nếu đã từng khám, hãy báo phòng khám cập nhật số điện thoại.</div></div>`;
+  h+=`<h2 class="sec">💊 Thuốc hôm nay <span class="tiny">${doses.length?`${taken.length}/${doses.length} cữ`:''}</span></h2>`;
+  if(!doses.length) h+=`<div class="card empty">Hôm nay bạn không có thuốc cần uống theo đơn.</div>`;
+  else h+=`<div class="card">${doses.map(d=>`<div class="dose ${taken.includes(d.h)?'taken':''} ${d.h<nowH&&!taken.includes(d.h)?'past':''}">
+      <div class="h">${pad(d.h)}:00</div><div><div style="font-weight:600;font-size:.9rem">${d.meds.map(m=>esc(m.name)+' <span class="tiny">'+esc(m.qty||1)+' '+esc(m.unit||'')+'</span>').join('<br>')}</div>
+      ${d.meds.some(m=>m.remark)?`<div class="tiny">${[...new Set(d.meds.map(m=>m.remark).filter(Boolean))].map(esc).join(' · ')}</div>`:''}</div>
+      <button class="ck" onclick="toggleTaken(${d.h})">${taken.includes(d.h)?'✓':''}</button></div>`).join('')}
+      <div class="row" style="margin-top:10px;align-items:center"><div class="muted">Nhắc tôi khi đến giờ uống</div>
+      <label class="sw"><input type="checkbox" ${LS.get('remindOn',false)?'checked':''} onchange="toggleRemind(this)"><span></span></label></div></div>`;
+  if(fbv) h+=`<h2 class="sec">⭐ Đánh giá lần khám</h2><div class="card"><div class="muted">Lần khám ngày ${fmtShort(fbv.date)}${fbv.diag?' — '+esc(fbv.diag):''}</div>
+      <div class="stars" id="fbStars">${[1,2,3,4,5].map(i=>`<span onclick="setStars(${i})">★</span>`).join('')}</div>
+      <textarea class="in" id="fbText" placeholder="Góp ý của bạn (không bắt buộc)" style="min-height:70px"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn line sm" onclick="skipFb('${esc(fbv.id)}')">Để sau</button><button class="btn sm" onclick="sendFb('${esc(fbv.id)}')">Gửi đánh giá</button></div></div>`;
+  const ans=S.consults.filter(c=>c.status==='answered').slice(0,1);
+  if(ans.length) h+=`<h2 class="sec">💬 Trả lời tư vấn mới nhất</h2><div class="card" onclick="go('consult')" style="cursor:pointer"><div class="tiny">${esc(ans[0].area||'')} · gửi ${new Date(tsMs(ans[0].createdAt)).toLocaleDateString('vi-VN')}</div><div class="reply">${esc((ans[0].reply||'').slice(0,180))}${(ans[0].reply||'').length>180?'…':''}</div></div>`;
+  return h;
+}
+
+function vBook(){
+  const ps=profiles();
+  let h=`<div class="card"><label class="lb" style="margin-top:0">Người khám</label>
+    ${ps.length>1?`<select class="in" id="bkWho">${ps.map(p=>`<option>${esc(p.name)}</option>`).join('')}<option value="__new">Người khác...</option></select>`:''}
+    <input class="in ${ps.length>1?'hidden':''}" id="bkName" placeholder="Họ và tên" value="${esc(ps[0]?.name||'')}" style="${ps.length>1?'margin-top:8px':''}">
+    <label class="lb">Dịch vụ</label><select class="in" id="bkSvc">${CLINIC.services.map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+    <label class="lb">Ngày khám</label><input class="in" type="date" id="bkDate" value="${esc(S.booking.date)}" onchange="pickDate(this.value)">
+    <div id="bkSlots">${slotsHtml()}</div>
+    <label class="lb">Triệu chứng / ghi chú</label><textarea class="in" id="bkNote" placeholder="VD: đau lưng lan xuống chân 2 tuần nay"></textarea>
+    <button class="btn full" id="bkBtn" onclick="book()">Gửi yêu cầu đặt lịch</button>
+    <p class="note">Phòng khám sẽ xác nhận lịch qua ứng dụng hoặc gọi điện cho bạn.</p></div>`;
+  h+=`<h2 class="sec">Lịch hẹn của bạn</h2>`;
+  h+= S.appts.length ? `<div class="list">${S.appts.map(apptHtml).join('')}</div>` : `<div class="card empty">Chưa có lịch hẹn nào.</div>`;
+  return h;
+}
+const ST={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',cancelled:'Đã huỷ',rejected:'Không nhận',done:'Đã khám'};
+function apptHtml(a){
+  const future=(parseDate(a.date)||0)>=new Date(new Date().setHours(0,0,0,0));
+  return `<div class="item"><div class="row"><div><b>${fmtDate(a.date)} · ${esc(a.time)}</b><div class="muted">${esc(a.service)} — ${esc(a.name)}</div></div><span class="badge b-${a.status}">${ST[a.status]||a.status}</span></div>
+    ${a.note?`<div class="tiny" style="margin-top:6px">Ghi chú: ${esc(a.note)}</div>`:''}
+    ${a.adminNote?`<div class="reply">Phòng khám: ${esc(a.adminNote)}</div>`:''}
+    ${future&&(a.status==='pending'||a.status==='confirmed')?`<div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px">
+      ${a.status==='confirmed'?`<button class="btn ghost sm" onclick="icsApptById('${a.id}')">📆 Thêm vào lịch</button>`:''}
+      <button class="btn red sm" onclick="cancelAppt('${a.id}')">Huỷ lịch</button></div>`:''}</div>`;
+}
+function slotsHtml(){
+  if(!S.booking.date) return `<p class="tiny" style="margin-top:8px">Chọn ngày để xem giờ còn nhận.</p>`;
+  const d=parseDate(S.booking.date); const list=CLINIC.slots[d.getDay()]||[];
+  const now=new Date(); const isToday=ymd(now)===S.booking.date;
+  const avail=list.filter(t=>{ if(!isToday) return true; const [h,m]=t.split(':').map(Number); return h*60+m > now.getHours()*60+now.getMinutes()+60; });
+  if(!avail.length) return `<p class="err">${WD[d.getDay()]} phòng khám không nhận lịch${isToday&&list.length?' (đã hết giờ hôm nay)':''}. Vui lòng chọn ngày khác.</p>`;
+  return `<label class="lb">Giờ khám — ${WD[d.getDay()]}</label><div class="slots">${avail.map(t=>`<div class="slot ${S.booking.time===t?'on':''}" onclick="pickTime('${t}')">${t}</div>`).join('')}</div>`;
+}
+window.pickDate = v => { S.booking.date=v; S.booking.time=''; $('bkSlots').innerHTML=slotsHtml(); };
+window.pickTime = t => { S.booking.time=t; $('bkSlots').innerHTML=slotsHtml(); };
+document.addEventListener('change', e=>{ if(e.target.id==='bkWho'){ const n=$('bkName'); if(e.target.value==='__new'){ n.classList.remove('hidden'); n.value=''; n.focus(); } else { n.classList.add('hidden'); n.value=e.target.value; } } });
+window.book = async () => {
+  const name=$('bkName').value.trim(), svc=$('bkSvc').value, note=$('bkNote').value.trim();
+  if(!name){ toast('Vui lòng nhập họ tên người khám'); return; }
+  if(!S.booking.date||!S.booking.time){ toast('Vui lòng chọn ngày và giờ khám'); return; }
+  const dup=S.appts.find(a=>a.date===S.booking.date&&a.time===S.booking.time&&['pending','confirmed'].includes(a.status));
+  if(dup){ toast('Bạn đã có lịch vào giờ này rồi'); return; }
+  $('bkBtn').disabled=true;
+  try{
+    const prof=profiles().find(p=>p.name===name);
+    const data={uid:S.user.uid,phone:S.phone,name,ptId:prof?.ptId||'',service:svc,date:S.booking.date,time:S.booking.time,note,status:'pending',adminNote:'',createdAt:serverTimestamp()};
+    const r=await addDoc(collection(db,'appointments'),data);
+    S.appts.unshift({id:r.id,...data,createdAt:Date.now()}); S.booking={date:'',time:''};
+    toast('✓ Đã gửi yêu cầu. Phòng khám sẽ xác nhận sớm.'); render();
+  }catch(e){ console.error(e); toast('Không gửi được: '+(e.code||e.message)); $('bkBtn').disabled=false; }
+};
+window.cancelAppt = async id => {
+  if(!confirm('Huỷ lịch hẹn này?')) return;
+  try{ await updateDoc(doc(db,'appointments',id),{status:'cancelled',cancelledAt:serverTimestamp()});
+    const a=S.appts.find(x=>x.id===id); if(a) a.status='cancelled'; toast('Đã huỷ lịch'); render(); }
+  catch(e){ toast('Không huỷ được: '+(e.code||e.message)); }
+};
+
+function vRx(){
+  const vs=allVisits();
+  if(!S.portal) return `<div class="card empty">Chưa có hồ sơ khám gắn với số ${esc(localPhone(S.phone))}.<br>Nếu bạn đã khám tại phòng khám, vui lòng báo để cập nhật số điện thoại.</div>`;
+  if(!vs.length) return `<div class="card empty">Chưa có lần khám nào.</div>`;
+  const multi=profiles().length>1; const today=new Date(); today.setHours(0,0,0,0);
+  return `<p class="tiny" style="margin:0 2px 10px">Cập nhật: ${S.portal.updatedAt?new Date(tsMs(S.portal.updatedAt)).toLocaleString('vi-VN'):'—'}</p>`+
+  vs.map((v,i)=>{ const st=parseDate(v.date); const maxDays=Math.max(0,...(v.meds||[]).map(m=>parseInt(m.days)||0));
+    const end=st?new Date(st.getTime()+(maxDays-1)*864e5):null; const active=st&&maxDays&&today>=st&&today<=end;
+    const nxt=parseDate(v.nextVisit);
+    return `<div class="card" style="margin-bottom:12px"><div class="row"><div><b>${fmtDate(v.date)}</b>${multi?`<div class="tiny">${esc(v.ptName)}</div>`:''}</div>
+      ${active?'<span class="badge b-confirmed">Đang dùng thuốc</span>':(i===0?'<span class="badge b-done">Gần nhất</span>':'')}</div>
+      ${v.diag?`<div style="margin-top:6px"><span class="muted">Chẩn đoán:</span> <b>${esc(v.diag)}</b></div>`:''}
+      ${(v.meds||[]).length?`<div style="margin-top:8px">${v.meds.map(m=>`<div class="med"><div class="mn">${esc(m.name)} <span class="muted">${esc(m.dose||'')}</span></div>
+        <div class="chips">${m.qty?`<span class="chip">${esc(m.qty)} ${esc(m.unit||'')}/lần</span>`:''}${m.times?`<span class="chip">${esc(m.times)} lần/ngày</span>`:''}${m.days?`<span class="chip">${esc(m.days)} ngày</span>`:''}
+        ${doseHours(m).length?`<span class="chip g">⏰ ${doseHours(m).map(h=>pad(h)+'h').join(' · ')}</span>`:''}${m.remark?`<span class="chip a">${esc(m.remark)}</span>`:''}</div></div>`).join('')}</div>`:''}
+      ${(v.procs||[]).length?`<div class="tiny" style="margin-top:6px">Thủ thuật: ${v.procs.map(p=>esc(p.name)).join(', ')}</div>`:''}
+      ${v.note?`<div class="reply" style="background:var(--acl)">Lời dặn: ${esc(v.note)}</div>`:''}
+      ${nxt?`<div class="muted" style="margin-top:8px">📅 Hẹn tái khám: <b>${fmtShort(v.nextVisit)}${v.nextVisitTime?' · '+esc(v.nextVisitTime):''}</b></div>`:''}
+      <div class="row" style="margin-top:12px;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+        ${nxt&&nxt>=today?`<button class="btn ghost sm" onclick="icsNextVisit('${esc(v.nextVisit)}','${esc(v.nextVisitTime||'')}')">📆 Lịch tái khám</button>`:''}
+        ${active?`<button class="btn sm" onclick="icsMeds('${esc(v.id)}')">⏰ Nhắc uống thuốc vào lịch ĐT</button>`:''}</div></div>`; }).join('')+
+  `<div class="disc">Thông tin đơn thuốc chỉ để bạn tiện theo dõi. Không tự ý thay đổi liều hoặc dùng lại đơn cũ khi chưa hỏi ý kiến bác sĩ.</div>`;
+}
+
+function vConsult(){
+  const seen=LS.get('seenReplies',[]); S.consults.filter(c=>c.status==='answered').forEach(c=>{ if(!seen.includes(c.id)) seen.push(c.id); }); LS.set('seenReplies',seen);
+  const sub=S.cTab||'new';
+  let h=`<div class="seg"><button class="${sub==='new'?'on':''}" onclick="cTab('new')">Gửi câu hỏi</button><button class="${sub==='list'?'on':''}" onclick="cTab('list')">Đã gửi (${S.consults.length})</button></div>`;
+  if(sub==='new'){
+    h+=`<div class="card"><label class="lb" style="margin-top:0">Vùng da / vị trí</label><input class="in" id="csArea" placeholder="VD: mặt, da đầu, bàn tay...">
+      <label class="lb">Thời gian bị</label><select class="in" id="csDur"><option>Dưới 1 tuần</option><option>1–4 tuần</option><option>1–6 tháng</option><option>Trên 6 tháng</option></select>
+      <label class="lb">Mô tả triệu chứng</label><textarea class="in" id="csDesc" placeholder="Ngứa, rát, lan rộng? Đã dùng thuốc gì? Có bệnh nền, dị ứng thuốc?"></textarea>
+      <label class="lb">Ảnh (tối đa ${CLINIC.maxConsultPhotos}) — chụp rõ, đủ sáng, có ảnh toàn cảnh và cận cảnh</label>
+      <div class="thumbs" id="csThumbs">${thumbsHtml()}</div>
+      <button class="btn full" id="csBtn" onclick="sendConsult()">Gửi cho bác sĩ</button>
+      <div class="disc">Tư vấn qua ảnh chỉ mang tính tham khảo ban đầu, không thay thế khám trực tiếp. Nếu sưng phù môi/mắt, khó thở, sốt cao, tổn thương lan nhanh hoặc bong da — hãy đến cơ sở y tế gần nhất ngay.</div></div>`;
+  }else{
+    h+= S.consults.length ? `<div class="list">${S.consults.map(c=>`<div class="item"><div class="row"><div><b>${esc(c.area||'Tư vấn')}</b><div class="tiny">${new Date(tsMs(c.createdAt)).toLocaleString('vi-VN')} · ${esc(c.duration||'')}</div></div><span class="badge b-${c.status}">${c.status==='answered'?'Đã trả lời':'Chờ trả lời'}</span></div>
+      <div class="muted" style="margin-top:6px;white-space:pre-wrap">${esc(c.desc)}</div>
+      ${(c.images||[]).length?`<div class="thumbs">${c.images.map(u=>`<img src="${esc(u)}" loading="lazy">`).join('')}</div>`:''}
+      ${c.reply?`<div class="reply"><b>BS. Hoài Nam:</b>\n${esc(c.reply)}</div>`:''}</div>`).join('')}</div>` : `<div class="card empty">Bạn chưa gửi câu hỏi nào.</div>`;
+  }
+  return h;
+}
+window.cTab = t => { S.cTab=t; render(); };
+function thumbsHtml(){ return S.photos.map((p,i)=>`<div style="position:relative"><img src="${p.url}"><button onclick="rmPhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:none;background:var(--da);color:#fff;font-size:.8rem">✕</button></div>`).join('')
+  + (S.photos.length<CLINIC.maxConsultPhotos?`<div class="add" onclick="document.getElementById('filePick').click()">＋</div>`:''); }
+window.rmPhoto = i => { S.photos.splice(i,1); $('csThumbs').innerHTML=thumbsHtml(); };
+// Ảnh được nén và lưu thẳng trong Firestore (gói Spark không có Storage). Mỗi ảnh ≤ ~200KB, tổng 4 ảnh < giới hạn 1MB/bản ghi.
+async function compress(file){
+  const img=await createImageBitmap(file).catch(()=>null); if(!img) return null;
+  for(const [side,q] of [[1280,.75],[1024,.7],[900,.6],[720,.55]]){
+    const k=Math.min(1,side/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height); const url=c.toDataURL('image/jpeg',q);
+    if(url.length<=200000) return url; }
+  return null; }
+$('filePick').addEventListener('change', async e=>{
+  for(const f of [...e.target.files].slice(0,CLINIC.maxConsultPhotos-S.photos.length)){ const u=await compress(f); if(u) S.photos.push({url:u}); else toast('Không đọc được ảnh '+f.name); }
+  e.target.value=''; if($('csThumbs')) $('csThumbs').innerHTML=thumbsHtml();
+});
+window.sendConsult = async () => {
+  const area=$('csArea').value.trim(), desc=$('csDesc').value.trim(), duration=$('csDur').value;
+  if(!desc){ toast('Vui lòng mô tả triệu chứng'); return; }
+  if(!S.photos.length && !confirm('Bạn chưa gửi ảnh. Tư vấn da liễu cần ảnh để đánh giá. Vẫn gửi?')) return;
+  const btn=$('csBtn'); btn.disabled=true;
+  try{
+    btn.textContent='Đang gửi...'; const urls=S.photos.map(p=>p.url);
+    const data={uid:S.user.uid,phone:S.phone,name:profiles()[0]?.name||'',area,duration,desc,images:urls,status:'open',reply:'',createdAt:serverTimestamp()};
+    const r=await addDoc(collection(db,'consults'),data);
+    S.consults.unshift({id:r.id,...data,createdAt:Date.now()}); S.photos=[]; S.cTab='list';
+    toast('✓ Đã gửi. Bác sĩ sẽ trả lời trong ứng dụng.'); render();
+  }catch(e){ console.error(e); toast('Gửi lỗi: '+(e.code||e.message)); btn.disabled=false; btn.textContent='Gửi cho bác sĩ'; }
+};
+
+let fbStars=0;
+window.setStars = n => { fbStars=n; document.querySelectorAll('#fbStars span').forEach((s,i)=>s.classList.toggle('on',i<n)); };
+window.skipFb = id => { const s=LS.get('skipFb',[]); s.push(String(id)); LS.set('skipFb',s); render(); };
+window.sendFb = async visitId => {
+  if(!fbStars){ toast('Vui lòng chọn số sao'); return; }
+  try{ const data={uid:S.user.uid,phone:S.phone,name:profiles()[0]?.name||'',visitId:String(visitId),stars:fbStars,comment:$('fbText').value.trim(),createdAt:serverTimestamp()};
+    const r=await addDoc(collection(db,'feedback'),data); S.feedback.push({id:r.id,...data}); fbStars=0; toast('Cảm ơn bạn đã đánh giá! 💙'); render(); }
+  catch(e){ toast('Không gửi được: '+(e.code||e.message)); }
+};
+
+function vMe(){
+  const ps=profiles(); const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent); const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  return `<div class="card"><div class="muted">Số điện thoại</div><b style="font-size:1.1rem">${esc(localPhone(S.phone))}</b>
+    ${ps.length?`<div class="muted" style="margin-top:12px">Hồ sơ gắn với số này</div>${ps.map(p=>`<div style="margin-top:4px"><b>${esc(p.name)}</b> <span class="tiny">${esc(p.gender||'')}${p.year?' · '+esc(p.year):''} · ${(p.visits||[]).length} lần khám</span></div>`).join('')}`:''}</div>
+  <h2 class="sec">Phòng khám</h2><div class="card"><b>${esc(CLINIC.name)}</b><div class="muted">${esc(CLINIC.doctor)}</div>
+    ${CLINIC.address?`<div class="muted" style="margin-top:6px">📍 ${esc(CLINIC.address)}</div>`:''}
+    <div class="row" style="margin-top:12px;justify-content:flex-start;gap:8px;flex-wrap:wrap"><a class="btn ghost sm" href="tel:${CLINIC.phone}">📞 ${esc(CLINIC.phone)}</a><a class="btn ghost sm" href="https://zalo.me/${CLINIC.phone}" target="_blank" rel="noopener">💬 Zalo</a>${CLINIC.mapUrl?`<a class="btn ghost sm" href="${esc(CLINIC.mapUrl)}" target="_blank" rel="noopener">🗺️ Chỉ đường</a>`:''}</div></div>
+  ${standalone?'':`<h2 class="sec">Cài ứng dụng lên điện thoại</h2><div class="card muted">${isIOS?'Trên iPhone: bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên) ở Safari → <b>Thêm vào MH chính</b>.':'Trên Android: bấm menu <b>⋮</b> của Chrome → <b>Thêm vào màn hình chính</b> / <b>Cài đặt ứng dụng</b>.'}
+    ${deferredInstall?'<button class="btn full" onclick="doInstall()">Cài đặt ngay</button>':''}</div>`}
+  <button class="btn line full" onclick="loadAll().then(render).then(()=>toast('Đã cập nhật'))">🔄 Tải lại dữ liệu</button>
+  <button class="btn red full" onclick="logout()">Đăng xuất</button>
+  <p class="note">Dữ liệu sức khoẻ của bạn chỉ hiển thị khi đăng nhập bằng đúng số điện thoại đã đăng ký tại phòng khám.</p>`;
+}
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall=e; });
+window.doInstall = async () => { if(!deferredInstall) return; deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; render(); };
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}).catch(e=>console.warn('SW',e));
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && S.user){ scheduleDoseNotifications(); if(S.tab==='home') render(); } });
+</script>
+</body>
+</html>

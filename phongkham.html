@@ -771,6 +771,7 @@ async function fbSave(p){
     setSd('sync');
     await window.__setDoc(window.__doc('patients',p.id),d);
     queueRemove('patient',p.id);
+    syncPortalFor(p); // [CSKH] cập nhật cổng bệnh nhân
     setSd('ok');
   }catch(e){ setSd('err'); }
   updateQueueBadge();
@@ -789,6 +790,23 @@ async function fbDel(id){
 async function fbSaveQR(id,data){
   if(!fbOk) return;
   try{ await window.__setDoc(window.__doc('prescriptions',id),JSON.parse(JSON.stringify(data))); }catch(e){}
+}
+
+// ===== [CSKH] ĐỒNG BỘ CỔNG BỆNH NHÂN (portal/{+84...}) =====
+function cskhE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(d.startsWith('84')) d=d.slice(2); else if(d.startsWith('0')) d=d.slice(1); return (d.length>=9&&d.length<=10)?'+84'+d:null; }
+function cskhProfile(p){
+  const visits=(p.visits||[]).map(v=>({id:String(v.id),date:v.date||'',type:v.type||'',diag:v.diag||'',
+    meds:(v.meds||[]).filter(m=>m&&m.name).map(m=>({name:m.name,dose:m.dose||'',unit:m.unit||'',qty:m.qty||'',times:m.times||'',days:m.days||'',note:m.note||'',remark:m.remark||''})),
+    procs:(v.procs||[]).filter(x=>x&&x.name).map(x=>({name:x.name,qty:x.qty||1})),note:v.note||'',nextVisit:v.nextVisit||'',nextVisitTime:v.nextVisitTime||''}));
+  const last=visits[visits.length-1];
+  return {ptId:p.id,name:p.name||'',year:p.year||'',gender:p.gender||'',nextVisit:p.nextVisit||(last&&last.nextVisit)||'',nextVisitTime:p.nextVisitTime||(last&&last.nextVisitTime)||'',visits};
+}
+async function syncPortalFor(p){
+  try{
+    const e=cskhE164(p.phone); if(!e||!fbOk) return;
+    const same=pts.filter(x=>cskhE164(x.phone)===e); // gộp các hồ sơ cùng SĐT (người nhà)
+    await window.__setDoc(window.__doc('portal',e),{phone:e,profiles:same.map(cskhProfile),updatedAt:new Date()});
+  }catch(err){ console.warn('[CSKH] portal sync',err); }
 }
 
 function svLocal(){ localStorage.setItem('pk3',JSON.stringify(pts)); }

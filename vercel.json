@@ -1,7 +1,9 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/phongkham.html" },
-    { "source": "/don-thuoc", "destination": "/don-thuoc.html" }
+    { "source": "/don-thuoc", "destination": "/don-thuoc.html" },
+    { "source": "/cskh", "destination": "/cskh.html" },
+    { "source": "/cskh-admin", "destination": "/cskh-admin.html" }
   ],
   "headers": [
     {
@@ -10,6 +12,10 @@
         { "key": "Service-Worker-Allowed", "value": "/" },
         { "key": "Cache-Control", "value": "no-cache" }
       ]
+    },
+    {
+      "source": "/sw-cskh.js",
+      "headers": [ { "key": "Cache-Control", "value": "no-cache" } ]
     }
   ]
 }
