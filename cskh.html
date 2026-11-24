@@ -726,21 +726,17 @@ async function saveToken(test){
   if(!token) throw new Error('no-token');
   await setDoc(doc(db,'pushTokens',S.user.uid),{tokens:arrayUnion(token),phone:S.phone,updatedAt:serverTimestamp()},{merge:true});
   LS.set('pushToken',token); PUSH.on=true;
-  if(test) callNotify('test','x');
 }
 window.enablePush = async () => {
   const btn=$('pushBtn'); if(btn){ btn.disabled=true; btn.textContent='Đang bật...'; }
   try{
     const perm=await Notification.requestPermission();
     if(perm!=='granted'){ toast('Bạn chưa cho phép thông báo. Có thể bật lại trong Cài đặt của điện thoại.'); render(); return; }
-    await saveToken(true); toast('🔔 Đã bật thông báo. Bạn sẽ nhận một thông báo thử ngay bây giờ.'); render();
+    await saveToken(true); toast('🔔 Đã bật thông báo. Vài giây nữa máy sẽ báo một chuông thử.'); render();
   }catch(e){ console.error(e); toast('Chưa bật được thông báo: '+(e.code||e.message)); render(); }
 };
-async function callNotify(type,id){
-  try{ const t=await auth.currentUser.getIdToken();
-    await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({type,id})}); }
-  catch(e){ console.warn('notify',e); }
-}
+// Chuông được Cloud Functions gửi tự động khi dữ liệu thay đổi — không cần gọi từ trình duyệt
+function callNotify(){}
 function pushCardHtml(){
   if(PUSH.on || PUSH.supported===null) return '';
   if(!PUSH.supported){

@@ -168,7 +168,7 @@ window.saveEdit=async id=>{
     upd.proposedDate=d; upd.proposedTime=t; }
   try{ await updateDoc(doc(db,'appointments',id),upd); Object.assign(a,upd); S.editing=null; render(); callNotify('appt',id);
     toast(k==='reschedule'?'Đã gửi đề xuất giờ mới':'Đã '+(upd.prevStatus==='pending'?'từ chối':'huỷ')+' lịch');
-    if(confirm('Đã gửi thông báo vào app của khách.\nNhắn thêm qua Zalo cho chắc? (tin nhắn đã soạn sẵn, anh chỉ cần dán và gửi)')) notifyZalo(id);
+    if(confirm('Đã gửi thông báo vào app của khách (máy khách sẽ báo chuông nếu đã bật thông báo).\nNhắn thêm qua Zalo cho chắc? (tin nhắn soạn sẵn, anh chỉ cần dán và gửi)')) notifyZalo(id);
   }catch(e){ toast('Lỗi: '+(e.code||e.message)); }
 };
 function apptMsg(a){
@@ -248,26 +248,18 @@ window.syncAll=async()=>{
 
 /* ---------- Chuông báo cho bác sĩ ---------- */
 const VAPID='BB1V91mj_5sowpGcvprfhXFaPKvQ4DEhgvDcV9CmeZpLRVM43uZJtFTIBlC-1kGp9A4T55YxVR_HBwFbBpFilFw';
-async function callNotify(type,id){
-  try{ const t=await auth.currentUser.getIdToken();
-    const r=await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({type,id})});
-    const j=await r.json().catch(()=>({}));
-    if(r.ok && j.sent>0) toast('🔔 Đã báo chuông tới điện thoại khách');
-    else if(r.ok && j.reason==='no-tokens' && type!=='test') toast('Khách chưa bật thông báo — nên nhắn Zalo');
-    else if(!r.ok) console.warn('notify',r.status,j);
-  }catch(e){ console.warn('notify',e); }
-}
+// Chuông được Cloud Functions gửi tự động khi dữ liệu thay đổi — không cần gọi từ trình duyệt
+function callNotify(){}
 window.callNotify=callNotify;
 async function saveBell(test){
   const reg=await navigator.serviceWorker.register('/sw-cskh.js',{scope:'/cskh'}); await navigator.serviceWorker.ready;
   const token=await getToken(getMessaging(app),{vapidKey:VAPID,serviceWorkerRegistration:reg});
   await setDoc(doc(db,'pushTokens',auth.currentUser.uid),{tokens:arrayUnion(token),role:'admin',updatedAt:serverTimestamp()},{merge:true});
   localStorage.setItem('bellToken',token); $('bellBtn').style.display='none';
-  if(test) callNotify('test','x');
 }
 window.enableBell=async()=>{
   try{ const p=await Notification.requestPermission(); if(p!=='granted'){ toast('Trình duyệt đang chặn thông báo'); return; }
-    await saveBell(true); toast('🔔 Đã bật — máy này sẽ báo khi có lịch hẹn / tư vấn mới'); }
+    await saveBell(true); toast('🔔 Đã bật — vài giây nữa máy sẽ báo một chuông thử'); }
   catch(e){ toast('Lỗi bật chuông: '+(e.code||e.message)); }
 };
 onAuthStateChanged(auth, async u=>{
